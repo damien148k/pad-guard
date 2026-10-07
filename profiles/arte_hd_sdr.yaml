@@ -1,0 +1,192 @@
+# Profil de contrôle PAD — ARTE G.E.I.E., HD SDR (1080p25 / 1080p50)
+#
+# Source : "Consignes Techniques Globales ARTE G.E.I.E." V2-01-00, applicable au 1er janvier 2026
+# (les anciennes consignes V1-07-3 restent acceptées jusqu'au 31 décembre 2026).
+# Chaque valeur cite le paragraphe du document. Les valeurs marquées "DEDUIT" ne sont pas
+# écrites noir sur blanc dans le document et sont une interprétation à valider.
+
+profile:
+  name: arte_hd_sdr
+  version: "1.0"
+  broadcaster: "ARTE G.E.I.E."
+  source_document: "Consignes Techniques Globales ARTE G.E.I.E. V2-01-00 (application 01/01/2026)"
+  notes: >
+    Le PAD final Arte est un MXF OP1a XAVC HD Intra Class 100 (§3.2.2.1), fabriqué par le
+    prestataire à partir du master ProRes 422 HQ livré par Lumiris. Ce profil contrôle ce master
+    avec les règles du PAD (niveaux, structure, timecode, audio) ; seul le codec attendu diffère.
+
+format:
+  codecs:
+    - {codec_name: prores, profile: "HQ"}            # master interne, voir notes
+    - {codec_name: dnxhd, profile: "DNXHR HQX"}      # master interne, voir notes
+  containers: [mov, mxf]
+  pix_fmt: yuv422p10le                               # §3.1 : 4:2:2 10 bits
+  width: 1920                                        # §3.2.2.1 : 1920 x 1080 (UHD 3840x2160 hors périmètre v2)
+  height: 1080
+  fps_allowed: ["25/1", "50/1"]                      # §3.2.2.1 : 50p, ou 25p si tournage 24p/25p
+  field_order: progressive                           # §3.2.2.1 : progressif (1080i50 toléré jusqu'au 31/12/2026 sous V1-07-3)
+  color_primaries: bt709                             # §3.2.2.1 : ITU-R BT.709
+  color_transfer: bt709
+  color_space: bt709
+  color_range: tv                                    # §3.2.3.2 : 64-940 en 10 bits
+  unknown_color_tags_severity: minor
+  letterbox:                                         # §3.2.4 : lignes actives attendues selon le format d'image
+    check: true
+    formats:
+      - {aspect: "1.33", active_lines: 1080, first_line: 21,  last_line: 1123, active_pixels: 1440}   # pillarbox
+      - {aspect: "1.66", active_lines: 1080, first_line: 21,  last_line: 1123, active_pixels: 1800}   # pillarbox
+      - {aspect: "1.77", active_lines: 1080, first_line: 21,  last_line: 1123, active_pixels: 1920}
+      - {aspect: "1.85", active_lines: 1036, first_line: 32,  last_line: 1112, active_pixels: 1920}
+      - {aspect: "2.35", active_lines: 816,  first_line: 87,  last_line: 1057, active_pixels: 1920}
+    tolerance_lines: 2                               # DEDUIT
+    # Note : les numéros de ligne du document sont en numérotation SMPTE 274M (ligne 21 = première ligne active).
+    # En indices d'image 0..1079 : 1.85 -> lignes 11..1046 (1036 lignes), 2.35 -> lignes 66..881 (816 lignes). A vérifier sur un vrai master.
+
+video:
+  bit_depth: 10
+  y_min_legal: 64                                    # §3.2.3.2
+  y_max_legal: 940                                   # §3.2.3.2
+  y_tolerance_low_pct: -1.0                          # §3.2.3.3 : Y entre -1 % et 103 % (-7 mV / 721 mV)
+  y_tolerance_high_pct: 103.0
+  rgb_min_pct: -5.0                                  # §3.2.3.3 : RVB entre -5 % et 105 % (-35 mV / 735 mV)
+  rgb_max_pct: 105.0
+  max_out_of_range_area_pct: 1.0                     # §3.2.3.3 : erreur si >= 1 % de la superficie de l'image
+  prefilter: true                                    # §3.2.3.3 : "léger dépassement fugitif filtré avant la mesure"
+  measure_spaces: [ycbcr, rgb]                       # §3.2.3 : mesures dans les deux espaces
+
+audio:
+  sample_rate: 48000                                 # §3.3 / §3.3.4
+  bit_depth: 24                                      # §3.3.4 : 24 bits prioritaire (16 bits seulement pour SD up-converti)
+  bit_depth_allowed: [24, 16]
+  same_bit_depth_all_tracks: true                    # §3.3.4
+  channel_layout: stereo_pairs                       # §3.2.2.1 / §3.3.4 : pistes gérées par paire AES
+  max_pairs: 8                                       # §3.3 : jusqu'à 8 paires AES
+  no_silent_tracks: true                             # §3.2.2.1 : "pas de piste avec silence"
+  silent_track_dbfs: -60.0                           # DEDUIT : une piste entière sous -60 dBFS est "sans contenu"
+  dual_mono_must_be_identical: true                  # §3.3.4.1 : mono = 2 pistes strictement identiques et en phase
+  groups:                                            # configuration habituelle Lumiris ; l'ordre des paires doit être celui déclaré dans Partner (§3.2.2.1)
+    - {name: "VO", tracks: [1, 2], layout: stereo, required: true}
+    - {name: "VF", tracks: [3, 4], layout: stereo, required: true}
+    - {name: "VI", tracks: [5, 6], layout: stereo, required: true}   # version internationale (musique et effets, sans dialogue)
+  loudness_exempt_groups: ["VI"]                     # DEDUIT : une VI n'a pas de dialogue, l'excursion short term "dialogue" ne s'y applique pas ; le loudness intégré -23 reste exigé
+  loudness:
+    long_program_min_seconds: 120                    # §3.3.2.4 : programmes > 2'00
+    long:
+      integrated_lufs: -23.0                         # §3.3.2.4
+      integrated_tolerance_lu: 1.0                   # §3.3.2.4 : ± 1 LU (le texte précise "pour les diffusions en direct" ; pour un fichier viser -23 exactement)
+      short_term_dialogue_excursion_lu: 7.0          # §3.3.2.5 : ± 7 LU en Short Term (3 s) autour de la cible, pour le dialogue
+      lra_max_lu: 20.0                               # §3.3.2.5 : LRA <= 20 LU
+      lra_recommended_range_lu: [5, 15]              # §3.3.2.5 : bonne pratique, information seulement
+    short:
+      integrated_lufs: -23.0                         # §3.3.2.4
+      integrated_tolerance_lu: 0.5                   # §3.3.2.4 : ± 0,5 LU
+      short_term_max_lufs: -20.0                     # §3.3.2.4 : Short Term <= -20 LUFS
+      short_term_excursion_above_lu: 3.0             # §3.3.2.5 : + 3 LU max au-dessus de la cible
+  true_peak_max_dbtp: -1.0                           # §3.3.2.1 / §3.3.2.3 : -1 dBTP (Arte, et non -3 dBTP comme CST RT-017)
+  alignment_tone: {hz: 1000, dbfs: -18.0}            # §3.3.2.3 : si une mire 1 kHz est fournie à part
+  silence_dbfs: -60.0
+  silence_max_seconds: 3.0                           # DEDUIT : aucun seuil chiffré dans le document ; §6.11.1 interdit les génériques silencieux sur noir
+  phase_min_correlation: -0.3                        # DEDUIT de §3.3.4.2 : "phase très majoritairement positive"
+  phase_min_seconds: 2.0
+  av_sync_ms: {audio_early_max: 40, audio_late_max: 60}   # §3.3.3 (EBU R37) : non mesurable automatiquement sans référence, information
+  exclude_head_tail: false                           # pas d'amorces chez Arte, tout le fichier est programme
+
+structure:
+  leaders: none                                      # §3.2.2.1 : "Le programme ne doit pas contenir d'amorces de début et de fin"
+  timecode:
+    file_start: "10:00:00:00"                        # §3.2.2.1 / §3.4.1 : TC In à 10:00:00:00
+    program_start: "10:00:00:00"                     # le programme commence à la première image du fichier
+    tolerance_frames: 0
+    drop_frame_allowed: false
+    must_be_continuous: true                         # §3.4.1 : aucun saut ni recouvrement
+  bars:
+    required: false                                  # pas d'amorce (§3.2.2.1) ; la mire est interdite dans le fichier
+    forbidden: true
+  black:
+    head_max_seconds: null                           # DEDUIT : aucune valeur chiffrée ; le programme commence à 10:00:00:00
+    tail_max_seconds: null
+    y_max: 68
+    silence_dbfs: -60.0
+  first_frames:
+    no_subtitles_first_frames: 10                    # §3.5.3 : pas de sous-titre sur les 10 premières images (concerne le fichier STL, information)
+  logo:
+    forbidden: true                                  # §6.1 : pas de logo de chaîne/groupe dans le programme (non détectable automatiquement en v2)
+  credits:
+    end_credits_max_seconds: {documentary: 30, fiction: 60, cinema: 120}   # §6.11.2 (non mesurable automatiquement en v2, information)
+    silent_black_credits_forbidden: true             # §6.11.1
+  freeze:
+    threshold: 0.5
+    min_seconds: 2.0
+  pse:
+    enabled: true                                    # non exigé par Arte dans ce document ; contrôle interne Lumiris
+    max_flashes_per_second: 3
+    flash_min_delta_pct: 10.0
+    flash_min_area_pct: 25.0
+  safe_areas:                                        # §3.2.6 / §13.1 (EBU R95), information en v2
+    title_safe_pct: {horizontal: 5.0, vertical: 5.0}
+    subtitle_safe: "cadre rouge, voir annexe 13.1"
+    logo_corners_free: true                          # §3.2.7
+
+rules:
+  merge_gap_frames: 12
+  min_event_frames:
+    white_clip: 1
+    black_crush: 1
+    gamut: 1                                         # §3.2.3.3 : le seuil de surface (1 %) fait déjà le filtrage
+    freeze: 50
+  max_major: 0
+  score_formula: "100 - 40*blocking - 10*major - 2*minor"
+  severity:
+    white_clip:
+      - {if: "area_pct_max >= 1 and duration_frames >= 25", then: major}
+      - {if: "area_pct_max >= 1", then: minor}
+      - {else: info}
+    black_crush:
+      - {if: "area_pct_max >= 1 and duration_frames >= 25", then: major}
+      - {if: "area_pct_max >= 1", then: minor}
+      - {else: info}
+    gamut:
+      - {if: "area_pct_max >= 1 and duration_frames >= 25", then: major}
+      - {if: "area_pct_max >= 1", then: minor}
+      - {else: info}
+    freeze:
+      - {if: "duration_frames >= 125", then: blocking}
+      - {else: major}
+    isolated_black_frame:
+      - {else: major}
+    duplicate_frame:
+      - {else: minor}
+    pse:
+      - {else: major}
+    audio_loudness:
+      - {else: blocking}
+    audio_true_peak:
+      - {else: blocking}
+    audio_short_term_excursion:
+      - {else: major}
+    audio_lra:
+      - {else: major}
+    audio_silent_track:
+      - {else: blocking}                             # §3.2.2.1
+    audio_dual_mono_mismatch:
+      - {else: major}                                # §3.3.4.1
+    audio_silence:
+      - {else: major}
+    audio_phase:
+      - {else: minor}
+    structure_leaders_present:
+      - {else: blocking}                             # mire ou amorce trouvée en tête : interdit
+    structure_timecode:
+      - {else: blocking}
+    letterbox:
+      - {else: minor}
+    format:
+      - {else: blocking}
+
+llm:                                                 # couche IA locale, désactivée sauf --llm ollama
+  backend: ollama
+  model: "qwen3-vl:32b-instruct"                     # vision + texte, Q4_K_M ≈ 20 Go, tient sur 24 Go de VRAM
+  fallback_model: "qwen3-vl:8b-instruct"             # ≈ 6 Go, plus rapide, si le 32B ne tient pas ou pour un aperçu
+  num_ctx: 8192
+  temperature: 0.1
+  language: fr

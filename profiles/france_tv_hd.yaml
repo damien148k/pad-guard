@@ -1,0 +1,139 @@
+# Profil de contrôle PAD — exemple France Télévisions HD (SDR, 1080p25)
+#
+# ATTENTION : valeurs d'exemple fondées sur EBU R103, EBU R128 et CST RT-017.
+# Les valeurs marquées "A VERIFIER" doivent être relues dans le cahier des charges
+# officiel du diffuseur avant toute utilisation en production.
+# Les champs à null sont volontairement non renseignés : l'outil refuse de tourner
+# si une règle activée dépend d'un champ null.
+
+profile:
+  name: france_tv_hd
+  version: "0.1"
+  broadcaster: "France Télévisions"
+  source_document: "Cahier des charges technique FTV HD — A VERIFIER (référence et date)"
+  notes: "Profil de démarrage, à valider par Vincent."
+
+format:
+  codecs:
+    - {codec_name: prores, profile: "HQ"}          # ProRes 422 HQ
+    - {codec_name: dnxhd, profile: "DNXHR HQX"}    # DNxHR HQX (ffprobe l'annonce sous codec dnxhd)
+  containers: [mov, mxf]
+  pix_fmt: yuv422p10le
+  width: 1920
+  height: 1080
+  fps: "25/1"
+  field_order: progressive
+  color_primaries: bt709
+  color_transfer: bt709
+  color_space: bt709
+  color_range: tv
+  unknown_color_tags_severity: minor      # balises absentes = avertissement, pas blocage
+
+video:
+  bit_depth: 10
+  y_min_legal: 64
+  y_max_legal: 940
+  y_tolerance_low_pct: -1.0               # EBU R103 : -1 % -> 55 en 10 bits
+  y_tolerance_high_pct: 103.0             # EBU R103 : +103 % -> 967 en 10 bits
+  rgb_min_pct: -5.0                       # EBU R103
+  rgb_max_pct: 105.0                      # EBU R103
+  max_out_of_range_area_pct: 1.0          # EBU R103 : max 1 % des pixels par image
+  prefilter: true                         # lissage horizontal avant mesure (R103)
+
+audio:
+  sample_rate: 48000
+  bit_depth: 24
+  groups:                                 # A VERIFIER : mapping exigé par la chaîne
+    - {name: "VF stéréo", tracks: [1, 2], layout: stereo, required: true}
+    - {name: "VI stéréo", tracks: [3, 4], layout: stereo, required: false}
+  integrated_lufs: -23.0                  # EBU R128 / CST RT-017
+  integrated_tolerance_lu: 1.0
+  true_peak_max_dbtp: -3.0                # CST RT-017 (France) ; EBU R128 seul dirait -1
+  lra_max_lu: 20.0                        # A VERIFIER
+  silence_dbfs: -60.0
+  silence_max_seconds: 3.0                # hors tête et queue
+  phase_min_correlation: -0.3
+  phase_min_seconds: 2.0
+  exclude_head_tail: true                 # ne pas mesurer la mire/1 kHz ni les noirs
+
+structure:
+  timecode:
+    file_start: "09:59:30:00"             # A VERIFIER
+    program_start: "10:00:00:00"
+    tolerance_frames: 0
+    drop_frame_allowed: false
+  bars:
+    required: true
+    start_tc: "09:59:30:00"
+    min_seconds: 20                       # A VERIFIER (souvent 30 s)
+    pattern: ebu_75                       # ebu_75 | ebu_100 | smpte_hd
+    tone_hz: 1000
+    tone_dbfs: -18.0                      # A VERIFIER (-18 dBFS est l'usage EBU)
+    tolerance: 12                         # erreur moyenne max par barre, en valeurs de code 10 bits
+  black:
+    head_min_seconds: 5                   # noir + silence juste avant 10:00:00:00 — A VERIFIER
+    tail_min_seconds: 10                  # A VERIFIER
+    y_max: 68                             # une image est "noire" si y_p99 < 68
+    silence_dbfs: -60.0
+  freeze:
+    threshold: 0.5                        # diff. absolue moyenne (code 10 bits) entre images consécutives
+    min_seconds: 2.0
+  pse:
+    enabled: true
+    max_flashes_per_second: 3
+    flash_min_delta_pct: 10.0             # variation de luminance relative
+    flash_min_area_pct: 25.0
+
+rules:
+  merge_gap_frames: 12
+  min_event_frames:
+    white_clip: 1
+    black_crush: 1
+    gamut: 3
+    freeze: 50
+  max_major: 0                            # un seul "major" = NON-CONFORME
+  score_formula: "100 - 40*blocking - 10*major - 2*minor"
+  severity:
+    white_clip:
+      - {if: "worst_value > 1004 or area_pct_max > 5", then: blocking}
+      - {if: "duration_frames >= 25", then: major}
+      - {else: minor}
+    black_crush:
+      - {if: "area_pct_max > 5", then: major}
+      - {else: minor}
+    gamut:
+      - {if: "area_pct_max > 5 and duration_frames >= 25", then: major}
+      - {else: minor}
+    freeze:
+      - {if: "duration_frames >= 125", then: blocking}
+      - {else: major}
+    isolated_black_frame:
+      - {else: major}
+    duplicate_frame:
+      - {else: minor}
+    pse:
+      - {else: major}
+    audio_loudness:
+      - {else: blocking}
+    audio_true_peak:
+      - {else: blocking}
+    audio_silence:
+      - {else: major}
+    audio_phase:
+      - {else: minor}
+    structure_bars:
+      - {else: blocking}
+    structure_black:
+      - {else: major}
+    structure_timecode:
+      - {else: blocking}
+    format:
+      - {else: blocking}
+
+llm:
+  backend: ollama
+  model: "qwen3-vl:32b-instruct"
+  fallback_model: "qwen3-vl:8b-instruct"
+  num_ctx: 8192
+  temperature: 0.1
+  language: fr
