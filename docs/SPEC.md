@@ -293,12 +293,16 @@ Voir `profiles/france_tv_hd.yaml` pour l'exemple complet. Sections obligatoires 
 
 ```yaml
 profile:        {name, version, broadcaster, source_document, notes}
-format:         {codecs[], pix_fmt, width, height, fps, field_order, color_*, color_range}
+format:         {codecs[], containers[], pix_fmt, width, height, fps_allowed[], field_order, color_*, color_range,
+                 unknown_color_tags_severity, letterbox?}
 video:          {bit_depth, y_min_legal, y_max_legal, y_tolerance_low_pct, y_tolerance_high_pct,
                  rgb_min_pct, rgb_max_pct, max_out_of_range_area_pct, prefilter}
-audio:          {sample_rate, bit_depth, groups[], integrated_lufs, integrated_tolerance_lu,
-                 true_peak_max_dbtp, lra_max_lu, silence_dbfs, silence_max_seconds, phase_min_correlation}
-structure:      {timecode{file_start, program_start, tolerance_frames},
+audio:          {sample_rate, bit_depth, groups[],
+                 loudness{long_program_min_seconds?, long{integrated_lufs, integrated_tolerance_lu, lra_max_lu?, ...},
+                          short?{...}},   # sans "short", "long" s'applique à toutes les durées
+                 true_peak_max_dbtp, silence_dbfs, silence_max_seconds, phase_min_correlation, exclude_head_tail}
+structure:      {leaders: classic|none,
+                 timecode{file_start, program_start, tolerance_frames},
                  bars{required, start_tc, min_seconds, pattern, tone_hz, tone_dbfs, tolerance},
                  black{head_min_seconds, tail_min_seconds, y_max, silence_dbfs},
                  freeze{threshold, min_seconds}, pse{enabled, max_flashes_per_second}}
