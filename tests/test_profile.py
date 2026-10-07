@@ -27,7 +27,8 @@ def test_arte_values() -> None:
     assert p.audio.true_peak_max_dbtp == -1.0
     assert [g.name for g in p.audio.groups] == ["VO", "VF", "VI"]
     assert p.audio.loudness.short is not None and p.audio.loudness.short.integrated_tolerance_lu == 0.5
-    assert null_fields(p) == ["structure.black.head_max_seconds", "structure.black.tail_max_seconds"]
+    assert null_fields(p) == []
+    assert (p.structure.black.head_max_seconds, p.structure.black.tail_max_seconds) == (2.0, 5.0)
 
 
 def test_france_tv_values() -> None:
@@ -123,10 +124,13 @@ def test_cli_validate_ok() -> None:
     assert "Profil valide" in result.output
 
 
-def test_cli_validate_lists_null_fields() -> None:
-    result = runner.invoke(app, ["validate-profile", str(PROFILES / "arte_hd_sdr.yaml")])
+def test_cli_validate_lists_null_fields(tmp_path: Path) -> None:
+    def open_value(raw):
+        raw["structure"]["black"]["head_min_seconds"] = None
+
+    result = runner.invoke(app, ["validate-profile", str(_mutated(tmp_path, open_value))])
     assert result.exit_code == 0, result.output
-    assert "structure.black.head_max_seconds" in result.output
+    assert "structure.black.head_min_seconds" in result.output
 
 
 def test_cli_validate_typo(tmp_path: Path) -> None:

@@ -42,7 +42,8 @@ EVENT_TYPES = (
     "structure_bars",
     "structure_black",
     "structure_timecode",
-    "structure_leaders_present",
+    "structure_bars_present",
+    "structure_black_too_long",
     "format",
 )
 EventType = Literal[EVENT_TYPES]  # type: ignore[valid-type]

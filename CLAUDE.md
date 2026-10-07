@@ -59,6 +59,15 @@ uv run pad-checker report ./out/            # régénérer le rapport sans refai
 uv run pytest
 ```
 
+## Décisions actées (7 octobre 2026)
+
+- **Pistes audio** : une piste du profil = un canal, numéroté à partir de 1 dans l'ordre de tous les flux audio du conteneur (stéréo ou mono, peu importe). `probe.json` enregistre la correspondance (flux, canal) → numéro de piste.
+- **Niveaux Y** : `y_below_pct` / `y_above_pct` se mesurent par rapport aux bornes **tolérées** du profil (55/967 en 10 bits pour -1 %/103 %), arrondies vers l'extérieur et inclusives. `y_below_legal_pct` / `y_above_legal_pct` (64/940) sont de l'information, sans règle.
+- **`null` dans un profil** : jamais de désactivation implicite. Une règle qui dépend d'un champ `null` fait refuser l'analyse.
+- **Arte, mode `leaders: none`** : mire → `structure_bars_present` (`blocking`) ; noir de tête > `head_max_seconds` ou de queue > `tail_max_seconds` → `structure_black_too_long` (`minor`).
+- **Intégrité** : vérifiée pendant la passe de décodage/mesure (erreurs PyAV collectées, images décodées = `nb_frames`), jamais par un second décodage.
+- **Profils** : schéma commun (`format.fps_allowed`, `audio.loudness.long/short`, `structure.leaders`). Les tests des fixtures à amorce classique utilisent `tests/profiles/test_classic.yaml`, pas un profil de chaîne.
+
 ## Ce qu'il ne faut pas faire
 
 - Ne pas invoquer FFmpeg via `os.system` avec des chaînes concaténées : utiliser `subprocess.run` avec une liste d'arguments.

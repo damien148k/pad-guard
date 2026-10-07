@@ -34,7 +34,9 @@ Caractéristiques attendues par défaut (modifiables par le profil) : 1920×1080
 
 ### 2.2 Audio
 
-L'audio est lu **dans le conteneur**. Le profil définit le mapping attendu des pistes (ex. pistes 1-2 : stéréo VF, 3-4 : stéréo VI, 5-10 : 5.1). Un fichier WAV externe n'est pas pris en charge dans cette version.
+L'audio est lu **dans le conteneur**. Le profil définit le mapping attendu des pistes (ex. pistes 1-2 : stéréo VF, 3-4 : stéréo VI, 5-10 : 5.1).
+
+**Numérotation des pistes :** une « piste » du profil est un **canal audio**, numéroté à partir de 1 dans l'ordre de tous les flux audio du conteneur. Un MOV avec un flux stéréo donne les pistes 1-2 ; un MXF avec six flux mono donne les pistes 1 à 6 ; un flux stéréo suivi de deux flux mono donne 1-2, 3, 4. `probe.json` enregistre la correspondance (index du flux, canal dans le flux) → numéro de piste. Un fichier WAV externe n'est pas pris en charge dans cette version.
 
 ### 2.3 Profil de chaîne
 
@@ -96,9 +98,11 @@ Extraire et vérifier contre le profil :
 | durée | `duration`, `nb_frames` | cohérence entre les deux ; durée totale vs. durée annoncée dans le profil (tolérance) |
 | timecode de départ | tag `timecode` (piste `tmcd` en MOV, `timecode` en MXF) | égal à `profile.structure.timecode.file_start` |
 | audio | par piste : `codec_name`, `sample_rate`, `bits_per_raw_sample`, `channels` | selon mapping du profil |
-| intégrité | `ffmpeg -v error -i f -f null -` sur tout le fichier | zéro erreur de décodage |
+| intégrité | pendant la passe de mesure (§5.1), pas de décodage séparé | zéro erreur de décodage PyAV, et images décodées = `nb_frames` |
 
-Sortie : `probe.json` avec les valeurs brutes et, pour chaque règle, `expected` / `actual` / `ok`.
+Sortie : `probe.json` avec les valeurs brutes, la table des pistes audio et, pour chaque règle, `expected` / `actual` / `ok`.
+
+L'intégrité n'est pas vérifiée par `probe` : elle demanderait un second décodage complet (doublement du temps d'analyse). Le décodeur de l'étape 2 compte les images décodées et collecte les erreurs PyAV ; le résultat (`integrity`) est écrit dans `measurements.json` et vérifié par `rules`. En Phase 1, `analyze --benchmark` fait ce contrôle sur la passe de décodage.
 
 ---
 
@@ -107,6 +111,8 @@ Sortie : `probe.json` avec les valeurs brutes et, pour chaque règle, `expected`
 ### 5.1 Décodage
 
 PyAV, `thread_type="AUTO"`, sans conversion de format : on travaille directement sur les plans Y, Cb, Cr en `uint16` (valeurs 0–1023). Le décodage ProRes/DNxHR est CPU uniquement (NVDEC ne gère pas ces codecs).
+
+Le décodeur fait aussi le **contrôle d'intégrité** : toute erreur PyAV est consignée (numéro d'image, message) au lieu d'interrompre l'analyse, et le nombre d'images décodées est comparé à `nb_frames`.
 
 Objectif de performance : **au moins 2× temps réel** en 1080p25 sur un processeur 16 cœurs (un film de 90 min analysé en moins de 45 min), mesuré et noté dans le README.
 
@@ -119,13 +125,16 @@ Calculées en NumPy sur le plan Y, puis sur Cb et Cr, puis sur une conversion RG
 | `y_min`, `y_max` | extrêmes de Y | information |
 | `y_p01`, `y_p99` | percentiles 0,1 % et 99,9 % de Y | robustes au grain |
 | `y_mean` | moyenne de Y | détection de noir, PSE |
-| `y_below_pct` | % de pixels avec Y < `video.y_min_legal` | règle noirs écrasés |
-| `y_above_pct` | % de pixels avec Y > `video.y_max_legal` | règle blancs clippés |
+| `y_below_pct` | % de pixels avec Y sous la borne basse **tolérée** (`y_tolerance_low_pct`, 55 en 10 bits pour -1 %) | règle noirs écrasés |
+| `y_above_pct` | % de pixels avec Y au-dessus de la borne haute **tolérée** (`y_tolerance_high_pct`, 967 pour 103 %) | règle blancs clippés |
+| `y_below_legal_pct`, `y_above_legal_pct` | % de pixels avec Y < `video.y_min_legal` (64) ou > `video.y_max_legal` (940) | information, aucune règle |
 | `rgb_out_pct` | % de pixels dont R, G ou B est hors `[rgb_min, rgb_max]` après conversion BT.709 (plage légale) | règle gamut |
 | `cb_min`, `cb_max`, `cr_min`, `cr_max` | extrêmes de chroma | information |
 | `sat_max` | saturation max (`sqrt(Cb²+Cr²)` centré) | information |
 
 **Conversion RGB :** Y'CbCr 10 bits plage légale → R'G'B' avec la matrice BT.709 inverse, en float32, sans clipping. Le résultat est comparé aux bornes du profil exprimées en % (-5 % à +105 % par défaut, EBU R103).
+
+**Conversion des pourcentages en valeurs de code :** `code = y_min_legal + pct/100 × (y_max_legal − y_min_legal)`, arrondi vers l'extérieur (borne basse vers le bas, borne haute vers le haut) ; la plage obtenue est inclusive. Exemple : -1 % → 55,24 → 55 ; 103 % → 966,28 → 967.
 
 **Seuils par défaut (EBU R103, 10 bits) :** Y légal entre 64 et 940 ; tolérance -1 % / +103 % soit `[55, 967]` ; RGB entre -5 % et +105 % soit `[20, 984]` ; **surface tolérée : 1 % des pixels par image**. Ces valeurs vivent dans le profil, pas dans le code.
 
@@ -161,7 +170,8 @@ Appliquer les mesures **à chaque groupe de pistes** du mapping (VF, VI, 5.1 sé
   "source": {"path": "...", "sha256": "...", "frames": 135000, "fps": 25},
   "video": [
     {"f": 0, "y_min": 64, "y_max": 940, "y_p01": 66, "y_p99": 912, "y_mean": 302.1,
-     "y_below_pct": 0.0, "y_above_pct": 0.0, "rgb_out_pct": 0.0, "sat_max": 311}
+     "y_below_pct": 0.0, "y_above_pct": 0.0, "y_below_legal_pct": 0.0, "y_above_legal_pct": 0.0,
+     "rgb_out_pct": 0.0, "sat_max": 311}
   ],
   "audio": {
     "groups": {"VF": {"integrated_lufs": -23.2, "true_peak_dbtp": -3.4, "lra_lu": 11.0,
@@ -179,7 +189,9 @@ Le tableau `video` peut être volumineux (135 000 entrées pour 90 min) : écrir
 Toutes les positions attendues viennent de `profile.structure`. Deux cas selon la chaîne :
 
 - `structure.leaders: classic` : le fichier commence par une tête (mire, noir, décompte) et finit par une queue de noir. Exemple ci-dessous.
-- `structure.leaders: none` : **aucune amorce** ; la première image du fichier est la première image du programme, au TC `10:00:00:00`, et le fichier se termine sur la dernière image du programme. C'est le cas d'**Arte** (« Le programme ne doit pas contenir d'amorces de début et de fin », consignes V2 §3.2.2.1). Dans ce mode, la présence d'une mire ou de plus de `structure.black.head_max_seconds` de noir en tête est une anomalie `structure_leaders_present`.
+- `structure.leaders: none` : **aucune amorce** ; la première image du fichier est la première image du programme, au TC `10:00:00:00`, et le fichier se termine sur la dernière image du programme. C'est le cas d'**Arte** (« Le programme ne doit pas contenir d'amorces de début et de fin », consignes V2 §3.2.2.1). Dans ce mode, deux anomalies distinctes :
+  - une mire en tête (ou ailleurs) → `structure_bars_present` (`blocking` chez Arte) ;
+  - plus de `structure.black.head_max_seconds` de noir en tête, ou plus de `structure.black.tail_max_seconds` de noir en queue → `structure_black_too_long` (`minor` chez Arte : un fondu au noir est légitime, un noir d'amorce ne l'est pas).
 
 Exemple de tête PAD classique (mode `classic`) :
 

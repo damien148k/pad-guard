@@ -28,8 +28,8 @@ Cinq phases. Chaque phase se termine par des tests qui passent et une démonstra
 ## Phase 1 : probe et décodage (§4, §5.1)
 
 **Livrables**
-- `probe/` : `probe.json` complet, comparaison aux règles `format` du profil, contrôle d'intégrité par décodage complet.
-- `decode/` : itérateur PyAV qui livre `(frame_index, Y, Cb, Cr)` en `uint16` sans conversion de format, plus un itérateur audio par groupe de pistes.
+- `probe/` : `probe.json` complet, comparaison aux règles `format` du profil, table des pistes audio (flux, canal) → numéro de piste.
+- `decode/` : itérateur PyAV qui livre `(frame_index, Y, Cb, Cr)` en `uint16` sans conversion de format, qui compte les images et collecte les erreurs de décodage (contrôle d'intégrité, sans second décodage), plus un itérateur audio par groupe de pistes.
 - Benchmark `--benchmark` qui affiche les images/seconde de décodage seul.
 
 **Acceptation**
@@ -68,7 +68,7 @@ Cinq phases. Chaque phase se termine par des tests qui passent et une démonstra
 - `bad_levels.mov` → `NON-CONFORME`, exactement 2 événements (`white_clip` et `black_crush`) avec les bons TC de début et de fin à l'image près.
 - `bad_audio.mov` → `NON-CONFORME`, événements `audio_loudness` et `audio_true_peak`.
 - `bad_structure.mov` → `NON-CONFORME`, événements `structure_bars` et `structure_timecode`.
-- `arte_ok.mov` avec le profil Arte → `CONFORME` ; `arte_bad.mov` → `NON-CONFORME` avec `structure_leaders_present`, `audio_silent_track` et `audio_true_peak`.
+- `arte_ok.mov` avec le profil Arte → `CONFORME` ; `arte_bad.mov` → `NON-CONFORME` avec `structure_bars_present`, `audio_silent_track` et `audio_true_peak`.
 - Le PDF s'ouvre, est en français, et le tableau des anomalies tient sur la largeur de page.
 
 **À ce stade l'outil est utilisable en production.** Faire une recette avec Vincent sur de vrais masters avant la Phase 4.
