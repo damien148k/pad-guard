@@ -56,15 +56,8 @@ def test_expr_rejects(bad: str) -> None:
         expr.evaluate(bad, {"worst_value": 1})
 
 
-@pytest.mark.parametrize(
-    "args",
-    [
-        ["analyze", "x.mov", "--profile", "p.yaml", "--out", "out"],
-        ["report", "out"],
-    ],
-)
-def test_cli_stubs(args: list[str]) -> None:
-    result = CliRunner().invoke(app, args)
+def test_cli_report_stub() -> None:
+    result = CliRunner().invoke(app, ["report", "out"])
     assert result.exit_code == EXIT_NOT_IMPLEMENTED
     assert "non implémenté" in result.output
 
