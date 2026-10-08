@@ -16,6 +16,7 @@
 #   wrong_codec.mov    ok_prores content in ProRes 422 LT.
 #   arte_ok.mov        20 s program only (no leaders), TC 10:00:00:00, 3 stereo pairs VO/VF/VI at
 #                      -23 LUFS stored as 6 mono tracks, true peak around -12 dBTP.
+#   arte_4tracks.mov   arte_ok with VO and VF only (4 mono tracks, no VI).
 #   arte_bad.mov       5 s EBU bars + 1 kHz tone, then the arte_ok program (25 s), TC 10:00:00:00;
 #                      pair 2 (tracks 3-4) silent for the whole file; 10 ms burst at -0.5 dBTP on
 #                      pair 1 at t = 15 s.
@@ -166,13 +167,16 @@ if need bad_structure.mov; then
 fi
 
 # Arte: no leaders, the first frame is the first program frame. VO / VF / VI as 6 mono tracks.
-if need arte_ok.mov; then
+if need arte_ok.mov || need arte_4tracks.mov; then
     audio_track "$WORK/arte_vo.wav" pink23:20:11
     audio_track "$WORK/arte_vf.wav" pink23:20:12
     audio_track "$WORK/arte_vi.wav" pink23:20:13
-    make_fixture arte_ok.mov 10:00:00:00 "prog:20" "" 1 "${PRORES_HQ[@]}" -- \
-        "$WORK/arte_vo.wav" "$WORK/arte_vf.wav" "$WORK/arte_vi.wav"
 fi
+need arte_ok.mov && make_fixture arte_ok.mov 10:00:00:00 "prog:20" "" 1 "${PRORES_HQ[@]}" -- \
+    "$WORK/arte_vo.wav" "$WORK/arte_vf.wav" "$WORK/arte_vi.wav"
+# Same program with VO and VF only (4 mono tracks), like an Arte master without a VI.
+need arte_4tracks.mov && make_fixture arte_4tracks.mov 10:00:00:00 "prog:20" "" 1 "${PRORES_HQ[@]}" -- \
+    "$WORK/arte_vo.wav" "$WORK/arte_vf.wav"
 if need arte_bad.mov; then
     audio_track "$WORK/arte_bad_vo.wav" tone:5 pink23burst:20:11:10
     audio_track "$WORK/arte_bad_vf.wav" silence:25

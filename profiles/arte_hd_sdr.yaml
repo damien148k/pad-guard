@@ -52,6 +52,7 @@ video:
   rgb_max_pct: 105.0
   max_out_of_range_area_pct: 1.0                     # §3.2.3.3 : erreur si >= 1 % de la superficie de l'image
   prefilter: true                                    # §3.2.3.3 : "léger dépassement fugitif filtré avant la mesure"
+  prefilter_taps: 3                                  # A VERIFIER : R103 ne chiffre pas le noyau ; 3 = [1 2 1]/4 horizontal
   measure_spaces: [ycbcr, rgb]                       # §3.2.3 : mesures dans les deux espaces
 
 audio:
@@ -64,10 +65,11 @@ audio:
   no_silent_tracks: true                             # §3.2.2.1 : "pas de piste avec silence"
   silent_track_dbfs: -60.0                           # DEDUIT : une piste entière sous -60 dBFS est "sans contenu"
   dual_mono_must_be_identical: true                  # §3.3.4.1 : mono = 2 pistes strictement identiques et en phase
-  groups:                                            # configuration habituelle Lumiris ; l'ordre des paires doit être celui déclaré dans Partner (§3.2.2.1)
+  groups:                                            # mapping par défaut ; l'ordre des paires doit être celui déclaré dans Partner (§3.2.2.1)
+                                                     # à adapter par fichier avec analyze --audio-map "VO:1-2,VF:3-4"
     - {name: "VO", tracks: [1, 2], layout: stereo, required: true}
-    - {name: "VF", tracks: [3, 4], layout: stereo, required: true}
-    - {name: "VI", tracks: [5, 6], layout: stereo, required: true}   # version internationale (musique et effets, sans dialogue)
+    - {name: "VF", tracks: [3, 4], layout: stereo, required: false}  # présente selon le programme
+    - {name: "VI", tracks: [5, 6], layout: stereo, required: false}  # version internationale (musique et effets, sans dialogue), selon le programme
   loudness_exempt_groups: ["VI"]                     # DEDUIT : une VI n'a pas de dialogue, l'excursion short term "dialogue" ne s'y applique pas ; le loudness intégré -23 reste exigé
   loudness:
     long_program_min_seconds: 120                    # §3.3.2.4 : programmes > 2'00

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from pad_checker.cli import EXIT_NOT_IMPLEMENTED, EXIT_REFUSED, app
+from pad_checker.cli import EXIT_NOT_IMPLEMENTED, EXIT_REFUSED, EXIT_USAGE, app
 from pad_checker.probe import ProbeError, probe_file
 from pad_checker.probe.models import AudioStreamInfo
 from pad_checker.probe.probe import audio_tracks
@@ -110,7 +110,62 @@ def test_arte_ok(fixtures_dir) -> None:
 def test_arte_profile_on_classic_file(fixtures_dir) -> None:
     r = probe(fixtures_dir / "ok_prores.mov", ARTE)
     assert r.accepted  # right codec, wrong delivery
-    assert failed(r) == {"timecode_start": "fail", "audio_group_VF": "fail", "audio_group_VI": "fail"}
+    # VF and VI are optional for Arte: only the missing VO pair would fail.
+    assert failed(r) == {"timecode_start": "fail"}
+    assert r.audio_map.source == "profile"
+
+
+def test_arte_4_mono_tracks_profile_map(fixtures_dir) -> None:
+    r = probe(fixtures_dir / "arte_4tracks.mov", ARTE)
+    assert r.accepted
+    assert failed(r) == {}
+    assert [(t.track, t.stream_index, t.channel) for t in r.audio_tracks] == [(n, n, 0) for n in range(1, 5)]
+    statuses = {c.id: (c.expected, c.actual) for c in r.checks}
+    assert statuses["audio_group_VI"] == ("facultatif", "absent")
+
+
+def _analyze(fixture: Path, out: Path, *extra: str):
+    return CliRunner().invoke(app, ["analyze", str(fixture), "--profile", str(ARTE), "--out", str(out), *extra])
+
+
+def test_arte_4_mono_tracks_audio_map(fixtures_dir, tmp_path) -> None:
+    result = _analyze(fixtures_dir / "arte_4tracks.mov", tmp_path, "--audio-map", "VO:1-2,VF:3-4")
+    assert result.exit_code == EXIT_NOT_IMPLEMENTED, result.output
+    assert "Groupes audio (ligne de commande) : VO 1-2, VF 3-4" in " ".join(result.output.split())
+    data = json.loads((tmp_path / "probe.json").read_text(encoding="utf-8"))
+    assert data["audio_map"] == {
+        "source": "command_line",
+        "spec": "VO:1-2,VF:3-4",
+        "groups": [
+            {"name": "VO", "tracks": [1, 2], "layout": "stereo", "required": True},
+            {"name": "VF", "tracks": [3, 4], "layout": "stereo", "required": True},
+        ],
+    }
+    ids = {c["id"]: c["status"] for c in data["checks"]}
+    assert ids["audio_group_VO"] == ids["audio_group_VF"] == "ok"
+    assert "audio_group_VI" not in ids  # the command-line map replaces the profile groups
+
+
+def test_audio_map_groups_are_required(fixtures_dir, tmp_path) -> None:
+    result = _analyze(fixtures_dir / "arte_4tracks.mov", tmp_path, "--audio-map", "VO:1-2,VF:3-4,VI:5-6")
+    data = json.loads((tmp_path / "probe.json").read_text(encoding="utf-8"))
+    vi = next(c for c in data["checks"] if c["id"] == "audio_group_VI")
+    assert vi["status"] == "fail" and "5, 6" in vi["actual"]
+    assert result.exit_code == EXIT_NOT_IMPLEMENTED  # a failed check is a rule matter, not a refusal
+
+
+def test_audio_map_profile_default_in_probe_json(fixtures_dir, tmp_path) -> None:
+    _analyze(fixtures_dir / "arte_4tracks.mov", tmp_path)
+    data = json.loads((tmp_path / "probe.json").read_text(encoding="utf-8"))
+    assert data["audio_map"]["source"] == "profile" and data["audio_map"]["spec"] is None
+    assert [g["name"] for g in data["audio_map"]["groups"]] == ["VO", "VF", "VI"]
+
+
+def test_audio_map_invalid_cli(fixtures_dir, tmp_path) -> None:
+    result = _analyze(fixtures_dir / "arte_4tracks.mov", tmp_path, "--audio-map", "VO:1-2,VF:2-3")
+    assert result.exit_code == EXIT_USAGE
+    assert "plusieurs groupes" in " ".join(result.output.split())
+    assert not (tmp_path / "probe.json").exists()
 
 
 def test_missing_color_tags(tmp_path) -> None:

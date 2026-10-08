@@ -81,6 +81,7 @@ def tc(info: dict) -> str | None:
         ("bad_structure.mov", "prores", "HQ", 500, "00:00:00:00", [2]),
         ("wrong_codec.mov", "prores", "LT", 500, "09:59:50:00", [2]),
         ("arte_ok.mov", "prores", "HQ", 500, "10:00:00:00", [1] * 6),
+        ("arte_4tracks.mov", "prores", "HQ", 500, "10:00:00:00", [1] * 4),
         ("arte_bad.mov", "prores", "HQ", 625, "10:00:00:00", [1] * 6),
     ],
 )

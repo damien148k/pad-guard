@@ -9,10 +9,12 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeRemainingColumn
 from rich.table import Table
 
-from pad_checker import __version__, jsonio
+from pad_checker import __version__, audio_map as amap, jsonio, measure
 from pad_checker.decode.video import DecoderOpenError, VideoDecoder
+from pad_checker.measure.models import Measurements
 from pad_checker.probe import ProbeError, probe_file
 from pad_checker.probe.models import ProbeResult
 from pad_checker.rules.profile import Profile, ProfileError, load_profile, null_fields
@@ -60,20 +62,28 @@ def analyze(
     file: Path = typer.Argument(..., help="Fichier master (.mov ou .mxf)."),
     profile: Path = typer.Option(..., "--profile", "-p", help="Profil de chaîne (YAML)."),
     out: Path = typer.Option(..., "--out", "-o", help="Dossier de travail et de sortie."),
+    audio_map: str | None = typer.Option(
+        None, "--audio-map",
+        help="Groupes de pistes audio pour cette analyse, ex. « VO:1-2,VF:3-4 » (remplace audio.groups du profil).",
+    ),
     llm: LlmBackend = typer.Option(LlmBackend.none, "--llm", help="Synthèse rédigée par un LLM local."),
     thumbnails: bool = typer.Option(False, "--thumbnails", help="Extraire une vignette par événement."),
     quick: bool = typer.Option(False, "--quick", help="Aperçu rapide (1 image sur 25), sans verdict."),
     benchmark: bool = typer.Option(False, "--benchmark", help="Mesure la vitesse de décodage seule."),
+    workers: int = typer.Option(
+        0, "--workers", min=0, help="Processus de mesure vidéo (0 = automatique). Sans effet sur les résultats.",
+    ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Affiche la progression détaillée."),
 ) -> None:
     """Analyse un fichier et produit mesures, événements, verdict et rapport."""
     prof = _load_profile_or_exit(profile)
+    mapping = _audio_map_or_exit(audio_map, prof)
     for flag, name in ((thumbnails, "--thumbnails"), (quick, "--quick"), (llm != LlmBackend.none, "--llm")):
         if flag:
             err_console.print(f"[yellow]{name} : non implémenté, option ignorée.[/yellow]")
 
     try:
-        result = probe_file(file, prof, profile)
+        result = probe_file(file, prof, profile, mapping)
     except ProbeError as exc:
         err_console.print(f"[red]Fichier refusé : {exc}[/red]")
         raise typer.Exit(EXIT_REFUSED) from None
@@ -90,7 +100,10 @@ def analyze(
     if benchmark:
         _benchmark(file, result)
         return
-    _not_implemented("Mesures, structure, règles et rapport (Phase 2 et suivantes)")
+
+    measurements = _measure(result, prof, out, workers)
+    _print_measurements(measurements, out)
+    _not_implemented("Structure, règles et rapport (Phase 3)")
 
 
 @app.command()
@@ -111,6 +124,16 @@ def _load_profile_or_exit(path: Path) -> Profile:
         raise typer.Exit(EXIT_USAGE) from None
 
 
+def _audio_map_or_exit(spec: str | None, prof: Profile) -> amap.AudioMap:
+    if spec is None:
+        return amap.from_profile(prof)
+    try:
+        return amap.parse(spec, prof)
+    except amap.AudioMapError as exc:
+        err_console.print(f"[red]--audio-map invalide : {exc}[/red]")
+        raise typer.Exit(EXIT_USAGE) from None
+
+
 def _print_probe(result: ProbeResult) -> None:
     v = result.video
     console.print(f"[bold]{Path(result.source.path).name}[/bold] — profil {result.profile.name} v{result.profile.version}")
@@ -118,6 +141,8 @@ def _print_probe(result: ProbeResult) -> None:
         f"  {v.codec_name} {v.profile or ''}, {v.width}x{v.height}, {v.r_frame_rate} i/s, "
         f"{v.nb_frames} images, TC {result.timecode or 'absent'}, {len(result.audio_tracks)} piste(s) audio"
     )
+    source = "ligne de commande" if result.audio_map.source == "command_line" else "profil"
+    console.print(f"  Groupes audio ({source}) : {amap.describe(result.audio_map.groups)}")
     table = Table(title="Contrôles de format", show_lines=False)
     table.add_column("Contrôle")
     table.add_column("Attendu")
@@ -126,6 +151,59 @@ def _print_probe(result: ProbeResult) -> None:
     for check in result.checks:
         table.add_row(check.label, check.expected, check.actual, _STATUS[check.status])
     console.print(table)
+
+
+def _measure(result: ProbeResult, prof: Profile, out: Path, workers: int) -> Measurements:
+    total = result.video.nb_frames
+    start = time.perf_counter()
+    try:
+        with Progress(
+            TextColumn("Mesures"), BarColumn(), MofNCompleteColumn(), TimeRemainingColumn(),
+            console=err_console, transient=True,
+        ) as bar:
+            task = bar.add_task("images", total=total)
+            m = measure.run(result, prof, out, workers or None, progress=lambda done: bar.update(task, completed=done))
+    except measure.MeasureSetupError as exc:
+        err_console.print(f"[red]Profil inutilisable pour les mesures : {exc}[/red]")
+        raise typer.Exit(EXIT_USAGE) from None
+    except (DecoderOpenError, measure.am.AudioMeasureError) as exc:
+        err_console.print(f"[red]Mesures impossibles : {exc}[/red]")
+        raise typer.Exit(EXIT_REFUSED) from None
+    elapsed = time.perf_counter() - start
+    frames = m.video.frames
+    nominal = float(Fraction(result.video.r_frame_rate))
+    speed = frames / elapsed / nominal if elapsed > 0 else float("inf")
+    console.print(f"Mesures : {frames} images en {elapsed:.1f} s, soit {speed:.1f}× le temps réel")
+    return m
+
+
+def _db(value: float | None, unit: str) -> str:
+    return "silence" if value is None else f"{value:.1f} {unit}".replace(".", ",")
+
+
+def _print_measurements(m: Measurements, out: Path) -> None:
+    integ = m.integrity
+    if integ.ok:
+        console.print(f"Intégrité : [green]OK[/green] ({integ.frames_decoded}/{integ.frames_expected} images)")
+    else:
+        console.print(
+            f"Intégrité : [red]ÉCHEC[/red] ({integ.frames_decoded}/{integ.frames_expected} images, "
+            f"{len(integ.errors)} erreur(s) de décodage, {len(integ.pts_discontinuities)} discontinuité(s))"
+        )
+    if m.audio is not None:
+        prog = m.audio.program
+        where = f"{prog.tc_start} → {prog.tc_end}" if prog.tc_start else f"images {prog.frame_start} → {prog.frame_end}"
+        console.print(f"Audio mesuré sur le programme : {where}")
+        table = Table(title="Audio (programme)")
+        for col in ("Groupe", "Pistes", "Loudness intégré", "True peak", "LRA"):
+            table.add_column(col)
+        for name, g in m.audio.groups.items():
+            table.add_row(
+                name, amap.tracks_text(g.group.tracks), _db(g.integrated_lufs, "LUFS"),
+                _db(g.true_peak_dbtp, "dBTP"), "-" if g.lra_lu is None else _db(g.lra_lu, "LU"),
+            )
+        console.print(table)
+    console.print(f"measurements.json écrit dans {out}")
 
 
 def _benchmark(file: Path, result: ProbeResult) -> None:

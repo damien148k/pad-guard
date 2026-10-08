@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from pad_checker.audio_map import AudioMap
+
 SCHEMA_VERSION = 1
 
 CheckStatus = Literal["ok", "fail", "unknown"]
@@ -88,6 +90,8 @@ class ProbeResult(BaseModel):
     video: VideoInfo
     audio_streams: list[AudioStreamInfo]
     audio_tracks: list[AudioTrack]
+    # Track groups used for this analysis (profile default or --audio-map), read by the next steps.
+    audio_map: AudioMap
     timecode: str | None
     timecode_source: str | None
     checks: list[Check]

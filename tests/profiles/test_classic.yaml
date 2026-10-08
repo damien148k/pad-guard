@@ -34,6 +34,7 @@ video:
   rgb_max_pct: 105.0                      # EBU R103
   max_out_of_range_area_pct: 1.0          # EBU R103 : max 1 % des pixels par image
   prefilter: true                         # lissage horizontal avant mesure (R103)
+  prefilter_taps: 3                       # A VERIFIER : R103 ne chiffre pas le noyau ; 3 = [1 2 1]/4 horizontal
 
 audio:
   sample_rate: 48000

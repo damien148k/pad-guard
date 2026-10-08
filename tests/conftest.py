@@ -19,6 +19,7 @@ FIXTURE_FILES = (
     "bad_structure.mov",
     "wrong_codec.mov",
     "arte_ok.mov",
+    "arte_4tracks.mov",
     "arte_bad.mov",
 )
 

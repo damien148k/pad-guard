@@ -134,7 +134,15 @@ class Video(_Model):
     rgb_max_pct: float
     max_out_of_range_area_pct: float
     prefilter: bool
+    # Horizontal binomial low-pass applied before measuring: 3 = [1 2 1]/4, 5 = [1 4 6 4 1]/16.
+    prefilter_taps: Literal[3, 5] | None = None
     measure_spaces: list[Literal["ycbcr", "rgb"]] | None = None
+
+    @model_validator(mode="after")
+    def _prefilter(self) -> Video:
+        if self.prefilter and self.prefilter_taps is None:
+            raise ValueError("prefilter est vrai : prefilter_taps est obligatoire (3 ou 5)")
+        return self
 
 
 # --- audio --------------------------------------------------------------------------------
@@ -154,6 +162,16 @@ class AudioGroup(_Model):
         if any(t < 1 for t in self.tracks):
             raise ValueError(f"groupe {self.name!r} : les pistes sont numérotées à partir de 1")
         return self
+
+
+def check_groups(groups: list[AudioGroup], where: str) -> None:
+    """Raise ValueError if two groups share a name or a track."""
+    names = [g.name for g in groups]
+    if len(set(names)) != len(names):
+        raise ValueError(f"{where} : noms de groupe en double")
+    used = [t for g in groups for t in g.tracks]
+    if len(set(used)) != len(used):
+        raise ValueError(f"{where} : une même piste appartient à plusieurs groupes")
 
 
 class LoudnessRules(_Model):
@@ -213,12 +231,8 @@ class Audio(_Model):
 
     @model_validator(mode="after")
     def _groups(self) -> Audio:
+        check_groups(self.groups, "audio.groups")
         names = [g.name for g in self.groups]
-        if len(set(names)) != len(names):
-            raise ValueError("audio.groups : noms de groupe en double")
-        used = [t for g in self.groups for t in g.tracks]
-        if len(set(used)) != len(used):
-            raise ValueError("audio.groups : une même piste appartient à plusieurs groupes")
         for name in self.loudness_exempt_groups or []:
             if name not in names:
                 raise ValueError(f"audio.loudness_exempt_groups : groupe inconnu {name!r}")

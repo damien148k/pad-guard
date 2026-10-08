@@ -46,6 +46,8 @@ Un fichier YAML (voir `profiles/france_tv_hd.yaml`) décrivant toutes les règle
 
 ```
 pad-checker analyze <fichier> --profile <yaml> --out <dossier>
+    [--audio-map "VO:1-2,VF:3-4"]   groupes de pistes pour cette analyse (remplace audio.groups du profil)
+    [--workers N]                   processus de mesure vidéo (défaut : automatique, sans effet sur les résultats)
     [--llm none|ollama]             défaut : none
     [--thumbnails]                  extraire une vignette par événement
     [--quick]                       aperçu rapide sans verdict (1 image sur 25)
@@ -180,7 +182,9 @@ Appliquer les mesures **à chaque groupe de pistes** du mapping (VF, VI, 5.1 sé
 }
 ```
 
-Le tableau `video` peut être volumineux (135 000 entrées pour 90 min) : écrire en JSON Lines (`measurements.jsonl`) si la taille dépasse 50 Mo, et noter le format dans l'en-tête.
+Le tableau `video` peut être volumineux (135 000 entrées pour 90 min) : il est **toujours** écrit en JSON Lines, au fil des mesures, dans `measurements_video.jsonl` (une ligne par image) ; les blocs audio de même dans `measurements_audio.jsonl` (une ligne par bloc de 100 ms et par groupe). `measurements.json` garde l'en-tête, l'intégrité, les seuils appliqués, la plage programme et les valeurs globales, et nomme ces deux fichiers. Un format unique évite deux chemins de lecture dans les étapes suivantes.
+
+**Choix de mise en œuvre (Phase 2) :** loudness momentané, short term, intégré et LRA par FFmpeg `ebur128` (référence) ; true peak par l'interpolateur ×4 de l'UIT-R BS.1770-4 annexe 2 en NumPy, bloc par bloc, pour dater chaque pic (FFmpeg ne donne qu'un maximum cumulé à trois décimales linéaires) ; préfiltre vidéo : noyau binomial horizontal de `video.prefilter_taps` pixels (3 ou 5) ; chroma 4:2:2 interpolée linéairement pour la conversion RGB ; percentiles au rang le plus proche sur l'histogramme exact de Y.
 
 ---
 
@@ -308,7 +312,7 @@ profile:        {name, version, broadcaster, source_document, notes}
 format:         {codecs[], containers[], pix_fmt, width, height, fps_allowed[], field_order, color_*, color_range,
                  unknown_color_tags_severity, letterbox?}
 video:          {bit_depth, y_min_legal, y_max_legal, y_tolerance_low_pct, y_tolerance_high_pct,
-                 rgb_min_pct, rgb_max_pct, max_out_of_range_area_pct, prefilter}
+                 rgb_min_pct, rgb_max_pct, max_out_of_range_area_pct, prefilter, prefilter_taps (3|5, obligatoire si prefilter)}
 audio:          {sample_rate, bit_depth, groups[],
                  loudness{long_program_min_seconds?, long{integrated_lufs, integrated_tolerance_lu, lra_max_lu?, ...},
                           short?{...}},   # sans "short", "long" s'applique à toutes les durées

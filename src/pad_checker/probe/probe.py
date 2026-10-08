@@ -10,7 +10,8 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
-from pad_checker import __version__, timecode
+from pad_checker import __version__, audio_map as amap, timecode
+from pad_checker.audio_map import AudioMap
 from pad_checker.probe.models import (
     AudioStreamInfo,
     AudioTrack,
@@ -225,10 +226,12 @@ def _check_timecode(c: _Checks, p: Profile, tc: str | None) -> None:
               "drop frame" if timecode.is_drop_frame(tc) else "non drop frame", not timecode.is_drop_frame(tc))
 
 
-def _check_audio(c: _Checks, p: Profile, streams: list[AudioStreamInfo], tracks: list[AudioTrack]) -> None:
+def _check_audio(
+    c: _Checks, p: Profile, mapping: AudioMap, streams: list[AudioStreamInfo], tracks: list[AudioTrack]
+) -> None:
     a = p.audio
     available = {t.track for t in tracks}
-    for group in a.groups:
+    for group in mapping.groups:
         missing = [t for t in group.tracks if t not in available]
         label = f"Groupe audio {group.name} (pistes {_track_list(group.tracks)})"
         if not missing:
@@ -259,8 +262,12 @@ def _check_audio(c: _Checks, p: Profile, streams: list[AudioStreamInfo], tracks:
               ", ".join(f"{d} bits" for d in depths), len(depths) == 1)
 
 
-def probe_file(path: str | Path, profile: Profile, profile_path: str | Path) -> ProbeResult:
+def probe_file(
+    path: str | Path, profile: Profile, profile_path: str | Path, audio_map: AudioMap | None = None
+) -> ProbeResult:
+    """``audio_map`` overrides the profile track groups (``--audio-map``); None = profile default."""
     path = Path(path)
+    mapping = audio_map or amap.from_profile(profile)
     if not path.is_file():
         raise ProbeError(f"fichier introuvable : {path}")
     info = run_ffprobe(path)
@@ -281,7 +288,7 @@ def probe_file(path: str | Path, profile: Profile, profile_path: str | Path) -> 
     _check_format(c, profile, container, video)
     _check_duration(c, video)
     _check_timecode(c, profile, tc)
-    _check_audio(c, profile, audio, tracks)
+    _check_audio(c, profile, mapping, audio, tracks)
 
     refusals = [ch for ch in c.items if ch.refusal and ch.status != "ok"]
     profile_path = Path(profile_path)
@@ -293,6 +300,7 @@ def probe_file(path: str | Path, profile: Profile, profile_path: str | Path) -> 
         video=video,
         audio_streams=audio,
         audio_tracks=tracks,
+        audio_map=mapping,
         timecode=tc,
         timecode_source=tc_source,
         checks=c.items,

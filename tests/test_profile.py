@@ -118,6 +118,14 @@ def test_track_in_two_groups(tmp_path: Path) -> None:
     assert any("plusieurs groupes" in e for e in errors)
 
 
+def test_prefilter_needs_kernel(tmp_path: Path) -> None:
+    def bad(raw):
+        del raw["video"]["prefilter_taps"]
+
+    errors = _errors(_mutated(tmp_path, bad))
+    assert any("prefilter_taps" in e for e in errors)
+
+
 def test_cli_validate_ok() -> None:
     result = runner.invoke(app, ["validate-profile", str(PROFILES / "france_tv_hd.yaml")])
     assert result.exit_code == 0, result.output
