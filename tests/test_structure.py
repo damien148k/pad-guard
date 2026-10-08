@@ -1,0 +1,145 @@
+from __future__ import annotations
+
+import numpy as np
+import pytest
+
+from pad_checker.rules.engine import error_key, merge
+from pad_checker.rules.profile import LetterboxFormat, Letterbox, ProfileValueError, load_profile, require
+from pad_checker.structure import detect, letterbox as lb
+
+from conftest import PROFILES, TEST_PROFILES
+
+NAN = np.nan
+
+
+def test_runs() -> None:
+    assert detect.runs(np.array([0, 1, 1, 0, 1, 0, 0, 1], bool)) == [(1, 2), (4, 4), (7, 7)]
+    assert detect.runs(np.zeros(3, bool)) == [] and detect.runs(np.ones(2, bool)) == [(0, 1)]
+    mask = np.array([1, 1, 0, 1, 1, 1], bool)
+    assert detect.leading_run(mask) == (0, 1) and detect.trailing_run(mask) == (3, 5)
+    assert detect.run_ending_at(mask, 4) == (3, 4) and detect.run_ending_at(mask, 2) is None
+
+
+def test_frozen_ranges_include_the_first_held_frame() -> None:
+    # Frames 3..8 show the same picture: frames 4..8 are static (equal to the previous one).
+    d = np.array([NAN, 5, 5, 5, 0, 0, 0, 0, 0, 5, 5], float)
+    static = detect.static(d, 0.5)
+    none = np.zeros(d.size, bool)
+    assert detect.frozen_ranges(static, none, 6) == [(3, 8)]
+    assert detect.frozen_ranges(static, none, 7) == []
+    excluded = none.copy()
+    excluded[6] = True  # an excluded frame (black, bars) splits the freeze
+    assert detect.frozen_ranges(static, excluded, 2) == [(3, 5), (7, 8)]
+
+
+def test_duplicates_need_movement_around() -> None:
+    d = np.array([NAN, 4, 4, 0, 4, 4, 0, 0, 4], float)
+    assert detect.duplicates(d, 0.5, np.zeros(d.size, bool)) == [3]  # 6-7 is a 3-frame hold, not a duplicate
+
+
+def test_isolated_black_ignores_fades() -> None:
+    black = np.zeros(20, bool)
+    y_mean = np.full(20, 400.0)
+    black[5] = True  # cut to black for one frame
+    y_mean[5] = 64
+    black[12] = True  # end of a fade out: 400 -> 300 -> 200 -> 64
+    y_mean[9:13] = [400, 300, 200, 64]
+    assert detect.isolated_black(black, y_mean) == [5]
+    black[5:7] = True  # two black frames are not "isolated"
+    y_mean[9:13] = 400  # no fade any more before frame 12
+    assert detect.isolated_black(black, y_mean) == [12]
+
+
+def _flashes(period: int, frames: int = 50) -> tuple[np.ndarray, np.ndarray]:
+    """Full-screen black/white alternation every ``period`` frames."""
+    up = np.zeros(frames)
+    down = np.zeros(frames)
+    for k in range(period, frames, period):
+        (up if (k // period) % 2 else down)[k] = 100.0
+    return up, down
+
+
+def test_flash_ranges() -> None:
+    up, down = _flashes(2)  # a transition every 2 frames: 12 transitions per second, 6 flashes
+    ((a, b, worst),) = detect.flash_ranges(up, down, 25.0, 25, 3)
+    assert worst == 6 and a == 2
+    up, down = _flashes(4)  # 6 transitions per second: 3 flashes, allowed
+    assert detect.flash_ranges(up, down, 25.0, 25, 3) == []
+    up, down = _flashes(2)
+    assert detect.flash_ranges(up * 0.2, down * 0.2, 25.0, 25, 3) == []  # 20 % of the picture only
+
+
+def test_flash_spread_over_two_frames_counts_once() -> None:
+    up = np.zeros(30)
+    down = np.zeros(30)
+    up[[2, 3, 10, 11, 18, 19]] = 50.0  # each brightening takes two frames
+    down[[6, 14, 22]] = 50.0
+    assert detect.flash_ranges(up, down, 25.0, 25, 2) == [(3, 22, 3)]  # 6 transitions = 3 flashes
+
+
+def test_merge_gap_counts_clean_frames() -> None:
+    assert merge([(0, 2), (14, 15)], 12) == [(0, 15)]  # frames 3..13: 11 clean frames, fewer than 12
+    assert merge([(0, 2), (15, 15)], 12) == [(0, 2), (15, 15)]  # 12 clean frames: separate events
+    assert merge([(5, 9), (0, 3)], 0) == [(0, 3), (5, 9)]
+
+
+def test_error_key_deduplicates_exception_and_log() -> None:
+    log = "prores: invalid frame header"
+    exc = ("[Errno 1094995529] Invalid data found when processing input: 'avcodec_send_packet()'; "
+           "last error log: [prores] invalid frame header")
+    assert error_key(log) == error_key(exc) == "prores: invalid frame header"
+    assert error_key("[Errno 5] something else") == "something else"
+
+
+def _frame_with_bands(top: int, bottom: int, left: int = 0, right: int = 1919) -> np.ndarray:
+    y = np.full((1080, 1920), 64, np.uint16)
+    y[top: bottom + 1, left: right + 1] = 500
+    y[0, 0] = 900  # a single bright pixel in a black band does not make the row active
+    return y
+
+
+def test_letterbox_classification() -> None:
+    spec = Letterbox(check=True, tolerance_lines=2, formats=[
+        LetterboxFormat(aspect="1.77", active_lines=1080, first_line=21, last_line=1123, active_pixels=1920),
+        LetterboxFormat(aspect="1.85", active_lines=1036, first_line=32, last_line=1112, active_pixels=1920),
+        LetterboxFormat(aspect="2.35", active_lines=816, first_line=87, last_line=1057, active_pixels=1920),
+        LetterboxFormat(aspect="1.33", active_lines=1080, first_line=21, last_line=1123, active_pixels=1440),
+    ])
+    s = lb.active_area(_frame_with_bands(22, 1057), 0, 68)
+    assert (s.top, s.bottom, lb.lines(s), lb.pixels(s)) == (22, 1057, 1036, 1920)
+    assert lb.classify(s, spec, 2) == "1.85"
+    assert lb.classify(lb.active_area(_frame_with_bands(132, 947), 1, 68), spec, 2) == "2.35"
+    assert lb.classify(lb.active_area(_frame_with_bands(0, 1079, 240, 1679), 2, 68), spec, 2) == "1.33"
+    assert lb.classify(lb.active_area(_frame_with_bands(100, 979), 3, 68), spec, 2) is None
+    assert lb.active_area(np.full((1080, 1920), 64, np.uint16), 4, 68) is None
+
+
+def test_letterbox_dominant_and_changes() -> None:
+    spec = Letterbox(check=True, tolerance_lines=2, formats=[
+        LetterboxFormat(aspect="1.85", active_lines=1036, first_line=32, last_line=1112, active_pixels=1920),
+        LetterboxFormat(aspect="2.35", active_lines=816, first_line=87, last_line=1057, active_pixels=1920)])
+    wide = [lb.active_area(_frame_with_bands(132, 947), f, 68) for f in (40, 50, 60)]
+    normal = [lb.active_area(_frame_with_bands(22, 1057), f, 68) for f in (0, 10, 20, 30, 70, 80, 90)]
+    dark = [lb.active_area(_frame_with_bands(300, 700), f, 68) for f in (31, 32, 33, 34, 35)]  # inside: no change
+    samples = sorted(normal + dark + wide, key=lambda s: s.frame)
+    dom, share = lb.dominant(samples, 2)
+    assert lb.lines(dom) == 1036 and share == 100.0  # every sample fits within the 1.85 area
+    assert lb.format_changes(samples, spec, 2, dom) == []  # 2.35 inside 1.85: a dark-looking 2.35 shot
+    full = [lb.active_area(_frame_with_bands(0, 1079), f, 68) for f in (41, 42, 43)]  # spills over the bands
+    samples = sorted(normal + full, key=lambda s: s.frame)
+    assert lb.format_changes(samples, spec, 2, dom) == [(41, 43, None, 3)]
+
+
+def test_require_reports_null_and_missing() -> None:
+    arte = load_profile(PROFILES / "arte_hd_sdr.yaml")
+    assert require(arte, "structure.bars.tolerance", "x") == 12
+    with pytest.raises(ProfileValueError, match="ne renseigne pas « structure.bars.pattern »"):
+        require(arte, "structure.bars.pattern", "la mire")
+    classic = load_profile(TEST_PROFILES / "test_classic.yaml")
+    with pytest.raises(ProfileValueError, match="ne renseigne pas « format.letterbox »"):
+        require(classic, "format.letterbox.tolerance_lines", "le format")
+    nulled = classic.model_copy(deep=True)
+    nulled.audio.silence_max_seconds = None
+    nulled.audio.model_fields_set.add("silence_max_seconds")
+    with pytest.raises(ProfileValueError, match="vaut null"):
+        require(nulled, "audio.silence_max_seconds", "les silences")

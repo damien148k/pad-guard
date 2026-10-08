@@ -18,7 +18,8 @@ from pad_checker.decode.video import IntegrityReport
 from pad_checker.probe.models import ProfileRef
 from pad_checker.rules.profile import AudioGroup
 
-SCHEMA_VERSION = 1
+# 2: frame differences (d_mean, d_up_pct, d_down_pct) and flash delta in video_settings.
+SCHEMA_VERSION = 2
 
 
 class MeasuredSource(BaseModel):
@@ -36,6 +37,8 @@ class VideoSettings(BaseModel):
     rgb: tuple[int, int]
     prefilter_taps: int | None
     matrix: str
+    flash_delta_pct: float  # d_up_pct / d_down_pct: relative luminance change above this
+    luminance: Literal["bt1886_gamma_2.4"] = "bt1886_gamma_2.4"
     chroma_upsampling: Literal["linear"] = "linear"
     percentiles: Literal["nearest_rank"] = "nearest_rank"
 

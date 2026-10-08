@@ -51,9 +51,15 @@ pad-checker analyze <fichier> --profile <yaml> --out <dossier>
     [--llm none|ollama]             défaut : none
     [--thumbnails]                  extraire une vignette par événement
     [--quick]                       aperçu rapide sans verdict (1 image sur 25)
-pad-checker report <dossier>        régénère le rapport à partir des JSON
+pad-checker rerun <dossier>         relance structure, règles et rapport à partir des JSON, sans refaire les mesures
+    [--from structure|rules|report] première étape relancée (défaut : structure)
+    [--profile <yaml>]              autre profil ; refusé s'il change un paramètre de mesure
+    [--thumbnails]
+pad-checker report <dossier>        régénère le rapport à partir des JSON (= rerun --from report)
 pad-checker validate-profile <yaml>
 ```
+
+Codes de retour : 0 CONFORME, 4 NON-CONFORME (analyse menée à son terme), 1 usage ou profil incomplet, 2 fichier refusé.
 
 ---
 
@@ -133,6 +139,8 @@ Calculées en NumPy sur le plan Y, puis sur Cb et Cr, puis sur une conversion RG
 | `rgb_out_pct` | % de pixels dont R, G ou B est hors `[rgb_min, rgb_max]` après conversion BT.709 (plage légale) | règle gamut |
 | `cb_min`, `cb_max`, `cr_min`, `cr_max` | extrêmes de chroma | information |
 | `sat_max` | saturation max (`sqrt(Cb²+Cr²)` centré) | information |
+| `d_mean` | différence absolue moyenne de Y (non filtré) avec l'image précédente, en valeurs de code ; `null` pour la première image | images figées, dupliquées, mire |
+| `d_up_pct`, `d_down_pct` | % de pixels dont la luminance relative a augmenté (diminué) de plus de `structure.pse.flash_min_delta_pct` depuis l'image précédente | PSE |
 
 **Conversion RGB :** Y'CbCr 10 bits plage légale → R'G'B' avec la matrice BT.709 inverse, en float32, sans clipping. Le résultat est comparé aux bornes du profil exprimées en % (-5 % à +105 % par défaut, EBU R103).
 
@@ -183,6 +191,8 @@ Appliquer les mesures **à chaque groupe de pistes** du mapping (VF, VI, 5.1 sé
 ```
 
 Le tableau `video` peut être volumineux (135 000 entrées pour 90 min) : il est **toujours** écrit en JSON Lines, au fil des mesures, dans `measurements_video.jsonl` (une ligne par image) ; les blocs audio de même dans `measurements_audio.jsonl` (une ligne par bloc de 100 ms et par groupe). `measurements.json` garde l'en-tête, l'intégrité, les seuils appliqués, la plage programme et les valeurs globales, et nomme ces deux fichiers. Un format unique évite deux chemins de lecture dans les étapes suivantes.
+
+**Différences entre images (ajoutées en Phase 3, `schema_version` 2) :** les images figées, dupliquées et le PSE ont besoin de comparer chaque image à la précédente ; cette comparaison est faite pendant la passe de mesure (jamais par un second décodage). Luminance relative : réponse d'écran BT.1886 à noir nul, `((Y − 64) / 876)^2,4` bornée à [0, 1], comparée par tables d'entiers (exact). Un `measurements.json` de format 1 est refusé par les étapes suivantes : relancer `analyze`.
 
 **Choix de mise en œuvre (Phase 2) :** loudness momentané, short term, intégré et LRA par FFmpeg `ebur128` (référence) ; true peak par l'interpolateur ×4 de l'UIT-R BS.1770-4 annexe 2 en NumPy, bloc par bloc, pour dater chaque pic (FFmpeg ne donne qu'un maximum cumulé à trois décimales linéaires) ; préfiltre vidéo : noyau binomial horizontal de `video.prefilter_taps` pixels (3 ou 5) ; chroma 4:2:2 interpolée linéairement pour la conversion RGB ; percentiles au rang le plus proche sur l'histogramme exact de Y.
 
@@ -242,6 +252,17 @@ Inspiré d'ITU-R BT.1702 et des lignes directrices Ofcom, sans prétendre les re
 
 Sortie : `structure.json` avec, pour chaque contrôle, `expected`, `actual`, `ok`, et les plages d'images concernées.
 
+**Choix de mise en œuvre (Phase 3) :**
+- Les détecteurs travaillent sur les colonnes de `measurements_video.jsonl` ; seules quelques images sont redécodées par accès direct (seek, exact sur ProRes et DNxHR qui sont intra) : l'image du milieu de chaque plan fixe d'au moins 1 s (candidat mire) et une image toutes les 10 s pour le format d'image. Le 1 kHz est lu sur 1 s au milieu de la mire.
+- Mire : grille 12 × 16 de zones dont on garde le centre (marges de 20 %), moyenne Y, Cb, Cr comparée à la mire FFmpeg de référence (`pal75bars`, `pal100bars`, `smptehdbars`, convertie BT.709 plage légale) ; erreur = médiane des écarts par zone, pire des trois plans, comparée à `structure.bars.tolerance`. En mode `leaders: none` avec `bars.forbidden`, les trois mires sont cherchées. Une mire est un plan fixe : seule une mire immobile est reconnue.
+- 1 kHz : fréquence dominante par FFT (fenêtre de Hann, tolérance 1 %), niveau = RMS + 3,01 dB (référence sinus pleine échelle = 0 dBFS), comparé à `structure.bars.tone_dbfs` ± `structure.bars.tone_tolerance_db`.
+- Mode `classic` : le programme commence à la première image qui n'est ni mire ni noire ; le noir de tête est la plage noire et silencieuse qui la précède, le noir de queue la plage noire et silencieuse finale. Mode `none` : le programme est le fichier entier ; noirs de tête et de queue mesurés depuis le début et la fin.
+- Images figées et dupliquées : `d_mean < structure.freeze.threshold` ; une suite de `n` images « identiques à la précédente » est une image tenue sur `n + 1` images. Les images noires et la mire sont exclues. Durée minimale : `structure.freeze.min_seconds` (au moins, bornes incluses).
+- Noir isolé : une seule image noire entre deux images non noires, sauf si `y_mean` décroît strictement sur les 3 images qui précèdent (fin de fondu) ou croît strictement sur les 3 qui suivent (début de fondu).
+- PSE : une transition est une image où plus de `flash_min_area_pct` % de l'image a éclairci (ou assombri) de plus de `flash_min_delta_pct` ; deux transitions de même sens sur des images consécutives n'en font qu'une ; `n` transitions dans une fenêtre d'une seconde font `n // 2` flashs.
+- Fichier entrelacé : figées, dupliquées et PSE sont mesurés sur des images entières (deux trames) ; le rapport l'indique.
+- Format d'image : une ligne (colonne) est active si son 99,9e centile atteint `structure.black.y_max` (même critère que l'image noire). Seuls les nombres de lignes et de pixels actifs sont comparés au profil (la correspondance des numéros de ligne SMPTE reste à vérifier). Un format différent sur au moins 3 échantillons consécutifs est signalé en information.
+
 ---
 
 ## 7. Étape 4 : règles, événements, verdict
@@ -276,6 +297,15 @@ Le moteur de règles évalue ces expressions avec un évaluateur **sécurisé** 
 
 Sortie : `events.json` (liste d'événements) et `verdict.json` (statut, score, compteurs, liste des contrôles requis échoués).
 
+**Choix de mise en œuvre (Phase 3) :**
+- Une image est en anomalie `white_clip` / `black_crush` / `gamut` quand `y_above_pct` / `y_below_pct` / `rgb_out_pct` atteint `video.max_out_of_range_area_pct` (Arte §3.2.3.3 : « au moins 1 % de la superficie »). La mire reconnue est exclue (une PLUGE est volontairement hors plage).
+- Fusion : deux plages sont un même événement si moins de `merge_gap_frames` images propres les séparent. Durée minimale : `min_event_frames.<type>`, 1 (pas de filtre) si le type n'y figure pas.
+- `worst_value` : `y_max` du pire pixel (blancs), `y_min` (noirs), surface (gamut), valeur en dB ou LUFS (audio) ; `area_pct_max` : surface maximale.
+- Audio, sur la plage programme de `measurements.json` : loudness intégré, LRA, true peak et short term par groupe ; silence et phase par plages de blocs plus longues que `silence_max_seconds` / `phase_min_seconds` ; excursion short term : seule l'excursion au-dessus de la cible est contrôlée (le dialogue n'est pas détecté) ; un groupe dont toutes les pistes sont « sans contenu » ne produit pas en plus un événement de loudness ou de silence.
+- Contrôles `probe` et `structure` en échec : un événement du `type` du contrôle ; balise de couleur absente : gravité `format.unknown_color_tags_severity`.
+- Intégrité (`type: integrity`) : nombre d'images décodées différent de `nb_frames`, erreurs de décodage **dédoublonnées** (le message du décodeur et l'exception d'un même paquet ont la même clé ; un événement par erreur distincte avec le nombre d'images touchées), discontinuités de timestamp.
+- Toutes les gravités possibles pour le profil et le fichier sont vérifiées avant de commencer (et avant les mesures dans `analyze`) : une gravité manquante fait refuser l'analyse.
+
 ---
 
 ## 8. Étape 5 : rapport
@@ -287,8 +317,10 @@ Fichier `rapport.md` puis `rapport.pdf`, en français, sections dans cet ordre :
 3. **Synthèse** (3 à 6 phrases). Sans LLM : texte généré par gabarit à partir des compteurs. Avec LLM : texte rédigé par le modèle à partir de `verdict.json` + `events.json` agrégé (jamais `measurements.json` brut).
 4. **Contrôles de format et de structure :** tableau `contrôle / attendu / mesuré / OK`.
 5. **Audio :** tableau par groupe de pistes (loudness, true peak, LRA, silences, phase).
-6. **Tableau chronologique des anomalies :** `TC début`, `TC fin`, `durée`, `type`, `valeur max`, `seuil`, `surface`, `gravité`, `qualification suggérée` (vide sans LLM), `vignette` (si `--thumbnails`).
+6. **Tableaux chronologiques des anomalies** (deux tableaux : bloquantes et majeures, qui font le verdict ; puis « À vérifier » pour les mineures et les informations ; chaque ligne de détail cite la règle de gravité appliquée et sa source) : `TC début`, `TC fin`, `durée`, `type`, `valeur max`, `seuil`, `surface`, `gravité`, `qualification suggérée` (vide sans LLM), `vignette` (si `--thumbnails`).
 7. **Annexe :** graphique de `y_p99` et `y_p01` dans le temps (matplotlib, PNG), graphique de loudness momentané, paramètres du profil appliqués.
+
+**Choix de mise en œuvre (Phase 3) :** PDF produit localement par `markdown-it-py` (Markdown → HTML) et PyMuPDF (mise en page A4). WeasyPrint demande GTK sous Windows ; `markdown-pdf` dépend de `plantuml` (rendu par un serveur distant) et de `requests`, ce qui contredit le principe de confidentialité. Les vignettes (`--thumbnails`, dossier `vignettes/`) montrent l'image la plus mauvaise de chaque événement image ; pour les niveaux et le gamut, une deuxième moitié peint les pixels comptés par la mesure (même préfiltre, mêmes seuils). Les graphiques d'annexe sont dans `annexes/`. `run.json` garde la date et la ligne de commande de l'analyse et des relances ; `profile.yaml` est la copie du profil appliqué.
 
 ### 8.1 Couche IA (optionnelle, locale uniquement)
 
@@ -319,12 +351,14 @@ audio:          {sample_rate, bit_depth, groups[],
                  true_peak_max_dbtp, silence_dbfs, silence_max_seconds, phase_min_correlation, exclude_head_tail}
 structure:      {leaders: classic|none,
                  timecode{file_start, program_start, tolerance_frames},
-                 bars{required, start_tc, min_seconds, pattern, tone_hz, tone_dbfs, tolerance},
-                 black{head_min_seconds, tail_min_seconds, y_max, silence_dbfs},
+                 bars{required, forbidden?, start_tc, min_seconds, pattern, tone_hz, tone_dbfs, tone_tolerance_db, tolerance},
+                 black{head_min_seconds, tail_min_seconds (classic) | head_max_seconds, tail_max_seconds (none), y_max, silence_dbfs},
                  freeze{threshold, min_seconds}, pse{enabled, max_flashes_per_second}}
 rules:          {merge_gap_frames, min_event_frames{...}, severity{...}, max_major, score_formula}
 llm:            {backend: ollama, model, fallback_model, num_ctx, temperature, language}
 ```
+
+Chaque élément d'une chaîne de gravité porte sa `source` : un paragraphe du document du diffuseur (« Arte §3.2.3.3 »), une décision interne (« Lumiris : … ») ou « DEDUIT » quand aucun texte ne fixe la gravité. Une règle « DEDUIT » ne peut pas dépasser `minor` : le chargement du profil le refuse. `validate-profile` signale en avertissement les gravités bloquantes ou majeures dont la source est « A VERIFIER ».
 
 `pad-checker validate-profile` vérifie le schéma avec pydantic et refuse tout champ inconnu (pour attraper les fautes de frappe). Les champs documentés comme « information » (ex. `av_sync_ms`, `credits`, `safe_areas`) sont acceptés et recopiés dans le rapport, mais ne produisent pas de règle tant que le moteur ne sait pas les mesurer.
 

@@ -8,7 +8,7 @@ count announced by the container.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -138,6 +138,71 @@ class VideoDecoder:
             errors=list(self._errors),
             pts_discontinuities=list(self._pts_gaps),
         )
+
+
+def read_frames(path: Path, indices: Iterable[int], stream_index: int | None = None) -> Iterator[VideoFrame]:
+    """Decode only the frames at ``indices`` (0 = first frame of the file), in increasing order.
+
+    ProRes and DNxHR are intra-only codecs: a seek lands on the requested frame. The frame
+    timestamp is checked, and if seeking is not exact (or the stream has no constant timestamp
+    step) the frames are reached by decoding from the start instead. Used by the structure and
+    report steps for a few hundred frames at most (bars, letterbox, thumbnails).
+    """
+    wanted = sorted(set(indices))
+    if not wanted:
+        return
+    try:
+        container = av.open(str(path))
+    except av.FFmpegError as exc:
+        raise DecoderOpenError(f"impossible d'ouvrir {path.name} : {exc}") from None
+    with container:
+        stream = (
+            container.streams.video[0]
+            if stream_index is None
+            else next(s for s in container.streams if s.index == stream_index)
+        )
+        stream.thread_type = "AUTO"
+        step = _pts_step(stream)
+        first = next(container.decode(stream), None)
+        if first is None:
+            return
+        if step is None or first.pts is None:
+            yield from _scan(container, stream, wanted)
+            return
+        for index in wanted:
+            target = first.pts + index * step
+            container.seek(target, stream=stream, backward=True, any_frame=False)
+            frame = None
+            for candidate in container.decode(stream):
+                if candidate.pts is None or candidate.pts >= target:
+                    frame = candidate
+                    break
+            if frame is None:
+                return  # beyond the end of the file
+            if frame.pts != target:
+                yield from _scan(container, stream, [i for i in wanted if i >= index])
+                return
+            yield _to_frame(frame, index)
+
+
+def _scan(container, stream, wanted: list[int]) -> Iterator[VideoFrame]:
+    container.seek(0, stream=stream, backward=True, any_frame=False)
+    pending = iter(wanted)
+    target = next(pending, None)
+    for index, frame in enumerate(container.decode(stream)):
+        if target is None:
+            return
+        if index == target:
+            yield _to_frame(frame, index)
+            target = next(pending, None)
+
+
+def _to_frame(frame, index: int) -> VideoFrame:
+    if frame.format.name != EXPECTED_PIX_FMT:
+        raise ValueError(f"format de pixel décodé {frame.format.name}, attendu {EXPECTED_PIX_FMT}")
+    w, h = frame.width, frame.height
+    p = frame.planes
+    return VideoFrame(index=index, y=_plane(p[0], w, h), cb=_plane(p[1], w // 2, h), cr=_plane(p[2], w // 2, h))
 
 
 def _pts_step(stream) -> int | None:

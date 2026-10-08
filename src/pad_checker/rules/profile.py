@@ -45,6 +45,7 @@ EVENT_TYPES = (
     "structure_bars_present",
     "structure_black_too_long",
     "format",
+    "integrity",
 )
 EventType = Literal[EVENT_TYPES]  # type: ignore[valid-type]
 
@@ -260,7 +261,8 @@ class Bars(_Model):
     pattern: Literal["ebu_75", "ebu_100", "smpte_hd"] | None = None
     tone_hz: float | None = None
     tone_dbfs: float | None = None
-    tolerance: float | None = None
+    tone_tolerance_db: float | None = None  # level of the tone, sine-referenced RMS
+    tolerance: float | None = None  # mean error per bar region, 10-bit code values
 
     _tc = field_validator("start_tc")(_check_tc)
 
@@ -332,13 +334,33 @@ class Structure(_Model):
 # --- rules --------------------------------------------------------------------------------
 
 
+DEDUCED = "DEDUIT"
+DEDUCED_MAX: tuple[Severity, ...] = ("minor", "info")
+
+
+def is_deduced(source: str) -> bool:
+    return source.strip().upper().startswith(DEDUCED)
+
+
 class SeverityRule(_Model):
     if_: str | None = Field(default=None, alias="if")
     then: Severity | None = None
     else_: Severity | None = Field(default=None, alias="else")
+    # Where the severity comes from: a paragraph of the broadcaster document ("Arte §3.2.3.3"),
+    # or "DEDUIT" when no document says it. A deduced rule cannot go beyond minor.
+    source: str = Field(min_length=1)
+
+    @property
+    def severity(self) -> Severity:
+        return self.else_ if self.else_ is not None else self.then
 
     @model_validator(mode="after")
     def _shape(self) -> SeverityRule:
+        if (self.else_ or self.then) and is_deduced(self.source) and self.severity not in DEDUCED_MAX:
+            raise ValueError(
+                f"règle de source {self.source!r} : une règle DEDUIT ne peut pas dépasser minor "
+                f"(gravité {self.severity})"
+            )
         if self.else_ is not None:
             if self.if_ is not None or self.then is not None:
                 raise ValueError("une règle 'else' ne peut pas avoir de 'if' ni de 'then'")
@@ -450,6 +472,36 @@ def load_profile(path: str | Path) -> Profile:
         return Profile.model_validate(raw)
     except ValidationError as exc:
         raise ProfileError(path, [_translate(e) for e in exc.errors()]) from None
+
+
+class ProfileValueError(ValueError):
+    """A rule needs a profile value that is absent or null. The message is user-facing (French)."""
+
+
+def require(profile: Profile, dotted: str, purpose: str) -> Any:
+    """Value at ``dotted`` (YAML names, e.g. ``structure.bars.tolerance``), or ProfileValueError.
+
+    A value left at null in the YAML, or absent, never disables a rule silently (CLAUDE.md).
+    """
+    node: Any = profile
+    parts = dotted.split(".")
+    for i, part in enumerate(parts):
+        if node is None:
+            raise ProfileValueError(
+                f"le profil ne renseigne pas « {'.'.join(parts[:i])} », nécessaire pour {purpose}"
+            )
+        name = next((n for n, f in type(node).model_fields.items() if (f.alias or n) == part), part)
+        value = getattr(node, name)
+        if value is None:
+            where = ".".join(parts[: i + 1])
+            if name in node.model_fields_set:
+                raise ProfileValueError(
+                    f"« {where} » vaut null dans le profil : {purpose} ne peut pas être contrôlé "
+                    "tant que la valeur n'est pas renseignée"
+                )
+            raise ProfileValueError(f"le profil ne renseigne pas « {where} », nécessaire pour {purpose}")
+        node = value
+    return node
 
 
 def null_fields(profile: Profile) -> list[str]:

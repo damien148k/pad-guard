@@ -10,7 +10,7 @@ from typer.testing import CliRunner
 
 from pad_checker.cli import app
 from pad_checker.decode.audio import AudioGroupDecoder, MissingTrackError, resolve_tracks
-from pad_checker.decode.video import DecoderOpenError, VideoDecoder
+from pad_checker.decode.video import DecoderOpenError, VideoDecoder, read_frames
 from pad_checker.probe import probe_file
 from pad_checker.rules.profile import load_profile
 
@@ -20,6 +20,18 @@ pytestmark = pytest.mark.fixtures
 
 CLASSIC = TEST_PROFILES / "test_classic.yaml"
 ARTE = PROFILES / "arte_hd_sdr.yaml"
+
+
+@pytest.mark.parametrize("name", ["ok_prores.mov", "ok_dnxhr.mxf"])
+def test_read_frames_matches_sequential(fixtures_dir, name) -> None:
+    wanted = [499, 0, 7, 250, 251, 260]
+    sequential = {f.index: (f.y.copy(), f.cb.copy()) for f in VideoDecoder(fixtures_dir / name).frames()
+                  if f.index in wanted}
+    seeked = list(read_frames(fixtures_dir / name, wanted))
+    assert [f.index for f in seeked] == sorted(wanted)
+    for f in seeked:
+        assert np.array_equal(f.y, sequential[f.index][0]) and np.array_equal(f.cb, sequential[f.index][1])
+    assert list(read_frames(fixtures_dir / name, [600])) == []  # beyond the end
 
 
 @pytest.mark.parametrize("name", ["ok_prores.mov", "ok_dnxhr.mxf"])

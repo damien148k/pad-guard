@@ -4,7 +4,7 @@ import pytest
 from typer.testing import CliRunner
 
 from pad_checker import timecode
-from pad_checker.cli import EXIT_NOT_IMPLEMENTED, app
+from pad_checker.cli import EXIT_USAGE, app
 from pad_checker.rules import expr
 
 
@@ -56,10 +56,10 @@ def test_expr_rejects(bad: str) -> None:
         expr.evaluate(bad, {"worst_value": 1})
 
 
-def test_cli_report_stub() -> None:
-    result = CliRunner().invoke(app, ["report", "out"])
-    assert result.exit_code == EXIT_NOT_IMPLEMENTED
-    assert "non implémenté" in result.output
+def test_cli_report_without_analysis(tmp_path) -> None:
+    result = CliRunner().invoke(app, ["report", str(tmp_path)])
+    assert result.exit_code == EXIT_USAGE
+    assert "probe.json absent" in " ".join(result.output.split())
 
 
 def test_cli_version() -> None:

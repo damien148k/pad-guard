@@ -55,6 +55,7 @@ Le flux est strictement linéaire : `probe -> decode+measure -> structure -> rul
 ```bash
 uv sync                                     # installer
 uv run pad-checker analyze film.mov --profile profiles/france_tv_hd.yaml --out ./out/
+uv run pad-checker rerun ./out/ [--from structure|rules|report] [--profile p.yaml]   # relancer sans refaire les mesures
 uv run pad-checker report ./out/            # régénérer le rapport sans refaire les mesures
 uv run pytest
 ```

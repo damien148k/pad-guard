@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from pad_checker.cli import EXIT_NOT_IMPLEMENTED, EXIT_REFUSED, EXIT_USAGE, app
+from pad_checker.cli import EXIT_NON_CONFORME, EXIT_REFUSED, EXIT_USAGE, app
 from pad_checker.probe import ProbeError, probe_file
 from pad_checker.probe.models import AudioStreamInfo
 from pad_checker.probe.probe import audio_tracks
@@ -43,7 +43,7 @@ def test_probe_json_content(fixtures_dir, tmp_path) -> None:
     result = CliRunner().invoke(
         app, ["analyze", str(fixtures_dir / "ok_prores.mov"), "--profile", str(CLASSIC), "--out", str(tmp_path)]
     )
-    assert result.exit_code == EXIT_NOT_IMPLEMENTED  # probe done, measures come in Phase 2
+    assert result.exit_code == 0, result.output
     assert "probe.json" in result.output
     data = json.loads((tmp_path / "probe.json").read_text(encoding="utf-8"))
     assert data["timecode"] == "09:59:50:00"
@@ -130,7 +130,7 @@ def _analyze(fixture: Path, out: Path, *extra: str):
 
 def test_arte_4_mono_tracks_audio_map(fixtures_dir, tmp_path) -> None:
     result = _analyze(fixtures_dir / "arte_4tracks.mov", tmp_path, "--audio-map", "VO:1-2,VF:3-4")
-    assert result.exit_code == EXIT_NOT_IMPLEMENTED, result.output
+    assert result.exit_code in (0, EXIT_NON_CONFORME), result.output
     assert "Groupes audio (ligne de commande) : VO 1-2, VF 3-4" in " ".join(result.output.split())
     data = json.loads((tmp_path / "probe.json").read_text(encoding="utf-8"))
     assert data["audio_map"] == {
@@ -151,7 +151,7 @@ def test_audio_map_groups_are_required(fixtures_dir, tmp_path) -> None:
     data = json.loads((tmp_path / "probe.json").read_text(encoding="utf-8"))
     vi = next(c for c in data["checks"] if c["id"] == "audio_group_VI")
     assert vi["status"] == "fail" and "5, 6" in vi["actual"]
-    assert result.exit_code == EXIT_NOT_IMPLEMENTED  # a failed check is a rule matter, not a refusal
+    assert result.exit_code == EXIT_NON_CONFORME  # a failed check is a rule matter, not a refusal
 
 
 def test_audio_map_profile_default_in_probe_json(fixtures_dir, tmp_path) -> None:

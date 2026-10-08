@@ -73,6 +73,7 @@ structure:
     pattern: ebu_75                       # ebu_75 | ebu_100 | smpte_hd
     tone_hz: 1000
     tone_dbfs: -18.0                      # A VERIFIER (-18 dBFS est l'usage EBU)
+    tone_tolerance_db: 0.5                # SPEC §6.1 : niveau du 1 kHz à ± 0,5 dB (sinus, RMS × √2)
     tolerance: 12                         # erreur moyenne max par barre, en valeurs de code 10 bits
   black:
     head_min_seconds: 5                   # noir + silence juste avant 10:00:00:00 — A VERIFIER
@@ -99,40 +100,44 @@ rules:
   score_formula: "100 - 40*blocking - 10*major - 2*minor"
   severity:
     white_clip:
-      - {if: "worst_value > 1004 or area_pct_max > 5", then: blocking}
-      - {if: "duration_frames >= 25", then: major}
-      - {else: minor}
+      - {if: "worst_value > 1004 or area_pct_max > 5", then: blocking, source: "A VERIFIER : pas de document FTV"}
+      - {if: "duration_frames >= 25", then: major, source: "A VERIFIER : pas de document FTV"}
+      - {else: minor, source: "A VERIFIER : pas de document FTV"}
     black_crush:
-      - {if: "area_pct_max > 5", then: major}
-      - {else: minor}
+      - {if: "area_pct_max > 5", then: major, source: "A VERIFIER : pas de document FTV"}
+      - {else: minor, source: "A VERIFIER : pas de document FTV"}
     gamut:
-      - {if: "area_pct_max > 5 and duration_frames >= 25", then: major}
-      - {else: minor}
+      - {if: "area_pct_max > 5 and duration_frames >= 25", then: major, source: "A VERIFIER : pas de document FTV"}
+      - {else: minor, source: "A VERIFIER : pas de document FTV"}
     freeze:
-      - {if: "duration_frames >= 125", then: blocking}
-      - {else: major}
+      - {if: "duration_frames >= 125", then: blocking, source: "A VERIFIER : pas de document FTV"}
+      - {else: major, source: "A VERIFIER : pas de document FTV"}
     isolated_black_frame:
-      - {else: major}
+      - {else: major, source: "A VERIFIER : pas de document FTV"}
     duplicate_frame:
-      - {else: minor}
+      - {else: minor, source: "A VERIFIER : pas de document FTV"}
     pse:
-      - {else: major}
+      - {else: major, source: "A VERIFIER : pas de document FTV"}
     audio_loudness:
-      - {else: blocking}
+      - {else: blocking, source: "CST RT-017"}
     audio_true_peak:
-      - {else: blocking}
+      - {else: blocking, source: "CST RT-017"}
+    audio_lra:
+      - {else: major, source: "A VERIFIER : pas de document FTV"}                                # A VERIFIER
     audio_silence:
-      - {else: major}
+      - {else: major, source: "A VERIFIER : pas de document FTV"}
     audio_phase:
-      - {else: minor}
+      - {else: minor, source: "A VERIFIER : pas de document FTV"}
     structure_bars:
-      - {else: blocking}
+      - {else: blocking, source: "A VERIFIER : pas de document FTV"}
     structure_black:
-      - {else: major}
+      - {else: major, source: "A VERIFIER : pas de document FTV"}
     structure_timecode:
-      - {else: blocking}
+      - {else: blocking, source: "A VERIFIER : pas de document FTV"}
     format:
-      - {else: blocking}
+      - {else: blocking, source: "A VERIFIER : pas de document FTV"}
+    integrity:                                     # fichier corrompu : erreur de décodage, images manquantes
+      - {else: blocking, source: "A VERIFIER : pas de document FTV"}
 
 llm:
   backend: ollama

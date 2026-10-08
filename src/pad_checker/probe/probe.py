@@ -262,10 +262,23 @@ def _check_audio(
               ", ".join(f"{d} bits" for d in depths), len(depths) == 1)
 
 
+def _source(path: Path, known: SourceInfo | None) -> SourceInfo:
+    resolved, size = str(path.resolve()), path.stat().st_size
+    if known is not None and known.path == resolved and known.size_bytes == size:
+        return known
+    return SourceInfo(path=resolved, size_bytes=size, sha256=sha256_file(path))
+
+
 def probe_file(
-    path: str | Path, profile: Profile, profile_path: str | Path, audio_map: AudioMap | None = None
+    path: str | Path, profile: Profile, profile_path: str | Path, audio_map: AudioMap | None = None,
+    known: SourceInfo | None = None,
 ) -> ProbeResult:
-    """``audio_map`` overrides the profile track groups (``--audio-map``); None = profile default."""
+    """``audio_map`` overrides the profile track groups (``--audio-map``); None = profile default.
+
+    ``known``: source identity from a previous probe of the same file (``rerun`` with another
+    profile). Its SHA-256 is kept when the path and size are unchanged, instead of reading the
+    whole file again (a feature master is 100+ GB).
+    """
     path = Path(path)
     mapping = audio_map or amap.from_profile(profile)
     if not path.is_file():
@@ -295,7 +308,7 @@ def probe_file(
     return ProbeResult(
         tool_version=__version__,
         profile=ProfileRef(name=profile.profile.name, version=profile.profile.version, sha256=sha256_file(profile_path)),
-        source=SourceInfo(path=str(path.resolve()), size_bytes=path.stat().st_size, sha256=sha256_file(path)),
+        source=_source(path, known),
         container=container,
         video=video,
         audio_streams=audio,

@@ -104,6 +104,7 @@ structure:
   bars:
     required: false                                  # pas d'amorce (§3.2.2.1) ; la mire est interdite dans le fichier
     forbidden: true
+    tolerance: 12                                    # paramètre de reconnaissance pad-checker (pas une valeur Arte) : erreur moyenne max par zone de mire, en valeurs de code 10 bits
   black:
     head_max_seconds: 2.0                            # DEDUIT : aucune valeur chiffrée (§3.2.2.1 interdit les amorces) ; tolère une ouverture au noir
     tail_max_seconds: 5.0                            # DEDUIT : idem, tolère un fondu de fin au noir
@@ -138,54 +139,57 @@ rules:
     freeze: 50
   max_major: 0
   score_formula: "100 - 40*blocking - 10*major - 2*minor"
+  # Chaque règle cite sa source : un paragraphe des consignes Arte V2, une décision interne Lumiris,
+  # ou DEDUIT (aucun texte ne le dit). Une règle DEDUIT ne dépasse jamais minor (validate-profile le vérifie).
   severity:
     white_clip:
-      - {if: "area_pct_max >= 1 and duration_frames >= 25", then: major}
-      - {if: "area_pct_max >= 1", then: minor}
-      - {else: info}
+      - {if: "area_pct_max >= 1 and duration_frames >= 25", then: major, source: "Arte §3.2.3.3"}   # erreur dès 1 % de la surface
+      - {if: "area_pct_max >= 1", then: minor, source: "DEDUIT"}       # dépassement bref : signalé, toléré
+      - {else: info, source: "DEDUIT"}
     black_crush:
-      - {if: "area_pct_max >= 1 and duration_frames >= 25", then: major}
-      - {if: "area_pct_max >= 1", then: minor}
-      - {else: info}
+      - {if: "area_pct_max >= 1 and duration_frames >= 25", then: major, source: "Arte §3.2.3.3"}
+      - {if: "area_pct_max >= 1", then: minor, source: "DEDUIT"}
+      - {else: info, source: "DEDUIT"}
     gamut:
-      - {if: "area_pct_max >= 1 and duration_frames >= 25", then: major}
-      - {if: "area_pct_max >= 1", then: minor}
-      - {else: info}
+      - {if: "area_pct_max >= 1 and duration_frames >= 25", then: major, source: "Arte §3.2.3.3"}
+      - {if: "area_pct_max >= 1", then: minor, source: "DEDUIT"}
+      - {else: info, source: "DEDUIT"}
     freeze:
-      - {if: "duration_frames >= 125", then: blocking}
-      - {else: major}
+      - {else: minor, source: "DEDUIT"}                                # le document ne parle pas d'images figées
     isolated_black_frame:
-      - {else: major}
+      - {else: minor, source: "DEDUIT"}                                # le document ne parle pas de noirs isolés
     duplicate_frame:
-      - {else: minor}
+      - {else: minor, source: "DEDUIT"}
     pse:
-      - {else: major}
+      - {else: major, source: "Lumiris : contrôle interne (SPEC §6.6)"}   # non exigé par Arte ; à vérifier avec un analyseur Harding certifié
     audio_loudness:
-      - {else: blocking}
+      - {else: blocking, source: "Arte §3.3.2.4"}
     audio_true_peak:
-      - {else: blocking}
+      - {else: blocking, source: "Arte §3.3.2.1"}
     audio_short_term_excursion:
-      - {else: major}
+      - {else: minor, source: "DEDUIT (Arte §3.3.2.5 : mesure ponctuelle, dialogue non détecté)"}
     audio_lra:
-      - {else: major}
+      - {else: major, source: "Arte §3.3.2.5"}
     audio_silent_track:
-      - {else: blocking}                             # §3.2.2.1
+      - {else: blocking, source: "Arte §3.2.2.1"}
     audio_dual_mono_mismatch:
-      - {else: major}                                # §3.3.4.1
+      - {else: major, source: "Arte §3.3.4.1"}
     audio_silence:
-      - {else: major}
+      - {else: minor, source: "DEDUIT"}                                # aucun seuil chiffré (§6.11.1 vise les génériques)
     audio_phase:
-      - {else: minor}
+      - {else: minor, source: "DEDUIT (Arte §3.3.4.2 : phase très majoritairement positive)"}
     structure_bars_present:
-      - {else: blocking}                             # §3.2.2.1 : mire = amorce, interdite
+      - {else: blocking, source: "Arte §3.2.2.1"}                      # mire = amorce, interdite
     structure_black_too_long:
-      - {else: minor}                                # noir de tête/queue au-delà de head/tail_max_seconds
+      - {else: minor, source: "DEDUIT"}                                # noir de tête/queue au-delà de head/tail_max_seconds
     structure_timecode:
-      - {else: blocking}
+      - {else: blocking, source: "Arte §3.4.1"}
     letterbox:
-      - {else: minor}
+      - {else: minor, source: "Arte §3.2.4"}
     format:
-      - {else: blocking}
+      - {else: blocking, source: "Arte §3.2.2.1"}
+    integrity:
+      - {else: blocking, source: "Lumiris : fichier corrompu ou incomplet"}
 
 llm:                                                 # couche IA locale, désactivée sauf --llm ollama
   backend: ollama

@@ -154,3 +154,40 @@ def test_cli_validate_missing_file(tmp_path: Path) -> None:
     result = runner.invoke(app, ["validate-profile", str(tmp_path / "absent.yaml")])
     assert result.exit_code == 1
     assert "introuvable" in result.output
+
+
+def test_severity_rule_needs_a_source(tmp_path: Path) -> None:
+    def bad(raw):
+        del raw["rules"]["severity"]["pse"][0]["source"]
+
+    errors = _errors(_mutated(tmp_path, bad))
+    assert any("rules.severity.pse[0].source" in e for e in errors)
+
+
+@pytest.mark.parametrize("source", ["DEDUIT", "deduit (Arte §3.3.2.5)"])
+def test_deduced_rule_capped_at_minor(tmp_path: Path, source: str) -> None:
+    def bad(raw):
+        raw["rules"]["severity"]["freeze"] = [{"else": "major", "source": source}]
+
+    errors = _errors(_mutated(tmp_path, bad))
+    assert any("DEDUIT ne peut pas dépasser minor" in e and "rules.severity.freeze" in e for e in errors)
+    result = runner.invoke(app, ["validate-profile", str(tmp_path / "profile.yaml")])
+    assert result.exit_code != 0 and "dépasser minor" in " ".join(result.output.split())
+
+
+def test_arte_severity_calibration() -> None:
+    p = load_profile(PROFILES / "arte_hd_sdr.yaml")
+    sev = {name: [r.severity for r in chain] for name, chain in p.rules.severity.items()}
+    for name in ("freeze", "audio_silence", "audio_short_term_excursion", "duplicate_frame"):
+        assert sev[name] == ["minor"], name
+    assert sev["pse"] == ["major"] and p.rules.severity["pse"][0].source.startswith("Lumiris")
+    for chain in p.rules.severity.values():  # every major / blocking rule cites a document, never DEDUIT
+        for rule in chain:
+            if rule.severity in ("blocking", "major"):
+                assert rule.source.startswith(("Arte §", "Lumiris")), rule
+
+
+def test_validate_profile_warns_on_unsourced_major() -> None:
+    result = runner.invoke(app, ["validate-profile", str(PROFILES / "france_tv_hd.yaml")])
+    assert result.exit_code == 0
+    assert "sans document source" in " ".join(result.output.split())

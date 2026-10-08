@@ -91,7 +91,8 @@ def _flat(h: int, w: int, y: int, cb: int = 512, cr: int = 512) -> VideoFrame:
 
 
 def _limits(prefilter: int | None = None) -> VideoLimits:
-    return VideoLimits(y_legal=(64, 940), y_tolerance=(55, 967), rgb=(20, 984), prefilter_taps=prefilter, matrix="bt709")
+    return VideoLimits(y_legal=(64, 940), y_tolerance=(55, 967), rgb=(20, 984), prefilter_taps=prefilter, matrix="bt709",
+                       flash_delta_pct=10.0)
 
 
 @pytest.mark.parametrize(
@@ -174,6 +175,34 @@ def test_strips_do_not_change_results() -> None:
     assert len(results) == 1
 
 
+def _luminance_reference(code: int) -> float:
+    return min(max((code - 64) / 876, 0.0), 1.0) ** 2.4
+
+
+def test_frame_differences_match_reference() -> None:
+    rng = np.random.default_rng(11)
+    prev = rng.integers(0, 1024, (24, 40))
+    cur = rng.integers(0, 1024, (24, 40))
+    meter = FrameMeter(_limits(3), strip_rows=7)
+    chroma = np.full((24, 20), 512)
+    r = meter.measure(_frame(cur, chroma, chroma, 1), np.asarray(prev, np.uint16))
+    lum_prev = np.vectorize(_luminance_reference)(prev)
+    lum_cur = np.vectorize(_luminance_reference)(cur)
+    assert r["d_mean"] == round(float(np.abs(cur - prev).mean()), 3)  # unfiltered, despite the prefilter
+    assert r["d_up_pct"] == round(100 * float((lum_cur - lum_prev > 0.1).mean()), 4)
+    assert r["d_down_pct"] == round(100 * float((lum_prev - lum_cur > 0.1).mean()), 4)
+    first = meter.measure(_frame(cur, chroma, chroma, 0))
+    assert first["d_mean"] is first["d_up_pct"] is first["d_down_pct"] is None
+
+
+def test_flash_table_bounds() -> None:
+    up = _limits().flash_table().astype(int)
+    lum = _limits().luminance()
+    for p in (0, 64, 300, 700, 900):
+        assert lum[up[p]] - lum[p] > 0.1 and lum[up[p] - 1] - lum[p] <= 0.1
+    assert up[940] == up[1023] == 1024  # white cannot rise
+
+
 def test_parallel_matches_sequential() -> None:
     rng = np.random.default_rng(5)
     frames = [
@@ -184,6 +213,7 @@ def test_parallel_matches_sequential() -> None:
     parallel = list(measure_frames(frames, _limits(3), workers=2))  # 4 slots for 9 frames: slots are reused
     assert [r["f"] for r in parallel] == list(range(9))
     assert parallel == sequential
+    assert sequential[0]["d_mean"] is None and all(r["d_mean"] > 0 for r in sequential[1:])
 
 
 # --- unit: audio ------------------------------------------------------------------------------

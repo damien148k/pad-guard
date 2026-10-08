@@ -68,6 +68,7 @@ structure:
     pattern: ebu_75                       # ebu_75 | ebu_100 | smpte_hd
     tone_hz: 1000
     tone_dbfs: -18.0                      # A VERIFIER (-18 dBFS est l'usage EBU)
+    tone_tolerance_db: 0.5                # SPEC §6.1 : niveau du 1 kHz à ± 0,5 dB (sinus, RMS × √2)
     tolerance: 12                         # erreur moyenne max par barre, en valeurs de code 10 bits
   black:
     head_min_seconds: 5                   # noir + silence juste avant 10:00:00:00 — A VERIFIER
@@ -94,40 +95,44 @@ rules:
   score_formula: "100 - 40*blocking - 10*major - 2*minor"
   severity:
     white_clip:
-      - {if: "worst_value > 1004 or area_pct_max > 5", then: blocking}
-      - {if: "duration_frames >= 25", then: major}
-      - {else: minor}
+      - {if: "worst_value > 1004 or area_pct_max > 5", then: blocking, source: "profil de test (fixtures)"}
+      - {if: "duration_frames >= 25", then: major, source: "profil de test (fixtures)"}
+      - {else: minor, source: "profil de test (fixtures)"}
     black_crush:
-      - {if: "area_pct_max > 5", then: major}
-      - {else: minor}
+      - {if: "area_pct_max > 5", then: major, source: "profil de test (fixtures)"}
+      - {else: minor, source: "profil de test (fixtures)"}
     gamut:
-      - {if: "area_pct_max > 5 and duration_frames >= 25", then: major}
-      - {else: minor}
+      - {if: "area_pct_max > 5 and duration_frames >= 25", then: major, source: "profil de test (fixtures)"}
+      - {else: minor, source: "profil de test (fixtures)"}
     freeze:
-      - {if: "duration_frames >= 125", then: blocking}
-      - {else: major}
+      - {if: "duration_frames >= 125", then: blocking, source: "profil de test (fixtures)"}
+      - {else: major, source: "profil de test (fixtures)"}
     isolated_black_frame:
-      - {else: major}
+      - {else: major, source: "profil de test (fixtures)"}
     duplicate_frame:
-      - {else: minor}
+      - {else: minor, source: "profil de test (fixtures)"}
     pse:
-      - {else: major}
+      - {else: major, source: "profil de test (fixtures)"}
     audio_loudness:
-      - {else: blocking}
+      - {else: blocking, source: "profil de test (fixtures)"}
     audio_true_peak:
-      - {else: blocking}
+      - {else: blocking, source: "profil de test (fixtures)"}
+    audio_lra:
+      - {else: major, source: "profil de test (fixtures)"}                                # A VERIFIER
     audio_silence:
-      - {else: major}
+      - {else: major, source: "profil de test (fixtures)"}
     audio_phase:
-      - {else: minor}
+      - {else: minor, source: "profil de test (fixtures)"}
     structure_bars:
-      - {else: blocking}
+      - {else: blocking, source: "profil de test (fixtures)"}
     structure_black:
-      - {else: major}
+      - {else: major, source: "profil de test (fixtures)"}
     structure_timecode:
-      - {else: blocking}
+      - {else: blocking, source: "profil de test (fixtures)"}
     format:
-      - {else: blocking}
+      - {else: blocking, source: "profil de test (fixtures)"}
+    integrity:                                     # fichier corrompu : erreur de décodage, images manquantes
+      - {else: blocking, source: "profil de test (fixtures)"}
 
 llm:
   backend: ollama

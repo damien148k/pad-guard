@@ -9,3 +9,4 @@ samples/
 tests/fixtures/*.mov
 tests/fixtures/*.mxf
 tests/fixtures/_work/
+recette/

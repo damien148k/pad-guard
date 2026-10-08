@@ -17,9 +17,17 @@ FFmpeg 6+ et `ffprobe` doivent être dans le PATH.
 ```bash
 uv run pad-checker validate-profile profiles/arte_hd_sdr.yaml
 uv run pad-checker analyze film.mov --profile profiles/arte_hd_sdr.yaml --out ./out/
-uv run pad-checker analyze film.mov --profile profiles/arte_hd_sdr.yaml --out ./out/ --audio-map "VO:1-2,VF:3-4"
-uv run pad-checker report ./out/
+uv run pad-checker analyze film.mov --profile profiles/arte_hd_sdr.yaml --out ./out/ --audio-map "VO:1-2,VF:3-4" --thumbnails
+uv run pad-checker rerun ./out/                          # structure + règles + rapport, sans refaire les mesures
+uv run pad-checker rerun ./out/ --from rules --profile autre.yaml   # autres règles sur les mêmes mesures
+uv run pad-checker report ./out/ --thumbnails            # rapport seul (+ vignettes)
 ```
+
+`analyze` enchaîne probe, mesures, structure, règles et rapport. Le code de retour vaut 0 pour CONFORME, 4 pour NON-CONFORME, 1 pour une erreur d'usage ou un profil incomplet (détecté avant les mesures), 2 pour un fichier refusé.
+
+`rerun` repart des JSON du dossier : il relit la copie `profile.yaml` faite par `analyze`, ou le profil donné par `--profile`. Un autre profil n'est accepté que s'il ne change aucun paramètre de mesure (seuils convertis en valeurs de code, préfiltre, seuil de flash, plage programme, groupes audio) ; sinon il faut relancer `analyze`. Le fichier source n'est relu que pour la recherche de mire, le format d'image, le 1 kHz et les vignettes (quelques centaines d'images, par accès direct).
+
+`--thumbnails` écrit une vignette par anomalie image (`vignettes/`) : l'image la plus mauvaise de l'événement, et pour les niveaux et le gamut une deuxième moitié où les pixels comptés par la mesure sont peints (rouge : Y au-dessus de la tolérance, bleu : en dessous, magenta : RVB hors limites).
 
 `--audio-map` remplace, pour cette analyse, les groupes de pistes `audio.groups` du profil : `NOM:PISTES[:LAYOUT]` séparés par des virgules, avec des pistes en plage (`1-2`, `5-10`), seules (`7`) ou en liste (`1+3`). Le layout est repris du groupe du profil de même nom s'il a le même nombre de pistes, sinon déduit du nombre de pistes (1 `mono`, 2 `stereo`, 6 `5.1`) ; `dual_mono` se précise explicitement (`VO:1-2:dual_mono`). Tous les groupes donnés en ligne de commande sont obligatoires. Le mapping utilisé et sa source (profil ou ligne de commande) sont écrits dans `probe.json`.
 
@@ -31,8 +39,12 @@ uv run pad-checker report ./out/
 | `measurements.json` | mesures | en-tête, intégrité, seuils appliqués (valeurs de code 10 bits), plage programme, loudness / true peak / LRA par groupe, niveaux par piste |
 | `measurements_video.jsonl` | mesures | une ligne par image (`y_min` … `sat_max`, SPEC §5.2) |
 | `measurements_audio.jsonl` | mesures | une ligne par bloc de 100 ms et par groupe (`m`, `s`, `tp`, `peak`, `rms`, `clip`, `corr`, `diff`) |
+| `structure.json` | structure | mire, 1 kHz, noirs de tête et de queue, programme, contrôles, images figées / dupliquées / noires isolées, PSE, format d'image |
+| `events.json`, `verdict.json` | règles | événements avec gravité ; statut, score, compteurs, motifs |
+| `rapport.md`, `rapport.pdf` | rapport | rapport en français (sections SPEC §8), `annexes/` (graphiques), `vignettes/` |
+| `run.json`, `profile.yaml` | analyze | date et commande de l'analyse et des relances ; copie du profil appliqué |
 
-`measurements.json` est écrit en dernier : s'il est présent, les deux fichiers `.jsonl` sont complets.
+`measurements.json` est écrit en dernier : s'il est présent, les deux fichiers `.jsonl` sont complets. Les mesures sont au format 2 depuis la Phase 3 (différences entre images `d_mean`, `d_up_pct`, `d_down_pct`) : un dossier mesuré avant doit être réanalysé.
 
 ## Performances
 
@@ -45,6 +57,8 @@ Vitesse de décodage seul (`analyze --benchmark`), 1920×1080 25p, 500 images, m
 | ProRes 422 HQ, `ok_prores.mov` (synthétique, très compressible) | 60 Mbit/s | 1755 | 70× |
 
 Analyse complète décodage + mesures (`analyze`, Phase 2), même machine, 60 s ProRes 422 HQ `testsrc2` + grain (190 Mbit/s) avec 6 pistes mono 24 bits : **11,2 s, soit 5,4× le temps réel** (vidéo 8,2 s à 183 i/s avec 8 processus de mesure, audio 3,0 s). Extrapolé à un film de 90 min : environ 17 min. Objectif Phase 2 : ≥ 2× temps réel.
+
+Phase 3 (8 octobre 2026) : les différences entre images (figées, dupliquées, PSE) sont calculées pendant la même passe. Même fichier : **14 s, soit 4,3× le temps réel** (6,3× sans ces différences, mesuré dans les mêmes conditions). Structure, règles et rapport ajoutent quelques secondes (accès direct à quelques centaines d'images).
 
 Les mesures vidéo tournent dans des processus séparés (`--workers`, 8 par défaut sur 16 cœurs ; au-delà, aucun gain mesuré) qui reçoivent les images décodées par mémoire partagée : le fichier reste lu séquentiellement par un seul décodeur. Le nombre de processus ne change pas les résultats (testé à l'octet près).
 

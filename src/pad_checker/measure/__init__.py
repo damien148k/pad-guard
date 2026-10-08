@@ -89,7 +89,7 @@ def run(
         integrity=integrity,
         video_settings=VideoSettings(
             y_legal=limits.y_legal, y_tolerance=limits.y_tolerance, rgb=limits.rgb,
-            prefilter_taps=limits.prefilter_taps, matrix=limits.matrix,
+            prefilter_taps=limits.prefilter_taps, matrix=limits.matrix, flash_delta_pct=limits.flash_delta_pct,
         ),
         video=VideoSection(file=VIDEO_FILE, fields=list(FIELDS), frames=len(y_p99)),
         audio=audio,
