@@ -123,17 +123,36 @@ def check(doc: Document, raw: dict, specs: dict[str, FieldSpec], batch: int, pag
     if len(verify.normalise(f.quote)) > MAX_QUOTE_CHARS:
         f.status, f.reason = INVALID, f"citation trop longue (plus de {MAX_QUOTE_CHARS} caractères)"
         return f
+    in_table = None
     if not verify.quote_in(f.quote, page.full_text):
-        elsewhere = [p.number for p in doc.pages if p.number != f.page and verify.quote_in(f.quote, p.full_text)]
-        f.status = INVALID
-        f.reason = "citation introuvable dans la page" + (f" (trouvée p. {elsewhere[0]})" if elsewhere else "")
-        return f
+        in_table = verify.table_row(f.quote, page.tables)
+        if in_table is None:
+            elsewhere = [p.number for p in doc.pages if p.number != f.page and verify.quote_in(f.quote, p.full_text)]
+            f.status = INVALID
+            f.reason = "citation introuvable dans la page" + (f" (trouvée p. {elsewhere[0]})" if elsewhere else "")
+            return f
+    if in_table is None:
+        in_table = verify.table_row(f.quote, page.tables) if page.tables else None
+    if in_table is not None and ".loudness." in f.field and (".long." in f.field or ".short." in f.field):
+        column = verify.table_column_kind(value, *in_table)
+        wanted = "long" if ".long." in f.field else "short"
+        if column and column != wanted:
+            f.status = INVALID
+            f.reason = f"dans le tableau, la valeur est dans la colonne des programmes {'longs' if column == 'long' else 'courts'}"
+            return f
     words = vocabulary.missing_words(f.field, f.quote)
     if words:
         f.status, f.reason = INVALID, f"citation sans rapport avec le champ (mots attendus : {words})"
         return f
-    scalar = isinstance(value, (int, float)) and not isinstance(value, bool)
-    why = (verify.value_in_quote(value, f.quote, vocabulary.unit_of(f.field) if scalar else None)
+    why = vocabulary.evidence(f.field, json.dumps(value), f.quote)
+    if why is None and f.field in vocabulary.LITERAL_TEXT and isinstance(value, str):
+        if " ".join(vocabulary.plain(value).split()) not in " ".join(vocabulary.plain(f.quote).split()):
+            why = f"la citation ne contient pas le texte « {value} »"
+    if why:
+        f.status, f.reason = INVALID, why
+        return f
+    numeric = _number(value) or (isinstance(value, list) and bool(value) and all(_number(v) for v in value))
+    why = (verify.value_in_quote(value, f.quote, vocabulary.unit_of(f.field) if numeric else None)
            or verify.loudness_context(f.field, f.quote, page.full_text))
     if why:
         f.status, f.reason = INVALID, why
@@ -142,12 +161,26 @@ def check(doc: Document, raw: dict, specs: dict[str, FieldSpec], batch: int, pag
     return f
 
 
+def _number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def canonical(value: Any) -> str:
+    """Comparison key of a value: a list of plain values is a set (["50/1", "25/1"] = ["25/1", "50/1"])."""
+    if isinstance(value, list) and all(not isinstance(v, (dict, list)) for v in value):
+        value = sorted(set(map(json.dumps, value)))
+    return json.dumps(value, sort_keys=True)
+
+
 def flag_shared_quotes(findings: list[Finding]) -> None:
-    """One quote and one value given for two different fields: which field is meant is ambiguous."""
+    """One quote and one number given for two different fields: which field is meant is ambiguous.
+
+    Only numbers: one sentence may well say « BT.709 » for the three colour fields, or forbid
+    two things at once."""
     groups: dict[tuple[str, str], list[Finding]] = {}
     for f in findings:
-        if f.status == OK:
-            groups.setdefault((verify.normalise(f.quote), json.dumps(f.value, sort_keys=True)), []).append(f)
+        if f.status == OK and _number(f.value):
+            groups.setdefault((verify.normalise(f.quote), canonical(f.value)), []).append(f)
     for same in groups.values():
         fields = sorted({f.field for f in same})
         if len(fields) > 1:
@@ -167,9 +200,10 @@ def merge(findings: list[Finding], fields: list[FieldSpec]) -> tuple[list[FieldR
         if not found:
             missing.append(spec.path)
             continue
-        values = []
+        values, keys = [], set()
         for f in found:
-            if f.status == OK and f.value not in values:
+            if f.status == OK and canonical(f.value) not in keys:
+                keys.add(canonical(f.value))
                 values.append(f.value)
         if any(f.status == CONFLICT for f in found) or len(values) > 1:
             status, value = CONFLICT, None  # two values, or a value whose field is ambiguous

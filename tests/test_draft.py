@@ -229,6 +229,44 @@ def test_quote_normalisation() -> None:
     assert verify.value_in_quote(1.0, "-1 dBTP") is not None  # the sign matters
 
 
+def test_meaning_of_choices_and_prohibitions() -> None:
+    quote = "Le programme ne doit pas contenir d’amorces de début et de fin ;"
+    assert vocabulary.evidence("structure.leaders", '"none"', quote) is None
+    assert "contredit" in vocabulary.evidence("structure.leaders", '"classic"', quote)
+    assert vocabulary.evidence("structure.logo.forbidden", "true", "Aucun logo de chaîne dans le programme") is None
+    assert vocabulary.evidence("structure.logo.forbidden", "true", "Le logo est en haut à droite") is not None
+    assert vocabulary.evidence("format.field_order", '"tt"', "Entrelacement: Entrelacé / Upper Field First") is None
+    assert vocabulary.evidence("format.field_order", '"progressive"', "Entrelacement: Entrelacé") is not None
+
+
+def test_units_of_list_values() -> None:
+    assert verify.value_in_quote([24, 16], "24 ou 16 bits", vocabulary.unit_of("audio.bit_depth_allowed")) is None
+    reason = verify.value_in_quote([24, 16], "4, 8 ou 16 pistes en 24 bits", vocabulary.unit_of("audio.bit_depth_allowed"))
+    assert reason and "16" in reason  # 16 is a number of tracks here
+    assert verify.value_in_quote(8, "jusqu'à 8 pistes", vocabulary.unit_of("audio.max_pairs")) is not None
+
+
+def test_table_rows_and_columns() -> None:
+    table = [["", "Programmes courts (< 2 minutes)", "Programmes longs (≥2 minutes)"],
+             ["Mesure cible (Integrated Loudness)", "≤ -23 LUFS", "-23 LUFS (+/- 1 LU)"],
+             ["Excursion dynamique (LRA)", "non mesuré", "≤ 20 LU (+5 LU)"]]
+    found = verify.table_row("Mesure cible (Integrated Loudness) -23 LUFS (+/- 1 LU)", [table])
+    assert found == (table, 1)  # one cell left out, the words still in order in one row
+    assert verify.table_row("Excursion dynamique -23 LUFS", [table]) is None  # words of two rows
+    assert verify.table_column_kind(1.0, table, 1) == "long"
+    assert verify.table_column_kind(20.0, table, 2) == "long"
+
+
+def test_lists_compared_as_sets(doc_pdf, tmp_path) -> None:
+    from pad_checker.draft.extract import canonical
+
+    assert canonical(["50/1", "25/1"]) == canonical(["25/1", "50/1"])
+    quote = "Fréquence image | 25 images par seconde"
+    x, _ = draft(doc_pdf, tmp_path, FakeClient({1: [finding("format.fps_allowed", ["25/1"], 2, quote),
+                                                    finding("format.delivery.fps", ["25/1"], 2, quote)]}))
+    assert set(statuses(x).values()) == {OK}  # same quote for two fields: fine when it is not a number
+
+
 # --- review-profile and compare-profiles -------------------------------------------------------
 
 

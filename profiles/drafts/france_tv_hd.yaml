@@ -1,0 +1,149 @@
+# BROUILLON de profil « france_tv_hd » produit par pad-checker draft-profile : NE PAS UTILISER EN L'ÉTAT.
+# Source : diffuseurs/Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (SHA-256 3cdd935056d18335ddd561c0e61b60c138af317829db42cc44ac39a886481e28), 9 pages.
+# Modèle local : qwen3-vl:8b-instruct, consigne draft_profile_v1, 5 lots de pages.
+# Chaque valeur est à vérifier (A VERIFIER) : la citation a été retrouvée dans la page et contient le nombre,
+# mais seul un humain peut confirmer le sens. À relire avec : pad-checker review-profile <ce fichier>.
+# Statuts : 14 A_VERIFIER, 62 CITATION_INVALIDE, 2 CONFLIT, 1 VALEUR_INVALIDE, 27 champ(s) non trouvé(s).
+#
+# Champs non trouvés dans le document (absents : hérités d'une norme, donc plafonnés à minor, ou à fixer) :
+#   - format.codecs
+#   - format.containers
+#   - format.pix_fmt
+#   - format.unknown_color_tags_severity
+#   - format.letterbox.check
+#   - format.letterbox.formats
+#   - format.letterbox.tolerance_lines
+#   - format.delivery.scan
+#   - video.bit_depth
+#   - video.rgb_min_pct
+#   - video.rgb_max_pct
+#   - video.max_out_of_range_area_pct
+#   - video.prefilter
+#   - video.prefilter_taps
+#   - video.measure_spaces
+#   - video.scan_detection.comb_ratio_min
+#   - video.scan_detection.motion_min
+#   - video.scan_detection.interlaced_min_pct
+#   - video.scan_detection.progressive_max_pct
+#   - video.scan_detection.min_moving_frames
+#   - audio.groups
+#   - audio.loudness_exempt_groups
+#   - audio.silence_max_seconds
+#   - audio.exclude_head_tail
+#   - structure.bars.tolerance
+#   - structure.black.y_max
+#   - structure.freeze.threshold
+
+meta:
+  name: france_tv_hd
+  version: '0.1'
+  broadcaster: France Télévisions
+  source_document: Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf
+  notes: 'Brouillon extrait par qwen3-vl:8b-instruct (draft_profile_v1) : chaque valeur est à vérifier.'
+  extends: [ebu_r103, ebu_r128, lumiris_maison]
+  status: draft
+  source_pdf: diffuseurs/Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf
+  source_pdf_sha256: 3cdd935056d18335ddd561c0e61b60c138af317829db42cc44ac39a886481e28
+
+format:
+  width: 1920  # A VERIFIER (p. 5) « 1920 x 1080 pixels carrés » ; aussi p. 8
+  height: 1080  # A VERIFIER (p. 5) « 1920 x 1080 pixels carrés » ; aussi p. 8
+  fps_allowed: null  # CITATION_INVALIDE : [25/1] (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : images? par seconde|images?/s|i/s|fps|frequence image|cadence|frame rate|ds*p|ds*i|psf)) « Fréquence trame : 50 Hz » | 25/1 (p. 8, VALEUR_INVALIDE: valeur '25/1' incompatible avec le champ (Input should be a valid list)) « Framerate: 25fps »
+  field_order: tt  # A VERIFIER (p. 8) « Entrelacement: Entrelacé / Upper Field First »
+  color_primaries: null  # CITATION_INVALIDE : bt709 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : 709|2020|colorim|primaires|gamma|espace)) « Le signal vidéo, conforme à la Recommandation Technique PAD fichier Diffuseurs,… » | bt709 (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : 709|2020|colorim|primaires|gamma|espace)) « Profil: 4:2:2@High »
+  color_transfer: null  # CITATION_INVALIDE : bt709 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : 709|2020|colorim|primaires|gamma|espace)) « Le signal vidéo, conforme à la Recommandation Technique PAD fichier Diffuseurs,… » | bt709 (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : 709|2020|colorim|primaires|gamma|espace)) « Profil: 4:2:2@High »
+  color_space: null  # CITATION_INVALIDE : bt709 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : 709|2020|colorim|primaires|gamma|espace)) « Le signal vidéo, conforme à la Recommandation Technique PAD fichier Diffuseurs,… » | bt709 (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : 709|2020|colorim|primaires|gamma|espace)) « Profil: 4:2:2@High »
+  color_range: null  # CITATION_INVALIDE : tv (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : 64|940|16|235|plage|range|legal)) « Le signal vidéo, conforme à la Recommandation Technique PAD fichier Diffuseurs,… » | tv (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : 64|940|16|235|plage|range|legal)) « Profil: 4:2:2@High »
+  delivery:
+    fps: null  # VALEUR_INVALIDE : 25/1 (p. 8, VALEUR_INVALIDE: valeur '25/1' incompatible avec le champ (Input should be a valid list)) « Framerate: 25fps »
+    codec: Sony XDCAM HD422  # A VERIFIER (p. 8) « Codec Video: Sony XDCAM HD422 »
+
+video:
+  y_min_legal: null  # CITATION_INVALIDE : 64 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : 64|noir|black)) « Le signal vidéo, conforme à la Recommandation Technique PAD fichier Diffuseurs,… »
+  y_max_legal: null  # CITATION_INVALIDE : 940 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : 940|blanc|white)) « Le signal vidéo, conforme à la Recommandation Technique PAD fichier Diffuseurs,… »
+  y_tolerance_low_pct: null  # CITATION_INVALIDE : -1 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : luminance|y)) « Le signal vidéo, conforme à la Recommandation Technique PAD fichier Diffuseurs,… »
+  y_tolerance_high_pct: null  # CITATION_INVALIDE : 103 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : luminance|y)) « Le signal vidéo, conforme à la Recommandation Technique PAD fichier Diffuseurs,… »
+
+audio:
+  sample_rate: 48000  # A VERIFIER (p. 8) « Codec Audio: PCM Little Endian 24bit @ 48 kHz » [Hz]
+  bit_depth: 24  # A VERIFIER (p. 5) « résolution 24 bits » ; aussi p. 8
+  bit_depth_allowed: null  # CITATION_INVALIDE : [24, 16] (p. 5, CITATION_INVALIDE: le nombre 16 n'est pas suivi de l'unité attendue dans la citation) « les fichiers MXF Prêts à Diffuser ne pourront comporter que 4, 8 ou 16 pistes (… »
+  same_bit_depth_all_tracks: true  # A VERIFIER (p. 5) « Chaque piste audio du fichier MXF transportera un canal monophonique PCM, de résolution 24 bits, à 48 kHz de fréquence d’échantillonnage. »
+  channel_layout: null  # CITATION_INVALIDE : stereo_pairs (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : paires?|aes)) « La livraison vidéo doit être accompagnée d'une version française en stéréo (pis… » | stereo_pairs (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : paires?|aes)) « Codec Audio: PCM Little Endian 24bit @ 48 kHz »
+  max_pairs: null  # CITATION_INVALIDE : 8 (p. 5, CITATION_INVALIDE: le nombre 8 n'est pas suivi de l'unité attendue dans la citation) « les fichiers MXF Prêts à Diffuser ne pourront comporter que 4, 8 ou 16 pistes (… »
+  no_silent_tracks: false  # A VERIFIER (p. 5) « Dans ce contexte, les éventuelles pistes inutilisées transporteront des canaux silencieux (silence codé). »
+  silent_track_dbfs: null  # CITATION_INVALIDE : -90 (p. 5, CITATION_INVALIDE: la citation ne contient pas le nombre -90) « les éventuelles pistes inutilisées transporteront des canaux silencieux (silenc… » | -90 (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : pistes?)) « Codec Audio: PCM Little Endian 24bit @ 48 kHz »
+  dual_mono_must_be_identical: true  # A VERIFIER (p. 5) « Dans le cas d'un son mono, il doit être dupliqué sur les deux pistes. »
+  loudness:
+    method: R128  # A VERIFIER (p. 7) « Pour chaque version, l’ensemble des mesures de loudness de chaque paire de pistes devront être conformes à la norme R128. »
+    long_program_min_seconds: null  # CITATION_INVALIDE : 120 (p. 7, CITATION_INVALIDE: la citation ne contient pas le nombre 120) « Programmes longs (≥2 minutes) »
+    long:
+      integrated_lufs: null  # CONFLIT : -23 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : loudness|lufs|lkfs|integr|intensite sonore)) « les versions audio, dont les signaux s’avéreront conformes à la Recommandation … » | -23.0 (p. 7, CONFLIT: même citation et même valeur que audio.loudness.short.integrated_lufs) « Mesure cible du niveau d’intensité sonore sur le programme complet (Integrated … » | -23.0 (p. 9, CONFLIT: même citation et même valeur que audio.loudness.short.integrated_lufs) « Mesure cible du niveau d’intensité sonore sur le programme complet (Integrated … »
+      integrated_tolerance_lu: 1.0  # A VERIFIER (p. 7) « Mesure cible du niveau d’intensité sonore sur le programme complet (Integrated Loudness) -23 LUFS (+/- 1 LU) » [LU] ; aussi p. 9
+      lra_max_lu: 20.0  # A VERIFIER (p. 7) « Excursion dynamique (Loudness Range ou LRA) ≤ 20 LU (+5 LU) » [LU] ; aussi p. 9
+      lra_recommended_range_lu: null  # CITATION_INVALIDE : [0, 14] (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : lra|loudness range)) « les versions audio, dont les signaux s’avéreront conformes à la Recommandation … » | [0, 20] (p. 7, CITATION_INVALIDE: la citation ne contient pas le nombre 0) « Excursion dynamique (Loudness Range ou LRA) ≤ 20 LU (+5 LU) » | [0, 20] (p. 9, CITATION_INVALIDE: la citation ne contient pas le nombre 0) « Excursion dynamique (Loudness Range ou LRA) ≤ 20 LU (+5 LU) »
+      short_term_dialogue_excursion_lu: null  # CITATION_INVALIDE : 3 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : short.?term|court terme)) « les versions audio, dont les signaux s’avéreront conformes à la Recommandation … » | 7 (p. 7, CITATION_INVALIDE: le nombre 7 n'est pas suivi de l'unité attendue dans la citation) « Plage d’excursion de l’intensité sonore court terme des dialogues niveau moyen … » | 5 (p. 9, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : short.?term|court terme)) « Excursion dynamique (Loudness Range ou LRA) ≤ 20 LU (+5 LU) »
+      short_term_max_lufs: null  # CITATION_INVALIDE : -1 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : short.?term|court terme)) « les versions audio, dont les signaux s’avéreront conformes à la Recommandation … » | -20 (p. 7, CITATION_INVALIDE: dans le tableau, la valeur est dans la colonne des programmes courts) « Niveau maximum de la mesure d’intensité sonore court terme (Max Short Term Loud… » | -20 (p. 9, CITATION_INVALIDE: dans le tableau, la valeur est dans la colonne des programmes courts) « Niveau maximum de la mesure d’intensité sonore court terme (Max Short Term Loud… »
+      short_term_excursion_above_lu: null  # CITATION_INVALIDE : 3 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : short.?term|court terme)) « les versions audio, dont les signaux s’avéreront conformes à la Recommandation … » | 5 (p. 7, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : short.?term|court terme)) « Excursion dynamique (Loudness Range ou LRA) ≤ 20 LU (+5 LU) » | 7 (p. 9, CITATION_INVALIDE: le nombre 7 n'est pas suivi de l'unité attendue dans la citation) « Plage d’excursion de l’intensité sonore court terme des dialogues niveau moyen … »
+    short:
+      integrated_lufs: null  # CONFLIT : -23.0 (p. 7, CONFLIT: même citation et même valeur que audio.loudness.long.integrated_lufs) « Mesure cible du niveau d’intensité sonore sur le programme complet (Integrated … »
+      integrated_tolerance_lu: null  # CITATION_INVALIDE : 1 (p. 7, CITATION_INVALIDE: dans le tableau, la valeur est dans la colonne des programmes longs) « Mesure cible du niveau d’intensité sonore sur le programme complet (Integrated … »
+      lra_max_lu: null  # CITATION_INVALIDE : 20 (p. 7, CITATION_INVALIDE: dans le tableau, la valeur est dans la colonne des programmes longs) « Excursion dynamique (Loudness Range ou LRA) ≤ 20 LU (+5 LU) »
+      lra_recommended_range_lu: null  # CITATION_INVALIDE : [0, 20] (p. 7, CITATION_INVALIDE: la citation ne contient pas le nombre 0) « Excursion dynamique (Loudness Range ou LRA) ≤ 20 LU (+5 LU) »
+      short_term_dialogue_excursion_lu: null  # CITATION_INVALIDE : 7 (p. 7, CITATION_INVALIDE: dans le tableau, la valeur est dans la colonne des programmes longs) « Plage d’excursion de l’intensité sonore court terme des dialogues niveau moyen … »
+      short_term_max_lufs: -20.0  # A VERIFIER (p. 7) « Niveau maximum de la mesure d’intensité sonore court terme (Max Short Term Loudness) ≤ -20 LUFS » [LUFS]
+      short_term_excursion_above_lu: null  # CITATION_INVALIDE : 5 (p. 7, CITATION_INVALIDE: dans le tableau, la valeur est dans la colonne des programmes longs) « Excursion dynamique (Loudness Range ou LRA) ≤ 20 LU (+5 LU) »
+  true_peak_max_dbtp: -3.0  # A VERIFIER (p. 7) « Niveau maximum des crêtes (Max True Peak) -3 dB TP » [dBTP] ; aussi p. 9
+  alignment_tone:
+    hz: null  # CITATION_INVALIDE : 1000 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : alignement|sinus|signal de reference|line.?up)) « les versions audio, dont les signaux s’avéreront conformes à la Recommandation … »
+    dbfs: null  # CITATION_INVALIDE : -20 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : alignement|sinus|signal de reference|line.?up)) « les versions audio, dont les signaux s’avéreront conformes à la Recommandation … »
+  silence_dbfs: null  # CITATION_INVALIDE : -90 (p. 5, CITATION_INVALIDE: la citation ne contient pas le nombre -90) « les éventuelles pistes inutilisées transporteront des canaux silencieux (silenc… »
+  phase_min_correlation: null  # CITATION_INVALIDE : 0.9 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : phase|correlation)) « les versions audio, dont les signaux s’avéreront conformes à la Recommandation … »
+  phase_min_seconds: null  # CITATION_INVALIDE : 0.5 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : phase|correlation)) « les versions audio, dont les signaux s’avéreront conformes à la Recommandation … »
+  av_sync_ms:
+    audio_early_max: null  # CITATION_INVALIDE : 50 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : synchro|lip|avance|decalage)) « les versions audio, dont les signaux s’avéreront conformes à la Recommandation … »
+    audio_late_max: null  # CITATION_INVALIDE : 50 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : synchro|lip|retard|decalage)) « les versions audio, dont les signaux s’avéreront conformes à la Recommandation … »
+
+structure:
+  leaders: null  # CITATION_INVALIDE : classic (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : amorces?|leaders?|clap|decompte|mire)) « Les programmes doivent être livrés en haute définition (HD) »
+  timecode:
+    file_start: null  # CITATION_INVALIDE : 00:00:00:00 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : timecode|time code|tc)) « Les programmes doivent être livrés en haute définition (HD) »
+    program_start: null  # CITATION_INVALIDE : 00:00:00:00 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : timecode|time code|tc)) « Les programmes doivent être livrés en haute définition (HD) »
+    tolerance_frames: null  # CITATION_INVALIDE : 0 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : timecode|time code|tc)) « Les programmes doivent être livrés en haute définition (HD) »
+    drop_frame_allowed: null  # CITATION_INVALIDE : false (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : drop)) « Les programmes doivent être livrés en haute définition (HD) »
+    must_be_continuous: null  # CITATION_INVALIDE : true (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : continu|saut|recouvrement|discontinu)) « Les programmes doivent être livrés en haute définition (HD) »
+  bars:
+    required: null  # CITATION_INVALIDE : true (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : mire|barres|bars)) « Les programmes doivent être livrés en haute définition (HD) »
+    forbidden: null  # CITATION_INVALIDE : false (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : mire|barres|bars|amorces?)) « Les programmes doivent être livrés en haute définition (HD) »
+    start_tc: null  # CITATION_INVALIDE : 00:00:00:00 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : mire|barres|bars)) « Les programmes doivent être livrés en haute définition (HD) »
+    min_seconds: null  # CITATION_INVALIDE : 0.5 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : mire|barres|bars)) « Les programmes doivent être livrés en haute définition (HD) »
+    pattern: null  # CITATION_INVALIDE : ebu_75 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : mire|barres|bars)) « Les programmes doivent être livrés en haute définition (HD) »
+    tone_hz: null  # CITATION_INVALIDE : 1000 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : mire|barres|bars|1 ?khz|1[. ]?000 ?hz)) « Les programmes doivent être livrés en haute définition (HD) »
+    tone_dbfs: null  # CITATION_INVALIDE : -20 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : mire|barres|bars|1 ?khz|1[. ]?000 ?hz)) « Les programmes doivent être livrés en haute définition (HD) »
+    tone_tolerance_db: null  # CITATION_INVALIDE : 1 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : mire|barres|bars|1 ?khz|1[. ]?000 ?hz)) « Les programmes doivent être livrés en haute définition (HD) »
+  black:
+    head_min_seconds: null  # CITATION_INVALIDE : 0.5 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : noir|black)) « Les programmes doivent être livrés en haute définition (HD) »
+    tail_min_seconds: null  # CITATION_INVALIDE : 0.5 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : noir|black)) « Les programmes doivent être livrés en haute définition (HD) »
+    head_max_seconds: null  # CITATION_INVALIDE : 10 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : noir|black)) « Les programmes doivent être livrés en haute définition (HD) »
+    tail_max_seconds: null  # CITATION_INVALIDE : 10 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : noir|black)) « Les programmes doivent être livrés en haute définition (HD) »
+    silence_dbfs: null  # CITATION_INVALIDE : -90 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : silence)) « Les programmes doivent être livrés en haute définition (HD) »
+  freeze:
+    min_seconds: null  # CITATION_INVALIDE : 0.5 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : fige|freeze|gel)) « Les programmes doivent être livrés en haute définition (HD) »
+  pse:
+    enabled: null  # CITATION_INVALIDE : true (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : flash|epilep|pse|harding|clignot|photosensib)) « Les programmes doivent être livrés en haute définition (HD) »
+    max_flashes_per_second: null  # CITATION_INVALIDE : 10 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : flash|epilep|pse|harding|clignot|photosensib)) « Les programmes doivent être livrés en haute définition (HD) »
+    flash_min_delta_pct: null  # CITATION_INVALIDE : 10 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : flash|epilep|pse|harding|clignot|photosensib)) « Les programmes doivent être livrés en haute définition (HD) »
+    flash_min_area_pct: null  # CITATION_INVALIDE : 5 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : flash|epilep|pse|harding|clignot|photosensib)) « Les programmes doivent être livrés en haute définition (HD) »
+  first_frames:
+    no_subtitles_first_frames: null  # CITATION_INVALIDE : 0 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : sous.?titre)) « Les programmes doivent être livrés en haute définition (HD) »
+  logo:
+    forbidden: null  # CITATION_INVALIDE : true (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : logo)) « Les programmes doivent être livrés en haute définition (HD) »
+  credits:
+    end_credits_max_seconds: null  # CITATION_INVALIDE : {children: 10, comedy: 10, documentary: 10, drama: 10, music: 10, news: 10, other: 10, sport: 10} (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : generique)) « Les programmes doivent être livrés en haute définition (HD) »
+    silent_black_credits_forbidden: null  # CITATION_INVALIDE : true (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : generique)) « Les programmes doivent être livrés en haute définition (HD) »
+  safe_areas:
+    title_safe_pct:
+      horizontal: null  # CITATION_INVALIDE : 0.05 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : securite|safe|marges?)) « Les programmes doivent être livrés en haute définition (HD) »
+      vertical: null  # CITATION_INVALIDE : 0.05 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : securite|safe|marges?)) « Les programmes doivent être livrés en haute définition (HD) »
+    subtitle_safe: null  # CITATION_INVALIDE : 0.05, 0.05, 0.9, 0.9 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : sous.?titre|securite|safe)) « Les programmes doivent être livrés en haute définition (HD) »
+    logo_corners_free: null  # CITATION_INVALIDE : true (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : logo|coins?)) « Les programmes doivent être livrés en haute définition (HD) »

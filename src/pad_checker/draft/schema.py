@@ -18,7 +18,7 @@ from typing import Any
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
-from pad_checker.rules.profile import Profile
+from pad_checker.rules.profile import Profile, check_groups
 
 SECTIONS = ("format", "video", "audio", "structure")
 
@@ -118,6 +118,10 @@ def check_value(spec: FieldSpec, value: Any) -> tuple[Any, str | None]:
         return None, "valeur vide"
     try:
         checked = spec.adapter.validate_python(value)
+        if spec.path == "audio.groups":
+            check_groups(checked, "audio.groups")
     except ValidationError as exc:
         return None, f"valeur {value!r} incompatible avec le champ ({exc.errors()[0]['msg']})"
+    except ValueError as exc:
+        return None, f"valeur incohérente : {exc}"
     return spec.adapter.dump_python(checked, mode="json"), None

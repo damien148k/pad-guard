@@ -73,14 +73,14 @@ KEYWORDS: dict[str, tuple[str, ...]] = {
     "audio.loudness.long.lra_recommended_range_lu": (r"lra|loudness range",),
     "audio.loudness.long.short_term_dialogue_excursion_lu": (_SHORT_TERM, r"dialogue"),
     "audio.loudness.long.short_term_max_lufs": (_SHORT_TERM,),
-    "audio.loudness.long.short_term_excursion_above_lu": (_SHORT_TERM + r"|excursion|au.dessus",),
+    "audio.loudness.long.short_term_excursion_above_lu": (_SHORT_TERM, r"excursion|au.dessus|\+"),
     "audio.loudness.short.integrated_lufs": (_LOUD,),
     "audio.loudness.short.integrated_tolerance_lu": (r"toleran|±|\+/-",),
     "audio.loudness.short.lra_max_lu": (r"lra|loudness range",),
     "audio.loudness.short.lra_recommended_range_lu": (r"lra|loudness range",),
     "audio.loudness.short.short_term_dialogue_excursion_lu": (_SHORT_TERM, r"dialogue"),
     "audio.loudness.short.short_term_max_lufs": (_SHORT_TERM,),
-    "audio.loudness.short.short_term_excursion_above_lu": (_SHORT_TERM + r"|excursion|au.dessus",),
+    "audio.loudness.short.short_term_excursion_above_lu": (_SHORT_TERM, r"excursion|au.dessus|\+"),
     "audio.true_peak_max_dbtp": (r"true.?peak|crete|\btp\b|dbtp",),
     "audio.alignment_tone.hz": (r"alignement|sinus|signal de reference|line.?up",),
     "audio.alignment_tone.dbfs": (r"alignement|sinus|signal de reference|line.?up",),
@@ -129,12 +129,67 @@ UNITS: tuple[tuple[str, str], ...] = (
     ("_dbfs", r"db ?fs"), ("_lufs", r"lufs|lkfs"), ("_dbtp", r"db ?tp|dbtp"), ("_pct", r"%|pour ?cent"),
     ("_lu", r"lu\b|lufs"), ("_ms", r"ms\b|milli"), ("_db", r"db\b"),
     (".dbfs", r"db ?fs"), (".hz", r"k?hz"), ("_hz", r"k?hz"), ("sample_rate", r"k?hz"),
+    ("bit_depth", r"-? ?bits?"), ("bit_depth_allowed", r"-? ?bits?"), ("max_pairs", r"paires?"),
 )
 
 
+# A negation or a prohibition in the quote.
+NEGATION = (r"\bne\b.{0,60}\b(pas|jamais|aucun)|\bn'.{0,60}\b(pas|jamais|aucun)|interdit|proscrit|\baucune?\b|"
+            r"\bsans\b|\bjamais\b|\bpas d(e|')|\bpas de\b|\bno\b|\bnot\b|forbidden")
+_INTERLACED = r"entrelac|interlac|\d\s*i\b"
+
+# For choices and yes/no values, what the quote must say (and must not say) for that value:
+# {path: {value as JSON: (required pattern or None, forbidden pattern or None)}}.
+EVIDENCE: dict[str, dict[str, tuple[str | None, str | None]]] = {
+    "structure.leaders": {
+        '"none"': (r"(" + NEGATION + r").{0,60}amorce|amorce.{0,60}(" + NEGATION + r")", None),
+        '"classic"': (r"amorce|mire|decompte|noir de tete", NEGATION),
+    },
+    "structure.bars.required": {"true": (r"mire|barres", NEGATION), "false": (NEGATION, None)},
+    "structure.bars.forbidden": {"true": (NEGATION, None), "false": (None, NEGATION)},
+    "format.field_order": {'"progressive"': (r"progressi", None), **{f'"{v}"': (_INTERLACED, None)
+                                                                     for v in ("tt", "bb", "tb", "bt")}},
+    "format.delivery.scan": {'"progressive"': (r"progressi", None), '"interlaced_tff"': (_INTERLACED, None),
+                             '"interlaced_bff"': (_INTERLACED, None), '"psf"': (r"psf|segment", None)},
+    "format.color_range": {'"tv"': (r"limit|narrow|legal|nominal|64|16", r"full|pleine"),
+                           '"pc"': (r"full|pleine", None)},
+    "structure.pse.enabled": {"true": (None, NEGATION), "false": (NEGATION, None)},
+    "video.prefilter": {"true": (None, r"\bne\b.{0,40}\bpas\b.{0,20}filtr|sans filtr"), "false": (NEGATION, None)},
+    "structure.timecode.drop_frame_allowed": {"true": (None, NEGATION), "false": (NEGATION, None)},
+    **{f"format.{k}": {'"bt709"': (r"709", None), '"bt2020"': (r"2020", None), '"smpte2084"': (r"2084|pq", None),
+                       '"arib-std-b67"': (r"hlg|b67", None)}
+       for k in ("color_primaries", "color_transfer", "color_space")},
+}
+
+# Free-text values that must be written in the quote itself (accents, case and spaces ignored).
+LITERAL_TEXT = frozenset({"audio.loudness.method", "format.delivery.codec", "structure.safe_areas.subtitle_safe"})
+
+
+def _yes_no_default(path: str) -> dict[str, tuple[str | None, str | None]] | None:
+    """Prohibitions (forbidden, no_…) need a negation in the quote to be true, and none to be false."""
+    name = path.rsplit(".", 1)[-1]
+    if "forbidden" in name or name.startswith("no_"):
+        return {"true": (NEGATION, None), "false": (None, NEGATION)}
+    return None
+
+
+def evidence(path: str, value_json: str, quote: str) -> str | None:
+    """None if the quote supports this choice / yes-no value, else a French reason."""
+    rules = EVIDENCE.get(path) or _yes_no_default(path)
+    if not rules or value_json not in rules:
+        return None
+    need, refuse = rules[value_json]
+    text = plain(quote)
+    if need and not re.search(need, text):
+        return f"la citation ne dit pas {value_json} pour ce champ"
+    if refuse and re.search(refuse, text):
+        return f"la citation contredit la valeur {value_json} (négation ou terme contraire)"
+    return None
+
+
 def plain(text: str) -> str:
-    """Accents removed, case folded."""
-    decomposed = unicodedata.normalize("NFKD", text)
+    """Accents removed, case folded, typographic apostrophes made plain."""
+    decomposed = unicodedata.normalize("NFKD", text.replace("’", "'").replace("‘", "'"))
     return "".join(c for c in decomposed if not unicodedata.combining(c)).casefold()
 
 

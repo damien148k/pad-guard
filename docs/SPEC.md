@@ -474,14 +474,15 @@ Une valeur n'est retenue (statut `A_VERIFIER`, à confirmer par un humain) que s
 1. elle est du type du champ (sinon `VALEUR_INVALIDE`) ;
 2. le champ n'est pas un paramètre interne de pad-checker ou du master Lumiris (`draft/vocabulary.py`, `INTERNAL` : seuils de détection, codecs du master…) ;
 3. la page citée fait partie du lot et a une couche texte (sinon `CITATION_NON_VERIFIABLE`) ;
-4. la citation fait au plus 300 caractères et se retrouve dans le texte de la page citée, après normalisation (formes de compatibilité Unicode donc ligatures et espaces insécables, apostrophes et guillemets typographiques, tirets et signe moins, césures en fin de ligne, espaces, casse) ;
+4. la citation fait au plus 300 caractères et se retrouve dans le texte de la page citée, après normalisation (formes de compatibilité Unicode donc ligatures et espaces insécables, apostrophes et guillemets typographiques, tirets et signe moins, césures en fin de ligne, espaces, casse) ; à défaut, pour une page à tableau, tous les mots de la citation se suivent dans l'ordre à l'intérieur d'une même ligne du tableau (le modèle peut omettre une cellule) ;
 5. la citation contient le vocabulaire du champ (accents et casse ignorés : `KEYWORDS`, par exemple « silence » pour `audio.silence_dbfs`) ;
-6. chaque nombre de la valeur figure dans la citation (virgule ou point décimal, signe moins typographique, « 2’00 » = 120 s, « 48 kHz » = 48000, milliers « 1.000 ») et, pour un nombre seul, est suivi de l'unité attendue (dBFS, LUFS, LU, dBTP, %, Hz, ms) ;
-7. pour les valeurs de loudness des programmes longs ou courts, la dernière durée citée avant le passage dans la page correspond (un document donne souvent les deux jeux l'un après l'autre).
+6. pour un choix ou un oui/non, la citation en porte le sens (`EVIDENCE` : `leaders: none` exige une négation portant sur les amorces, `classic` l'exclut ; une interdiction vraie exige une négation ; `progressive` exige « progressif »…) ; un texte libre (`LITERAL_TEXT`, ex. `format.delivery.codec`) doit figurer tel quel dans la citation ;
+7. chaque nombre de la valeur figure dans la citation (virgule ou point décimal, signe moins typographique, « 2’00 » = 120 s, « 48 kHz » = 48000, milliers « 1.000 ») et est suivi de l'unité attendue (dBFS, LUFS, LU, dBTP, %, Hz, ms, bits, paires ; pour une liste, l'unité peut être partagée : « 24 ou 16 bits ») ;
+8. pour les valeurs de loudness des programmes longs ou courts, la dernière durée citée avant le passage dans la page correspond ; dans un tableau, c'est l'en-tête de la colonne de la cellule qui porte la valeur.
 
 Sinon `CITATION_INVALIDE`, avec la raison. Un champ dont toutes les propositions échouent est écrit `null` (le profil refusera de tourner tant qu'un humain ne l'a pas tranché).
 
-**Fusion** : deux valeurs contrôlées différentes pour un même champ, ou une même citation et une même valeur données pour deux champs différents, donnent `CONFLIT` : toutes les propositions sont gardées, le champ est `null`, un humain tranche. Jamais de choix silencieux.
+**Fusion** : deux valeurs contrôlées différentes pour un même champ (une liste de valeurs simples est comparée comme un ensemble), ou une même citation et un même nombre donnés pour deux champs différents, donnent `CONFLIT` : toutes les propositions sont gardées, le champ est `null`, un humain tranche. Jamais de choix silencieux.
 
 ### 13.3 Brouillon
 

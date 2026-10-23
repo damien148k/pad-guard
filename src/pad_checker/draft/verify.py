@@ -44,6 +44,49 @@ _MIN_SEC = re.compile(r"(\d+)\s*'\s*(\d{2})\b")  # 2'00 = 120 s
 _KHZ = re.compile(r"(\d+(?:[.,]\d+)?)\s*khz")
 
 
+def _words(text: str) -> list[str]:
+    from pad_checker.draft.vocabulary import plain
+
+    return re.findall(r"[\w]+(?:[.,]\d+)?|[±≤≥<>%-]", plain(normalise(text)))
+
+
+def _in_order(needle: list[str], hay: list[str]) -> bool:
+    it = iter(hay)
+    return all(any(w == h for h in it) for w in needle)
+
+
+def table_row(quote: str, tables: list[list[list[str]]]) -> tuple[list[list[str]], int] | None:
+    """(table, row index) of the table row whose cells contain every word of the quote in order.
+
+    A model reading a table cites a row as it sees it and may leave a cell out; the words it
+    cites must still all be in that one row, in that order."""
+    q = _words(quote)
+    if not q:
+        return None
+    for table in tables:
+        for i, row in enumerate(table):
+            if _in_order(q, _words(" ".join(row))):
+                return table, i
+    return None
+
+
+def table_column_kind(value: Any, table: list[list[str]], row: int) -> str | None:
+    """« long » / « short » when the cell holding ``value`` is under a header about long / short programmes."""
+    if not isinstance(value, (int, float)) or isinstance(value, bool) or row == 0:
+        return None
+    from pad_checker.draft.vocabulary import plain
+
+    kinds = set()
+    for col, cell in enumerate(table[row]):
+        if any(_close(float(value), n) for n, _ in numbers(cell)) and col < len(table[0]):
+            header = plain(table[0][col])
+            if re.search(r"court|< ?2", header):
+                kinds.add("short")
+            elif re.search(r"long|≥ ?2|>= ?2", header):
+                kinds.add("long")
+    return kinds.pop() if len(kinds) == 1 else None
+
+
 def numbers(text: str) -> list[tuple[float, str]]:
     """(number, text right after it) for every number of ``text``, plus 2'00 as 120 and 48 kHz as 48000."""
     text = _SIGN_GAP.sub(r"\1\2", normalise(text))
@@ -95,11 +138,13 @@ def value_in_quote(value: Any, quote: str, unit: str | None = None) -> str | Non
     the quote itself has been found in the page.
     """
     found = numbers(quote)
+    listed = isinstance(value, list)
     for v in _numbers_of(value):
         hits = [after for n, after in found if _close(v, n)]
         if not hits:
             return f"la citation ne contient pas le nombre {v:g}"
-        if unit and not any(re.match(unit, after) for after in hits):
+        # A list may share its unit: "24 ou 16 bits", "entre 5 et 15 LU".
+        if unit and not any((re.search(unit, after) if listed else re.match(unit, after)) for after in hits):
             return f"le nombre {v:g} n'est pas suivi de l'unité attendue dans la citation"
     if isinstance(value, str) and _TIMECODE.match(value) and value[:8] not in normalise(quote):
         return f"la citation ne contient pas le timecode {value}"
