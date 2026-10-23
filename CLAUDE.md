@@ -47,7 +47,8 @@ src/pad_checker/
   structure/  mire, noirs de tête/queue, timecode, images figées, PSE
   rules/      schéma du profil, application des règles -> events.json + verdict
   report/     génération Markdown / PDF
-  llm/        synthèse rédigée, qualification suggérée, profil brouillon depuis un PDF (optionnel)
+  llm/        LLMClient et OllamaClient (seule implémentation), consignes versionnées dans llm/prompts/
+  draft/      draft-profile (lecture du PDF, schéma d'extraction, contrôle des citations), review-profile, compare-profiles
   cli.py      point d'entrée `pad-checker`
 ```
 
@@ -69,6 +70,8 @@ Le profil décrit le format que le diffuseur attend en livraison (`format.delive
 
 ## Commandes
 
+Avant tout commit, lancer `uv run pytest` sans pipe ni tail, et ne committer que si le code de retour de pytest est 0.
+
 ```bash
 uv sync                                     # installer
 uv run pad-checker analyze film.mov --profile profiles/france_tv_hd.yaml --out ./out/
@@ -76,6 +79,9 @@ uv run pad-checker rerun ./out/ [--from structure|rules|report] [--profile p.yam
 uv run pad-checker report ./out/            # régénérer le rapport sans refaire les mesures
 uv run pad-checker validate-profile profiles/arte_hd_sdr.yaml   # schéma, normes héritées, cycles
 uv run pad-checker explain-profile profiles/arte_hd_sdr.yaml    # chaque valeur, son origine, les conflits
+uv run pad-checker draft-profile diffuseurs/doc.pdf --name nom  # brouillon dans profiles/drafts/ (Ollama local)
+uv run pad-checker review-profile profiles/drafts/nom.yaml      # relecture champ par champ -> profiles/nom.yaml validé
+uv run pad-checker compare-profiles a.yaml b.yaml               # différences entre deux profils effectifs
 uv run pytest
 ```
 

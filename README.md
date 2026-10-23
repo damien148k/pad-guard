@@ -17,6 +17,9 @@ FFmpeg 6+ et `ffprobe` doivent être dans le PATH.
 ```bash
 uv run pad-checker validate-profile profiles/arte_hd_sdr.yaml   # schéma, normes héritées, cycles
 uv run pad-checker explain-profile profiles/arte_hd_sdr.yaml    # profil effectif : origine de chaque valeur, conflits
+uv run pad-checker draft-profile "diffuseurs/doc.pdf" --name nom   # profil brouillon tiré du PDF (Ollama local, SPEC §13)
+uv run pad-checker review-profile profiles/drafts/nom.yaml      # relecture champ par champ, écrit profiles/nom.yaml validé
+uv run pad-checker compare-profiles profiles/a.yaml profiles/b.yaml
 uv run pad-checker analyze film.mov --profile profiles/arte_hd_sdr.yaml --out ./out/
 uv run pad-checker analyze film.mov --profile profiles/arte_hd_sdr.yaml --out ./out/ --audio-map "VO:1-2,VF:3-4" --thumbnails
 uv run pad-checker rerun ./out/                          # structure + règles + rapport, sans refaire les mesures

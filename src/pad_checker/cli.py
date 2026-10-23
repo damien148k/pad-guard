@@ -14,8 +14,9 @@ from rich.console import Console
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeRemainingColumn
 from rich.table import Table
 
-from pad_checker import __version__, audio_map as amap, jsonio, measure, pipeline, workdir as wd
+from pad_checker import __version__, audio_map as amap, draft, jsonio, llm, measure, pipeline, workdir as wd
 from pad_checker.decode.video import DecoderOpenError, VideoDecoder
+from pad_checker.draft import compare, review
 from pad_checker.labels import SEVERITY_LABELS, SEVERITY_ORDER, status_label
 from pad_checker.measure import scan as scan_mod
 from pad_checker.measure.models import Measurements
@@ -438,6 +439,150 @@ def explain_profile(
     nulls = null_fields(resolved.profile)
     if nulls:
         console.print("[yellow]Valeurs non renseignées (null)[/yellow] : " + ", ".join(nulls))
+
+
+@app.command("draft-profile")
+def draft_profile(
+    pdf_file: Path = typer.Argument(..., help="PDF du cahier des charges du diffuseur (dans diffuseurs/)."),
+    name: str = typer.Option(..., "--name", "-n", help="Nom du profil, ex. france_tv_hd."),
+    model: str | None = typer.Option(
+        None, "--model", help=f"Modèle Ollama (défaut : {llm.DEFAULT_MODEL}, sinon {llm.FALLBACK_MODEL})."),
+    broadcaster: str | None = typer.Option(None, "--broadcaster", help="Nom du diffuseur (défaut : le nom du profil)."),
+    out_dir: Path = typer.Option(draft.DRAFTS, "--out-dir", help="Dossier des brouillons."),
+) -> None:
+    """Propose un profil brouillon à partir du PDF d'un diffuseur, avec le modèle local (Ollama)."""
+    client = _ollama_or_exit(model)
+    console.print(f"Modèle local : [bold]{client.model}[/bold] (Ollama, rien ne sort de la machine)")
+    start = time.perf_counter()
+    with Progress(TextColumn("{task.description}"), BarColumn(), MofNCompleteColumn(), TimeRemainingColumn(),
+                  console=err_console, transient=True) as bar:
+        task = bar.add_task("Lecture du PDF", total=None)
+
+        def on_read(doc) -> None:
+            images = sum(p.needs_image for p in doc.pages)
+            console.print(f"{doc.path.name} : {len(doc.pages)} pages, {images} rendue(s) en image, "
+                          f"SHA-256 {doc.sha256}")
+            bar.update(task, description="Extraction (lots de pages)")
+
+        try:
+            x, files = draft.make_draft(pdf_file, name, client, out_dir, broadcaster,
+                                        progress=lambda done, total: bar.update(task, completed=done, total=total),
+                                        on_read=on_read)
+        except draft.DraftError as exc:
+            err_console.print(f"[red]Brouillon impossible : {exc}[/red]")
+            raise typer.Exit(EXIT_USAGE) from None
+    elapsed = time.perf_counter() - start
+    counts: dict[str, int] = {}
+    for r in x.fields:
+        counts[r.status] = counts.get(r.status, 0) + 1
+    console.print(f"Extraction : {x.batches} lot(s) en {elapsed:.0f} s")
+    for status, n in sorted(counts.items()):
+        console.print(f"  {status} : {n} champ(s)")
+    console.print(f"  non trouvés : {len(x.not_found)} champ(s)")
+    console.print(f"Brouillon : {files['yaml']}\n  détail : {files['findings']}\n  réponses du modèle : {files['log']}")
+    console.print(f"À relire avec : pad-checker review-profile {files['yaml']}")
+
+
+def _ollama_or_exit(model: str | None) -> llm.OllamaClient:
+    probe = llm.OllamaClient()
+    try:
+        installed = probe.installed()
+    except llm.LLMError as exc:
+        err_console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(EXIT_USAGE) from None
+    wanted = [model] if model else [llm.DEFAULT_MODEL, llm.FALLBACK_MODEL]
+    found = next((m for m in wanted if m in installed), None)
+    if found is None:
+        err_console.print(f"[red]Modèle absent d'Ollama : {wanted[0]}. Lancer « ollama pull {wanted[0]} ».[/red]")
+        raise typer.Exit(EXIT_USAGE)
+    if found != wanted[0]:
+        err_console.print(f"[yellow]{wanted[0]} absent : repli sur {found} "
+                          f"(« ollama pull {wanted[0]} » pour le modèle par défaut).[/yellow]")
+    return llm.OllamaClient(model=found)
+
+
+@app.command("review-profile")
+def review_profile(
+    draft_file: Path = typer.Argument(..., help="Brouillon produit par draft-profile (profiles/drafts/<nom>.yaml)."),
+    base: Path | None = typer.Option(
+        None, "--base", help="Profil de base pour les valeurs absentes du PDF (défaut : profiles/<nom>.yaml, sinon le gabarit)."),
+    out: Path | None = typer.Option(None, "--out", help="Profil validé à écrire (défaut : profiles/<nom>.yaml)."),
+) -> None:
+    """Relit un brouillon champ par champ, puis écrit le profil validé (status: validated)."""
+    try:
+        rv = review.load(draft_file, base)
+    except review.ReviewError as exc:
+        err_console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(EXIT_USAGE) from None
+    out = out or (review.ROOT / "profiles" / f"{rv.meta['name']}.yaml")
+    console.print(f"Relecture de [bold]{draft_file}[/bold] : {len(rv.fields)} champ(s) extrait(s) ; "
+                  f"profil de base {rv.base}")
+    review.ask_fields(rv, ask=lambda text: typer.prompt(text, default="", show_default=False),
+                      say=lambda text: console.print(text, markup=False, highlight=False))
+    answers = review.save_answers(rv)
+    console.print(f"Réponses enregistrées dans {answers}")
+    data, comments = review.build(rv)
+    review.validate(data, "(validation en cours)")
+    try:
+        resolved, tmp = review.write(rv, out, data, comments)
+    except review.ReviewError as exc:
+        err_console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(EXIT_USAGE) from None
+    tmp.unlink(missing_ok=True)
+    risks = review.norm_only_rules(resolved)
+    if risks:
+        console.print("[bold red]ATTENTION : règles bloquantes ou majeures dont la valeur ne viendrait que d'une "
+                      "norme. Elles seront plafonnées à mineur : une erreur réelle ne rendra pas le PAD "
+                      "NON-CONFORME.[/bold red]")
+        for line in risks:
+            console.print(f"[red]  - {line}[/red]")
+        if not _yes("Valider quand même ? [o/N]"):
+            console.print("Rien n'a été écrit. Compléter ces valeurs (relancer la relecture) puis valider.")
+            raise typer.Exit(EXIT_USAGE)
+    unsourced = sorted(p for p, c in comments.items() if c.startswith("A VERIFIER"))
+    if unsourced:
+        console.print(f"[yellow]{len(unsourced)} valeur(s) reprise(s) du profil de base sans citation du document "
+                      "(A VERIFIER dans le fichier).[/yellow]")
+    who = ""
+    while not who:
+        who = typer.prompt("Nom du validateur").strip()
+    if out.exists() and not _yes(f"{out} existe : le remplacer ? [o/N]"):
+        raise typer.Exit(EXIT_USAGE)
+    review.validate(data, who)
+    resolved, tmp = review.write(rv, out, data, comments)
+    review.finish(tmp, out)
+    console.print(f"[green]Profil validé[/green] : {out} (validé par {who}), empreinte {resolved.fingerprint}")
+
+
+def _yes(question: str) -> bool:
+    """French yes/no question: o, oui, y, yes; anything else (or nothing) is no."""
+    return typer.prompt(question, default="", show_default=False).strip().lower() in ("o", "oui", "y", "yes")
+
+
+@app.command("compare-profiles")
+def compare_profiles(
+    a: Path = typer.Argument(..., help="Premier profil (ou brouillon)."),
+    b: Path = typer.Argument(..., help="Second profil (ou brouillon)."),
+    all_rows: bool = typer.Option(False, "--all", help="Afficher aussi les valeurs identiques."),
+) -> None:
+    """Compare deux profils effectifs (profil + normes héritées) valeur par valeur."""
+    try:
+        rows = compare.compare(a, b)
+    except ProfileError as exc:
+        raise _profile_error(exc) from None
+    table = Table(title=f"A = {a.name}, B = {b.name}")
+    for col in ("Champ", "Écart", "A", "Origine A", "B", "Origine B"):
+        table.add_column(col, overflow="fold")
+    for r in rows:
+        if r.kind == compare.SAME and not all_rows:
+            continue
+        status = f" [{r.a_status}]" if r.a_status else ""
+        table.add_row(r.path, r.kind, ("—" if r.kind == compare.ONLY_B else _value(r.a)) + status, r.a_file or "",
+                      "—" if r.kind == compare.ONLY_A else _value(r.b) + (f" [{r.b_status}]" if r.b_status else ""),
+                      r.b_file or "")
+    console.print(table)
+    counts = {k: sum(r.kind == k for r in rows) for k in (compare.SAME, compare.DIFFERENT, compare.ONLY_A, compare.ONLY_B)}
+    console.print(", ".join(f"{n} {k}" for k, n in counts.items()))
 
 
 if __name__ == "__main__":

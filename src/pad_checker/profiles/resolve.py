@@ -336,8 +336,19 @@ def _norm_chain(names: list[str], norms_dir: Path, cited_by: str, stack: list[st
         order.append(norm)
 
 
-def resolve_profile(path: str | Path, norms_dir: Path | None = None) -> ResolvedProfile:
-    """Effective profile of the profile YAML at ``path`` (SPEC §12.3). Raises ProfileError."""
+@dataclass
+class Merged:
+    """Layers merged, before the effective profile is validated (a draft may be incomplete)."""
+
+    values: dict[str, Any]  # meta of the profile + merged sections
+    profile_file: str
+    layers: list[Layer]
+    origins: dict[str, Origin]
+    conflicts: list[Conflict]
+
+
+def merge_layers(path: str | Path, norms_dir: Path | None = None) -> Merged:
+    """The profile YAML at ``path`` merged over its norms, not validated. Raises ProfileError."""
     path = Path(path)
     raw = read_yaml(path)
     if is_norm(raw):
@@ -376,14 +387,21 @@ def resolve_profile(path: str | Path, norms_dir: Path | None = None) -> Resolved
     layers.append(Layer(kind="profile", name=str(meta.get("name", path.stem)), file=shown,
                         document=str(meta.get("source_document", "")), sha256=file_sha256(path)))
 
-    effective = {"meta": {"status": "draft", **meta}, **merge.values}
+    return Merged(values={"meta": {"status": "draft", **meta}, **merge.values}, profile_file=shown, layers=layers,
+                  origins=merge.origins, conflicts=merge.conflicts)
+
+
+def resolve_profile(path: str | Path, norms_dir: Path | None = None) -> ResolvedProfile:
+    """Effective profile of the profile YAML at ``path`` (SPEC §12.3). Raises ProfileError."""
+    path = Path(path)
+    m = merge_layers(path, norms_dir)
     try:
-        profile = Profile.model_validate(effective)
+        profile = Profile.model_validate(m.values)
     except ValidationError as exc:
-        raise ProfileError(path, [_with_origin(translate(e), e["loc"], merge.origins, shown)
+        raise ProfileError(path, [_with_origin(translate(e), e["loc"], m.origins, m.profile_file)
                                   for e in exc.errors()]) from None
-    return ResolvedProfile(profile=profile, profile_file=shown, layers=layers, origins=merge.origins,
-                           conflicts=merge.conflicts)
+    return ResolvedProfile(profile=profile, profile_file=m.profile_file, layers=m.layers, origins=m.origins,
+                           conflicts=m.conflicts)
 
 
 def _with_origin(message: str, loc: tuple[Any, ...], origins: dict[str, Origin], profile_file: str) -> str:

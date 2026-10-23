@@ -458,14 +458,45 @@ Un profil `draft` peut servir, mais le rapport porte en tête « PROFIL NON VALI
 
 ---
 
-## 13. `draft-profile` (v3, Phase 4b, à venir)
+## 13. `draft-profile`, `review-profile`, `compare-profiles` (v3, Phase 4b)
 
-`pad-checker draft-profile <pdf>` propose un profil brouillon à partir du cahier des charges d'un diffuseur (rangé dans `diffuseurs/`) :
+### 13.1 Extraction (`pad-checker draft-profile <pdf> --name <nom> [--model …]`)
 
-- extraction du texte (`pdfplumber`) et rendu des pages (`pypdfium2`) ;
-- Qwen3-VL via Ollama, en local, avec une sortie JSON contrainte par un schéma généré depuis le modèle pydantic du profil ; chaque valeur proposée porte `value`, `page`, `quote` et `status: A_VERIFIER` ;
-- contrôle déterministe : la citation doit exister dans le texte du PDF (après normalisation des espaces, des césures et des ligatures) et contenir la valeur numérique proposée ; sinon la valeur devient `null` et l'écart est signalé. Un PDF sans couche texte donne « citation non vérifiable » partout. Aucun champ n'est deviné ;
-- le brouillon est écrit avec `meta.status: draft`, `meta.source_pdf` et `meta.source_pdf_sha256` ; il hérite des normes comme tout profil ;
-- `pad-checker review-profile` fait passer `meta.status` de `draft` à `validated` en renseignant `validated_by` et `validated_at`.
+- **Lecture du PDF** (`draft/pdf.py`) : texte de chaque page et tableaux (`pdfplumber`, lignes « cellule | cellule ») ; les pages qui contiennent un tableau ou moins de 200 caractères sont rendues en image (`pypdfium2`, environ 90 dpi) pour le modèle de vision. Le PDF n'est jamais modifié ; son SHA-256 est enregistré.
+- **Modèle** (`llm/`) : interface `LLMClient` (une consigne, un schéma JSON imposé, des images facultatives, un délai) et sa seule implémentation `OllamaClient` (bibliothèque `ollama`, `format` = schéma, température 0, graine fixe). Modèle par défaut `qwen3-vl:32b-instruct`, repli automatique sur `qwen3-vl:8b-instruct` s'il est seul installé. Consigne système versionnée : `llm/prompts/draft_profile_v1.md`.
+- **Schéma** (`draft/schema.py`) : généré depuis le modèle pydantic du profil. La réponse est une liste `findings` d'objets `{field, value, page, quote, unit}` ; `field` est une énumération des chemins de toutes les feuilles des sections `format`, `video`, `audio`, `structure` (106 champs) : le modèle ne peut pas répondre sur un champ qui n'existe pas. La consigne liste chaque champ avec son type et sa description française (tirée du modèle). `meta` (fixé par l'outil), `rules` (gravités, décidées par l'humain) et `llm` ne sont pas extraits.
+- **Lots** : deux pages par requête (au plus deux images). La détection de la table des matières n'est pas faite.
+
+### 13.2 Contrôle déterministe de chaque valeur
+
+Une valeur n'est retenue (statut `A_VERIFIER`, à confirmer par un humain) que si :
+
+1. elle est du type du champ (sinon `VALEUR_INVALIDE`) ;
+2. le champ n'est pas un paramètre interne de pad-checker ou du master Lumiris (`draft/vocabulary.py`, `INTERNAL` : seuils de détection, codecs du master…) ;
+3. la page citée fait partie du lot et a une couche texte (sinon `CITATION_NON_VERIFIABLE`) ;
+4. la citation fait au plus 300 caractères et se retrouve dans le texte de la page citée, après normalisation (formes de compatibilité Unicode donc ligatures et espaces insécables, apostrophes et guillemets typographiques, tirets et signe moins, césures en fin de ligne, espaces, casse) ;
+5. la citation contient le vocabulaire du champ (accents et casse ignorés : `KEYWORDS`, par exemple « silence » pour `audio.silence_dbfs`) ;
+6. chaque nombre de la valeur figure dans la citation (virgule ou point décimal, signe moins typographique, « 2’00 » = 120 s, « 48 kHz » = 48000, milliers « 1.000 ») et, pour un nombre seul, est suivi de l'unité attendue (dBFS, LUFS, LU, dBTP, %, Hz, ms) ;
+7. pour les valeurs de loudness des programmes longs ou courts, la dernière durée citée avant le passage dans la page correspond (un document donne souvent les deux jeux l'un après l'autre).
+
+Sinon `CITATION_INVALIDE`, avec la raison. Un champ dont toutes les propositions échouent est écrit `null` (le profil refusera de tourner tant qu'un humain ne l'a pas tranché).
+
+**Fusion** : deux valeurs contrôlées différentes pour un même champ, ou une même citation et une même valeur données pour deux champs différents, donnent `CONFLIT` : toutes les propositions sont gardées, le champ est `null`, un humain tranche. Jamais de choix silencieux.
+
+### 13.3 Brouillon
+
+Dans `profiles/drafts/` : `<nom>.yaml` (meta `status: draft`, `source_pdf`, `source_pdf_sha256`, `extends` proposé = toutes les normes, `lumiris_maison` en dernier ; chaque valeur suivie de `# A VERIFIER (p. N) « citation »` ; champs en conflit ou invalides à `null` avec les propositions en commentaire ; liste des champs non trouvés en tête), `<nom>.findings.json` (toutes les propositions et leur statut) et `<nom>.llm.jsonl` (réponses brutes du modèle, une ligne par lot). Les trois fichiers sont écrits ensemble à la fin : une réponse mal formée ou un délai dépassé arrête tout, sans fichier à moitié écrit. Le brouillon est partiel : il n'est pas analysable tel quel.
+
+### 13.4 Relecture (`pad-checker review-profile <brouillon.yaml> [--base …] [--out …]`)
+
+Pour chaque champ extrait : description, valeur proposée (ou propositions en conflit), page et citation, valeur du profil de base et valeur des normes (information). L'humain accepte, choisit une proposition, corrige (valeur, page et citation facultatives), garde la valeur de base ou laisse vide (le champ est alors hérité d'une norme, donc plafonné à mineur). Les réponses sont gardées dans `<nom>.review.json`.
+
+Les valeurs que le PDF n'a pas données viennent du **profil de base** : `profiles/<nom>.yaml` s'il existe, sinon le gabarit `profiles/modeles/gabarit_diffuseur.yaml` (gravités toutes `minor` tant qu'un humain ne les a pas fixées) ; elles sont marquées `A VERIFIER : sans citation` dans le profil écrit. Les valeurs retenues sont citées dans la section `sources`.
+
+Avant d'écrire, le profil est résolu : s'il est incomplet, rien n'est écrit. Puis la liste, en rouge, des **règles bloquantes ou majeures dont une valeur ne viendrait que d'une norme** (elles seraient plafonnées à mineur) ; il faut confirmer pour continuer. Enfin le nom du validateur : le profil est écrit dans `profiles/<nom>.yaml` avec `status: validated`, `validated_by`, `validated_at`.
+
+### 13.5 Comparaison (`pad-checker compare-profiles <a.yaml> <b.yaml> [--all]`)
+
+Deux profils fusionnés avec leurs normes (un brouillon incomplet est accepté), comparés valeur par valeur : identique, différent, seulement dans A, seulement dans B, avec l'origine de chaque valeur et, pour un brouillon, son statut d'extraction.
 
 Critère d'acceptation : sur le PDF Arte V2, toute valeur proposée a une citation vérifiée, et la comparaison automatique avec `profiles/arte_hd_sdr.yaml` ne montre aucune valeur fausse non signalée.

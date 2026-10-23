@@ -1,0 +1,100 @@
+# Gabarit de profil de diffuseur : base de review-profile quand profiles/<nom>.yaml n'existe pas.
+#
+# Toutes les valeurs ci-dessous sont des valeurs de départ SANS citation : review-profile les
+# remplace par celles du document du client, ou les garde marquées A VERIFIER. Les gravités sont
+# toutes « minor » : tant qu'un humain ne les a pas fixées d'après le document, aucune anomalie ne
+# rend un PAD NON-CONFORME (sauf l'intégrité du fichier, règle maison).
+# Valeurs absentes ici : héritées des normes (meta.extends).
+
+meta:
+  name: gabarit_diffuseur
+  version: "0.0"
+  broadcaster: "(diffuseur)"
+  source_document: "(cahier des charges du diffuseur)"
+  notes: "Gabarit, ne pas utiliser pour une analyse."
+  extends: [ebu_r103, ebu_r128, lumiris_maison]
+  status: draft
+
+format:
+  codecs:
+    - {codec_name: prores, profile: "HQ"}            # master Lumiris
+    - {codec_name: dnxhd, profile: "DNXHR HQX"}      # master Lumiris
+  containers: [mov, mxf]
+  pix_fmt: yuv422p10le
+  width: 1920
+  height: 1080
+  fps_allowed: ["25/1"]
+  field_order: progressive
+  color_primaries: bt709
+  color_transfer: bt709
+  color_space: bt709
+  color_range: tv
+  unknown_color_tags_severity: minor
+
+video:
+  bit_depth: 10
+  prefilter_taps: 3                                  # méthode non fixée : [1 2 1]/4 en attendant le filtre de R 103
+
+audio:
+  sample_rate: 48000
+  bit_depth: 24
+  groups:
+    - {name: "VF", tracks: [1, 2], layout: stereo, required: true}
+  silence_dbfs: -60.0
+  silence_max_seconds: null                          # à fixer d'après le document
+  phase_min_correlation: -0.3
+  phase_min_seconds: null                            # à fixer d'après le document
+  exclude_head_tail: true
+
+structure:
+  leaders: classic
+  timecode:
+    file_start: "10:00:00:00"                        # à fixer d'après le document
+    program_start: "10:00:00:00"
+    tolerance_frames: 0
+    drop_frame_allowed: false
+  bars:
+    required: false
+    tolerance: 12                                    # paramètre de reconnaissance pad-checker
+  black:
+    head_min_seconds: null                           # à fixer d'après le document
+    tail_min_seconds: null                           # à fixer d'après le document
+    y_max: 68
+    silence_dbfs: -60.0
+  freeze:
+    threshold: 0.5
+    min_seconds: 2.0
+
+rules:
+  merge_gap_frames: 12
+  min_event_frames: {white_clip: 1, black_crush: 1, gamut: 1, freeze: 50}
+  max_major: 0
+  score_formula: "100 - 40*blocking - 10*major - 2*minor"
+  severity:
+    white_clip: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
+    black_crush: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
+    gamut: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
+    freeze: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
+    isolated_black_frame: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
+    duplicate_frame: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
+    audio_loudness: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
+    audio_true_peak: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
+    audio_lra: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
+    audio_silence: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
+    audio_phase: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
+    audio_silent_track: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
+    structure_bars: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
+    structure_bars_present: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
+    structure_black: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
+    structure_black_too_long: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
+    structure_timecode: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
+    letterbox: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
+    format: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
+
+llm:
+  backend: ollama
+  model: "qwen3-vl:32b-instruct"
+  fallback_model: "qwen3-vl:8b-instruct"
+  num_ctx: 8192
+  temperature: 0.1
+  language: fr
