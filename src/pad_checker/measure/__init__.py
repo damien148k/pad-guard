@@ -30,10 +30,11 @@ from pad_checker.measure.models import (
     VideoSection,
     VideoSettings,
 )
+from pad_checker.measure import scan as scan_mod
 from pad_checker.measure.program import program_range
 from pad_checker.measure.video import FIELDS, MeasureSetupError, VideoLimits, measure_frames
 from pad_checker.probe.models import ProbeResult
-from pad_checker.rules.profile import Profile
+from pad_checker.rules.profile import Profile, ProfileValueError, ScanDetection, require
 
 VIDEO_FILE = "measurements_video.jsonl"
 AUDIO_FILE = "measurements_audio.jsonl"
@@ -61,16 +62,20 @@ def run(
     progress: Progress | None = None,
 ) -> Measurements:
     limits = VideoLimits.from_profile(profile)
+    scan_settings = scan_detection(profile)
     source = Path(probe.source.path)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / MEASUREMENTS_FILE).unlink(missing_ok=True)
 
     decoder = VideoDecoder(source, stream_index=probe.video.stream_index, frames_expected=probe.video.nb_frames)
     y_p99 = array("H")
+    comb, d_mean = array("d"), array("d")
     with (out_dir / VIDEO_FILE).open("w", encoding="utf-8", newline="\n") as f:
         for rec in measure_frames(decoder.frames(), limits, workers or default_workers()):
             f.write(_line(rec))
             y_p99.append(rec["y_p99"])
+            comb.append(float("nan") if rec["comb"] is None else rec["comb"])
+            d_mean.append(float("nan") if rec["d_mean"] is None else rec["d_mean"])
             if progress:
                 progress(len(y_p99))
     integrity = decoder.integrity
@@ -92,10 +97,18 @@ def run(
             prefilter_taps=limits.prefilter_taps, matrix=limits.matrix, flash_delta_pct=limits.flash_delta_pct,
         ),
         video=VideoSection(file=VIDEO_FILE, fields=list(FIELDS), frames=len(y_p99)),
+        scan=scan_mod.detect(probe.video, comb, d_mean, scan_settings),
         audio=audio,
     )
     jsonio.write(out_dir / MEASUREMENTS_FILE, result)
     return result
+
+
+def scan_detection(profile: Profile) -> ScanDetection:
+    try:
+        return require(profile, "video.scan_detection", "la détection du balayage")
+    except ProfileValueError as exc:
+        raise MeasureSetupError(str(exc)) from None
 
 
 def _measure_audio(

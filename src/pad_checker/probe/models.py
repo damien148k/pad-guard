@@ -22,7 +22,9 @@ class SourceInfo(BaseModel):
 class ProfileRef(BaseModel):
     name: str
     version: str
-    sha256: str
+    sha256: str  # of the profile YAML file
+    status: Literal["draft", "validated"] | None = None
+    effective_sha256: str | None = None  # fingerprint of the effective profile (SPEC §12.3)
 
 
 class ContainerInfo(BaseModel):
@@ -40,7 +42,9 @@ class VideoInfo(BaseModel):
     height: int
     r_frame_rate: str
     avg_frame_rate: str
+    fps: str | None = None  # r_frame_rate as an exact reduced fraction ("25/1", "30000/1001"); None: unreadable
     field_order: str | None
+    scan_flag: Literal["progressive", "interlaced", "unknown"] = "unknown"  # what field_order declares
     color_primaries: str | None
     color_transfer: str | None
     color_space: str | None

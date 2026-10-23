@@ -1,0 +1,49 @@
+# Norme : EBU R 128, normalisation du loudness et niveau maximal admis (V5, novembre 2023).
+#
+# Valeurs et citations relevées le 23 octobre 2026 dans les PDF de normes/sources/AUDIO/ :
+#   r128.pdf (EBU R 128, V5, novembre 2023), tech3341.pdf et tech3343.pdf (novembre 2023),
+#   « Recommendation ITU-R BS.1770-5 (11_2023) … .pdf ».
+# R 128 ne distingue pas programmes courts et longs (le supplément s1 traite les messages
+# publicitaires) : « long » s'applique donc à toutes les durées tant qu'un profil ne le précise pas.
+# R 128 ne fixe pas de LRA maximale (« may be used », recommends n) : pas de valeur ici.
+
+meta:
+  kind: norm
+  name: ebu_r128
+  document:
+    title: "EBU R 128 — Loudness normalisation and permitted maximum level of audio signals"
+    version: "V5, novembre 2023 (EBU R 128-2023)"
+  source_pdf: "normes/sources/AUDIO/r128.pdf"
+  notes: >
+    Méthode de mesure : ITU-R BS.1770-5 (11/2023) et EBU Tech 3341 (novembre 2023).
+    Tolérance des flux de travail : EBU Tech 3343 (novembre 2023) §3.1.
+
+audio:
+  loudness:
+    method: "ITU-R BS.1770-5 (intégré avec gating, true peak annexe 2) et EBU Tech 3341 (EBU Mode)"
+    long:
+      integrated_lufs: -23.0
+      integrated_tolerance_lu: 0.2
+  true_peak_max_dbtp: -1.0
+
+sources:
+  audio.loudness.method: >-
+    EBU R 128 (2023) recommends k) : « the measurement shall be made with a loudness meter compliant
+    with ITU-R BS.1770 (including the level-gating method described in equation (7)) and EBU Tech 3341 » ;
+    ITU-R BS.1770-5 (11/2023) recommends 1 (algorithme de l'annexe 1 : « gating of 400 ms blocks
+    (overlapping by 75%), where two thresholds are used: the first at −70 LKFS; the second at −10 dB
+    relative ») et recommends 5 (true peak : « based on the guidelines shown in Annex 2 ») ;
+    EBU Tech 3341 (2023) §2.2 (fenêtres « 0.4 s » et « 3 s ») et §2.3 (gate « −70 LUFS », « 10 LU below »).
+  audio.loudness.long.integrated_lufs: >-
+    EBU R 128 (2023) recommends h) : « the Programme Loudness Level shall be normalised to a Target
+    Level of −23.0 LUFS ».
+  audio.loudness.long.integrated_tolerance_lu: >-
+    EBU R 128 (2023) recommends i) : « for the implementation of Loudness workflows (for example, in
+    Quality Control environments) a tolerance of ±0.2 LU is allowed in order to take account of
+    measurement errors » ; EBU Tech 3343 (2023) §3.1 : « a general tolerance of ±0.2 LU around the
+    Target Level of −23 LUFS is acceptable » (« For live programmes, the tolerance is ±1.0 LU »,
+    R 128 recommends h).
+  audio.true_peak_max_dbtp: >-
+    EBU R 128 (2023) recommends m) : « the True Peak Level of a programme shall not exceed −1 dBTP
+    (dB True Peak) during production (linear audio), measured with a meter compliant with ITU-R
+    BS.1770 and EBU Tech 3341 ».

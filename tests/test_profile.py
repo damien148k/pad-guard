@@ -40,7 +40,8 @@ def test_france_tv_values() -> None:
 
 
 def _mutated(tmp_path: Path, mutate) -> Path:
-    raw = yaml.safe_load((PROFILES / "france_tv_hd.yaml").read_text(encoding="utf-8"))
+    # A complete profile (france_tv_hd.yaml now inherits most of its values from normes/).
+    raw = yaml.safe_load((TEST_PROFILES / "test_classic.yaml").read_text(encoding="utf-8"))
     mutate(raw)
     out = tmp_path / "profile.yaml"
     out.write_text(yaml.safe_dump(raw, allow_unicode=True), encoding="utf-8")

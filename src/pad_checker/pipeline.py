@@ -1,16 +1,19 @@
 """Steps after the measurements: structure -> rules -> report, and their reruns.
 
 ``analyze`` runs everything; ``rerun`` (and ``report``) start again from the JSON already in the
-analysis directory, without measuring again. The profile used is copied into the directory
-(``profile.yaml``) so that a rerun applies the same rules. A rerun with another profile is
-accepted only if that profile leaves every measurement setting unchanged (thresholds converted
-to code values, prefilter, flash delta, programme range, audio groups): otherwise the
-measurements would not mean what the new profile says, and the analysis has to be redone.
+analysis directory, without measuring again. The effective profile used (profile + inherited
+norms) is written into the directory (``effective_profile.json``, next to a byte copy of the
+profile file, ``profile.yaml``) so that a rerun applies the same rules even if a norm file has
+changed since. A rerun with another profile is accepted only if that profile leaves every
+measurement setting unchanged (thresholds converted to code values, prefilter, flash delta,
+scan detection, programme range, audio groups): otherwise the measurements would not mean what
+the new profile says, and the analysis has to be redone.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import json
 import shutil
 from collections.abc import Callable
 from pathlib import Path
@@ -22,9 +25,9 @@ from pad_checker.measure.series import load_video
 from pad_checker.measure.video import VideoLimits
 from pad_checker.probe import probe_file
 from pad_checker.probe.models import ProbeResult
-from pad_checker.probe.probe import sha256_file
+from pad_checker.profiles import ResolvedProfile, from_json, resolve_profile
 from pad_checker.rules import engine
-from pad_checker.rules.profile import AudioGroup, Profile, ProfileValueError, load_profile, require
+from pad_checker.rules.profile import AudioGroup, Profile, ProfileError, ProfileValueError, require
 from pad_checker.workdir import Rerun, RunInfo, Step
 
 STEPS: tuple[Step, ...] = ("structure", "rules", "report")
@@ -39,11 +42,16 @@ def now() -> str:
     return dt.datetime.now().astimezone().isoformat(timespec="seconds")
 
 
-def start_run(workdir: Path, profile_path: Path, command: str) -> None:
+def write_effective(workdir: Path, resolved: ResolvedProfile) -> None:
+    (workdir / wd.EFFECTIVE_PROFILE).write_text(resolved.dumps(), encoding="utf-8", newline="\n")
+
+
+def start_run(workdir: Path, profile_path: Path, command: str, resolved: ResolvedProfile) -> None:
     workdir.mkdir(parents=True, exist_ok=True)
     copy = workdir / wd.PROFILE
     if not copy.exists() or not copy.samefile(profile_path):
         shutil.copyfile(profile_path, copy)
+    write_effective(workdir, resolved)
     jsonio.write(workdir / wd.RUN, RunInfo(analyzed_at=now(), command=command, profile_file=str(profile_path)))
 
 
@@ -66,7 +74,11 @@ def preflight(profile: Profile, groups: list[AudioGroup]) -> list[str]:
         needs += [("structure.black.head_max_seconds", "le noir de tête"), ("structure.black.tail_max_seconds", "le noir de queue")]
     if profile.format.letterbox is not None and profile.format.letterbox.check:
         needs.append(("format.letterbox.tolerance_lines", "le format d'image"))
-    needs += [("audio.silence_max_seconds", "les silences"), ("audio.phase_min_seconds", "la phase")]
+    needs += [("audio.silence_max_seconds", "les silences"), ("audio.phase_min_seconds", "la phase"),
+              ("video.scan_detection", "la détection du balayage")]
+    if profile.format.delivery is not None:
+        needs += [("format.delivery.scan", "la comparaison au format de livraison"),
+                  ("format.delivery.fps", "la comparaison au format de livraison")]
     if profile.audio.no_silent_tracks:
         needs.append(("audio.silent_track_dbfs", "les pistes silencieuses"))
     problems = []
@@ -111,6 +123,8 @@ def measurement_differences(workdir: Path, probe: ProbeResult, m: Measurements, 
     ):
         if new != old:
             out.append(f"{name} : {old} → {new}")
+    if profile.video.scan_detection != m.scan.settings:
+        out.append("détection du balayage (video.scan_detection)")
     if probe.audio_map.source == "profile" and probe.audio_map.groups != profile.audio.groups:
         out.append("groupes audio (audio.groups)")
     if m.audio is not None:
@@ -128,12 +142,22 @@ def rerun(workdir: Path, first: Step, profile_path: Path | None, command: str, t
     probe = wd.load(workdir, wd.PROBE, ProbeResult, "analyze")
     m = wd.load(workdir, wd.MEASUREMENTS, Measurements, "analyze")
     stored = workdir / wd.PROFILE
-    if profile_path is None:
-        if not stored.is_file():
-            raise PipelineError(f"{wd.PROFILE} absent de {workdir} : préciser le profil avec --profile")
+    effective = workdir / wd.EFFECTIVE_PROFILE
+    if profile_path is None and effective.is_file():
+        # The profile of the analysis, as it was resolved then (norm files may have changed since).
+        try:
+            resolved = from_json(json.loads(effective.read_text(encoding="utf-8")), effective)
+        except json.JSONDecodeError as exc:
+            raise ProfileError(effective, [f"JSON invalide ({exc}) : relancer « analyze »"]) from None
         profile_path = stored
-    profile = load_profile(profile_path)
-    if sha256_file(profile_path) != probe.profile.sha256:
+    else:
+        if profile_path is None:
+            if not stored.is_file():
+                raise PipelineError(f"{wd.PROFILE} absent de {workdir} : préciser le profil avec --profile")
+            profile_path = stored
+        resolved = resolve_profile(profile_path)
+    profile = resolved.profile
+    if resolved.fingerprint != probe.profile.effective_sha256:
         diffs = measurement_differences(workdir, probe, m, profile)
         if diffs:
             raise PipelineError(
@@ -151,6 +175,7 @@ def rerun(workdir: Path, first: Step, profile_path: Path | None, command: str, t
         if not stored.exists() or not stored.samefile(profile_path):
             shutil.copyfile(profile_path, stored)
         first = "structure"
+    write_effective(workdir, resolved)
     # Recorded first, so that the report written by this rerun mentions it.
     run_file = workdir / wd.RUN
     info = jsonio.read(run_file, RunInfo) if run_file.is_file() else RunInfo(

@@ -16,11 +16,14 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from pad_checker import timecode, workdir as wd
 from pad_checker.audio_map import describe, tracks_text
-from pad_checker.labels import SEVERITY_LABELS, SEVERITY_ORDER, VIDEO_TYPES, number, type_label
+from pad_checker.labels import SEVERITY_LABELS, SEVERITY_ORDER, VIDEO_TYPES, number, status_label, type_label
+from pad_checker.measure import scan as scan_mod
 from pad_checker.measure.models import Measurements
 from pad_checker.measure.series import load_audio, load_video
 from pad_checker.probe.models import ProbeResult
+from pad_checker.profiles import fingerprint
 from pad_checker.report import charts, pdf, thumbnails as thumbs
+from pad_checker.rules import delivery
 from pad_checker.rules.engine import error_key
 from pad_checker.rules.models import Event, Events, Verdict
 from pad_checker.rules.profile import Profile
@@ -70,7 +73,16 @@ class _Builder:
         frames = self.st.frames
         size = self.probe.source.size_bytes
         prof = self.probe.profile
+        meta = self.p.meta
+        inherits = f", hérite de {', '.join(meta.extends)}" if meta.extends else ""
+        if meta.status == "validated":
+            status = f"validé par {meta.validated_by} le {meta.validated_at.isoformat()}"
+        else:
+            status = "brouillon (draft), non validé : résultat indicatif"
         return {
+            "indicative": self.verdict.indicative,
+            "profile_status": status,
+            "fingerprint": fingerprint(self.p),
             "file_name": Path(self.probe.source.path).name,
             "path": self.probe.source.path,
             "sha256": self.probe.source.sha256,
@@ -79,8 +91,8 @@ class _Builder:
             "timecode": (f"{self.clock.tc(0)} → {self.clock.tc(frames - 1)}" if self.st.timecode_start
                          else "absent ou inutilisable (temps compté depuis 00:00:00:00)"),
             "video": f"{v.codec_name} {v.profile or ''}, {v.width}x{v.height}, {v.pix_fmt}, balayage {v.field_order or 'inconnu'}",
-            "profile": f"{prof.name} v{prof.version} ({self.p.profile.broadcaster}), SHA-256 {prof.sha256[:16]}…",
-            "source_document": self.p.profile.source_document,
+            "profile": f"{prof.name} v{prof.version} ({meta.broadcaster}){inherits}",
+            "source_document": self.p.meta.source_document,
             "tool_version": self.verdict.tool_version,
             "analyzed_at": run.analyzed_at if run else "inconnue",
             "command": run.command if run else "inconnue",
@@ -92,8 +104,13 @@ class _Builder:
         name = Path(self.probe.source.path).name
         prof = self.probe.profile
         n = v.counts
-        parts = [f"Le fichier « {name} » est {v.status} au profil {prof.name} v{prof.version} "
-                 f"({self.p.profile.broadcaster}), avec un score de {number(v.score, 0)}/100."]
+        if v.indicative:
+            outcome = "est NON-CONFORME" if v.status == "NON-CONFORME" else "ne présente aucune anomalie bloquante"
+            parts = [f"Résultat indicatif, le profil {prof.name} v{prof.version} ({self.p.meta.broadcaster}) n'étant "
+                     f"pas validé : le fichier « {name} » {outcome}, avec un score de {number(v.score, 0)}/100."]
+        else:
+            parts = [f"Le fichier « {name} » est {v.status} au profil {prof.name} v{prof.version} "
+                     f"({self.p.meta.broadcaster}), avec un score de {number(v.score, 0)}/100."]
         total = sum(n.values())
         if total == 0:
             parts.append("Aucune anomalie n'a été relevée.")
@@ -105,7 +122,7 @@ class _Builder:
                 kinds = sorted({type_label(e.type) for e in self.events if e.severity == sev})
                 if kinds:
                     parts.append(f"Les anomalies {what} concernent : {', '.join(k.lower() for k in kinds)}.")
-            if n["minor"] and v.status == "CONFORME":
+            if n["minor"] and v.status == "CONFORME" and not v.indicative:
                 parts.append("Les anomalies mineures sont tolérées par le profil mais doivent être vérifiées.")
         parts.append("Ce rapport est un pré-contrôle interne : il ne remplace pas le contrôle du diffuseur.")
         return " ".join(parts)
@@ -123,6 +140,29 @@ class _Builder:
         rows += [dict(label=c.label, expected=c.expected, actual=c.actual, status=_STATUS[c.status])
                  for c in self.st.checks]
         return rows
+
+    def delivery(self) -> dict:
+        """Section « Livraison »: master scan and rate against format.delivery of the profile."""
+        c = delivery.compare(self.probe, self.m, self.p)
+        s = self.m.scan
+        v = self.probe.video
+        pct = "—" if s.combed_pct is None else f"{number(s.combed_pct, 1)} %"
+        scan = (f"{c.master} ({c.scan_from}) ; drapeau du fichier : {v.field_order or 'absent'} ; détection : "
+                f"{scan_mod.SCAN_LABELS[s.detected]}, {s.combed_frames} image(s) peignée(s) sur {s.moving_frames} "
+                f"en mouvement ({pct})")
+        event = next((e for e in self.events if e.type == "delivery_conversion_required"), None)
+        if c.delivery is None:
+            conclusion = "Le profil ne décrit pas le format de livraison (format.delivery) : pas de comparaison."
+        elif c.differences:
+            conclusion = (f"Conversion requise avant livraison : {', '.join(c.differences)} (anomalie "
+                          f"{event.id if event else '?'}, information). Ce n'est pas une non-conformité du master.")
+        else:
+            conclusion = "Balayage et cadence du master conformes au format de livraison : pas de conversion de format."
+        if c.codec:
+            conclusion += f" Codec de livraison : {c.codec} (le master est transcodé par le prestataire)."
+        warning = scan_mod.warning(s)
+        return {"master": scan, "expected": c.delivery or "non renseigné dans le profil", "conclusion": conclusion,
+                "warning": f"Attention : {warning}." if warning else ""}
 
     def integrity_errors(self) -> list[dict]:
         by_key: dict[str, set[int]] = {}
@@ -238,7 +278,8 @@ class _Builder:
         v = p.video
         st = p.structure
         prefilter = (f"horizontal {s.prefilter_taps} points, noyau {KERNELS[s.prefilter_taps]} (A VERIFIER : "
-                     "EBU R103 ne chiffre pas le noyau)" if s.prefilter_taps else "aucun")
+                     "EBU R 103 v3.0 recommande 7 coefficients horizontaux et 3 verticaux, non pris en charge)"
+                     if s.prefilter_taps else "aucun")
         out = [
             f"Vidéo : Y légal {s.y_legal[0]}–{s.y_legal[1]} ; Y toléré {number(v.y_tolerance_low_pct)} % / "
             f"{number(v.y_tolerance_high_pct)} % soit {s.y_tolerance[0]}–{s.y_tolerance[1]} ; RVB "
@@ -299,7 +340,9 @@ def run(workdir: Path, profile: Profile, thumbnails: bool = False, progress: Pro
     text = env.get_template("rapport.md.j2").render(
         h=b.header(),
         v=b.verdict,
+        status=status_label(b.verdict.status, b.verdict.indicative),
         score=number(b.verdict.score, 0 if b.verdict.score.is_integer() else 1),
+        delivery=b.delivery(),
         synthesis=b.synthesis(),
         checks=b.checks(),
         integrity_errors=b.integrity_errors(),

@@ -23,7 +23,7 @@ from pad_checker.labels import SEVERITY_ORDER, number, type_label
 from pad_checker.measure.models import Measurements
 from pad_checker.measure.series import GroupBlocks, VideoSeries, block_frames, load_audio, load_video
 from pad_checker.probe.models import ProbeResult
-from pad_checker.rules import expr
+from pad_checker.rules import delivery, expr
 from pad_checker.rules.models import Event, Events, Verdict
 from pad_checker.rules.profile import EVENT_FIELDS, AudioGroup, LoudnessRules, Profile, Severity, require
 from pad_checker.structure import detect
@@ -119,6 +119,8 @@ def severity_types(profile: Profile, groups: list[AudioGroup]) -> set[str]:
             types.add("audio_dual_mono_mismatch")
     if profile.audio.no_silent_tracks:
         types.add("audio_silent_track")
+    if profile.format.delivery is not None:
+        types.add("delivery_conversion_required")
     return types
 
 
@@ -230,6 +232,17 @@ class Engine:
                 self.add(type="integrity", title=f"Erreur de décodage audio : {key}", source="integrity",
                          scope="file", frame_start=0, frame_end=self.last, value_text=f"{n} occurrence(s)",
                          threshold_text="aucune erreur", occurrences=n)
+
+    def delivery(self) -> None:
+        """The master differs from the delivery format: information, not a non-conformity."""
+        c = delivery.compare(self.probe, self.m, self.p)
+        if not c.differences:
+            return
+        self.add(type="delivery_conversion_required", title="Conversion requise pour la livraison", source="delivery",
+                 scope="file", frame_start=0, frame_end=self.last, value_text=f"master {c.master}",
+                 threshold_text=f"livraison {c.delivery}",
+                 detail=f"Master {c.master} ({c.scan_from}) ; {self.p.meta.broadcaster} attend du {c.delivery} : "
+                        f"conversion requise ({', '.join(c.differences)}). Ce n'est pas une non-conformité du master.")
 
     # --- video levels ---------------------------------------------------------------------
 
@@ -483,6 +496,7 @@ class Engine:
         self.structure_findings()
         self.levels()
         self.audio()
+        self.delivery()
 
         drafts = sorted(self.drafts, key=lambda d: (d.scope != "file", d.frame_start, d.frame_end, d.type, d.title))
         rated = [(d, *self.severity(d)) for d in drafts]
@@ -511,6 +525,7 @@ class Engine:
             tool_version=__version__, profile=self.probe.profile, source_sha256=self.m.source.sha256,
             status="NON-CONFORME" if reasons else "CONFORME", score=round(min(max(score, 0.0), 100.0), 1),
             score_formula=self.p.rules.score_formula, counts=counts, max_major=max_major, reasons=reasons,
+            indicative=self.p.meta.status != "validated",
         )
 
 

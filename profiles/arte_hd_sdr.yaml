@@ -1,11 +1,20 @@
 # Profil de contrôle PAD — ARTE G.E.I.E., HD SDR (1080p25 / 1080p50)
 #
 # Source : "Consignes Techniques Globales ARTE G.E.I.E." V2-01-00, applicable au 1er janvier 2026
-# (les anciennes consignes V1-07-3 restent acceptées jusqu'au 31 décembre 2026).
-# Chaque valeur cite le paragraphe du document. Les valeurs marquées "DEDUIT" ne sont pas
-# écrites noir sur blanc dans le document et sont une interprétation à valider.
+# (les anciennes consignes V1-07-3 restent acceptées pendant une période de transition).
+# Ce fichier ne garde que ce qui est propre à Arte ou qui diffère des normes héritées
+# (meta.extends) ; `pad-checker explain-profile profiles/arte_hd_sdr.yaml` montre le profil
+# effectif, l'origine de chaque valeur et les conflits avec les normes.
+# Chaque valeur cite le paragraphe du document (section `sources` en fin de fichier). Les valeurs
+# marquées "DEDUIT" ne sont pas écrites noir sur blanc dans le document et sont une
+# interprétation à valider.
+#
+# Hérité de normes/ebu_r128.yaml : loudness cible -23 LUFS, true peak -1 dBTP (identiques à
+# Arte §3.3.2.4 et §3.3.2.1). Hérité de normes/ebu_r103.yaml : Y légal 64-940, RVB -5 % / 105 %,
+# surface 1 %, préfiltre (identiques à Arte §3.2.3.2 et §3.2.3.3). Hérité de
+# normes/lumiris_maison.yaml : contrôle PSE et gravités « Lumiris ».
 
-profile:
+meta:
   name: arte_hd_sdr
   version: "1.0"
   broadcaster: "ARTE G.E.I.E."
@@ -14,23 +23,31 @@ profile:
     Le PAD final Arte est un MXF OP1a XAVC HD Intra Class 100 (§3.2.2.1), fabriqué par le
     prestataire à partir du master ProRes 422 HQ livré par Lumiris. Ce profil contrôle ce master
     avec les règles du PAD (niveaux, structure, timecode, audio) ; seul le codec attendu diffère.
+    Le PDF rangé dans diffuseurs/ est la version V2-01-03 (septembre 2026) : format.delivery y a
+    été relu ; les autres paragraphes viennent de la V2-01-00.
+  extends: [ebu_r128, ebu_r103, lumiris_maison]
+  status: validated
+  validated_by: Vincent
+  validated_at: 2026-10-23
+  source_pdf: "diffuseurs/Consignes Techniques Globales ARTE G.E.I.E_.pdf"
+  source_pdf_sha256: 2939fd0b530040a42e0305f2c80ea3d9f28c451020bfaf6662cd1c06e935abf0
 
 format:
   codecs:
     - {codec_name: prores, profile: "HQ"}            # master interne, voir notes
     - {codec_name: dnxhd, profile: "DNXHR HQX"}      # master interne, voir notes
   containers: [mov, mxf]
-  pix_fmt: yuv422p10le                               # §3.1 : 4:2:2 10 bits
-  width: 1920                                        # §3.2.2.1 : 1920 x 1080 (UHD 3840x2160 hors périmètre v2)
+  pix_fmt: yuv422p10le
+  width: 1920                                        # UHD 3840x2160 hors périmètre (Phase 6)
   height: 1080
-  fps_allowed: ["25/1", "50/1"]                      # §3.2.2.1 : 50p, ou 25p si tournage 24p/25p
-  field_order: progressive                           # §3.2.2.1 : progressif (1080i50 toléré jusqu'au 31/12/2026 sous V1-07-3)
-  color_primaries: bt709                             # §3.2.2.1 : ITU-R BT.709
+  fps_allowed: ["25/1", "50/1"]
+  field_order: progressive                           # 1080i50 toléré pendant la transition (V2-01-03 : jusqu'au 31/12/2027 sous V1-07-3)
+  color_primaries: bt709
   color_transfer: bt709
   color_space: bt709
-  color_range: tv                                    # §3.2.3.2 : 64-940 en 10 bits
+  color_range: tv
   unknown_color_tags_severity: minor
-  letterbox:                                         # §3.2.4 : lignes actives attendues selon le format d'image
+  letterbox:
     check: true
     formats:
       - {aspect: "1.33", active_lines: 1080, first_line: 21,  last_line: 1123, active_pixels: 1440}   # pillarbox
@@ -41,30 +58,28 @@ format:
     tolerance_lines: 2                               # DEDUIT
     # Note : les numéros de ligne du document sont en numérotation SMPTE 274M (ligne 21 = première ligne active).
     # En indices d'image 0..1079 : 1.85 -> lignes 11..1046 (1036 lignes), 2.35 -> lignes 66..881 (816 lignes). A vérifier sur un vrai master.
+  delivery:                                          # format du PAD livré à Arte (le master Lumiris est transcodé par le prestataire)
+    scan: progressive
+    fps: ["50/1", "25/1"]                            # 25p seulement si tournage en 24p ou 25p
+    codec: "Sony XAVC HD Intra Class 100 CBG, MXF OP1a (SMPTE ST 377-1:2019, RDD 32:2017)"
 
 video:
   bit_depth: 10
-  y_min_legal: 64                                    # §3.2.3.2
-  y_max_legal: 940                                   # §3.2.3.2
-  y_tolerance_low_pct: -1.0                          # §3.2.3.3 : Y entre -1 % et 103 % (-7 mV / 721 mV)
-  y_tolerance_high_pct: 103.0
-  rgb_min_pct: -5.0                                  # §3.2.3.3 : RVB entre -5 % et 105 % (-35 mV / 735 mV)
-  rgb_max_pct: 105.0
-  max_out_of_range_area_pct: 1.0                     # §3.2.3.3 : erreur si >= 1 % de la superficie de l'image
-  prefilter: true                                    # §3.2.3.3 : "léger dépassement fugitif filtré avant la mesure"
-  prefilter_taps: 3                                  # A VERIFIER : R103 ne chiffre pas le noyau ; 3 = [1 2 1]/4 horizontal
-  measure_spaces: [ycbcr, rgb]                       # §3.2.3 : mesures dans les deux espaces
+  y_tolerance_low_pct: -1.0                          # diffère d'EBU R 103 v3.0 (-5 %), voir normes/ebu_r103.yaml
+  y_tolerance_high_pct: 103.0                        # diffère d'EBU R 103 v3.0 (105 %)
+  prefilter_taps: 3                                  # A VERIFIER : 3 = [1 2 1]/4 horizontal ; R 103 v3.0 recommande 7 coefficients horizontaux + 3 verticaux, non pris en charge
+  measure_spaces: [ycbcr, rgb]
 
 audio:
-  sample_rate: 48000                                 # §3.3 / §3.3.4
-  bit_depth: 24                                      # §3.3.4 : 24 bits prioritaire (16 bits seulement pour SD up-converti)
+  sample_rate: 48000
+  bit_depth: 24
   bit_depth_allowed: [24, 16]
-  same_bit_depth_all_tracks: true                    # §3.3.4
-  channel_layout: stereo_pairs                       # §3.2.2.1 / §3.3.4 : pistes gérées par paire AES
-  max_pairs: 8                                       # §3.3 : jusqu'à 8 paires AES
-  no_silent_tracks: true                             # §3.2.2.1 : "pas de piste avec silence"
+  same_bit_depth_all_tracks: true
+  channel_layout: stereo_pairs
+  max_pairs: 8
+  no_silent_tracks: true
   silent_track_dbfs: -60.0                           # DEDUIT : une piste entière sous -60 dBFS est "sans contenu"
-  dual_mono_must_be_identical: true                  # §3.3.4.1 : mono = 2 pistes strictement identiques et en phase
+  dual_mono_must_be_identical: true
   groups:                                            # mapping par défaut ; l'ordre des paires doit être celui déclaré dans Partner (§3.2.2.1)
                                                      # à adapter par fichier avec analyze --audio-map "VO:1-2,VF:3-4"
     - {name: "VO", tracks: [1, 2], layout: stereo, required: true}
@@ -72,35 +87,33 @@ audio:
     - {name: "VI", tracks: [5, 6], layout: stereo, required: false}  # version internationale (musique et effets, sans dialogue), selon le programme
   loudness_exempt_groups: ["VI"]                     # DEDUIT : une VI n'a pas de dialogue, l'excursion short term "dialogue" ne s'y applique pas ; le loudness intégré -23 reste exigé
   loudness:
-    long_program_min_seconds: 120                    # §3.3.2.4 : programmes > 2'00
+    long_program_min_seconds: 120
     long:
-      integrated_lufs: -23.0                         # §3.3.2.4
-      integrated_tolerance_lu: 1.0                   # §3.3.2.4 : ± 1 LU (le texte précise "pour les diffusions en direct" ; pour un fichier viser -23 exactement)
-      short_term_dialogue_excursion_lu: 7.0          # §3.3.2.5 : ± 7 LU en Short Term (3 s) autour de la cible, pour le dialogue
-      lra_max_lu: 20.0                               # §3.3.2.5 : LRA <= 20 LU
-      lra_recommended_range_lu: [5, 15]              # §3.3.2.5 : bonne pratique, information seulement
+      integrated_tolerance_lu: 1.0                   # diffère d'EBU R 128 (± 0,2 LU) ; le texte Arte précise "pour les diffusions en direct" ; pour un fichier viser -23 exactement
+      short_term_dialogue_excursion_lu: 7.0
+      lra_max_lu: 20.0
+      lra_recommended_range_lu: [5, 15]              # bonne pratique, information seulement
     short:
-      integrated_lufs: -23.0                         # §3.3.2.4
-      integrated_tolerance_lu: 0.5                   # §3.3.2.4 : ± 0,5 LU
-      short_term_max_lufs: -20.0                     # §3.3.2.4 : Short Term <= -20 LUFS
-      short_term_excursion_above_lu: 3.0             # §3.3.2.5 : + 3 LU max au-dessus de la cible
-  true_peak_max_dbtp: -1.0                           # §3.3.2.1 / §3.3.2.3 : -1 dBTP (Arte, et non -3 dBTP comme CST RT-017)
-  alignment_tone: {hz: 1000, dbfs: -18.0}            # §3.3.2.3 : si une mire 1 kHz est fournie à part
+      integrated_lufs: -23.0
+      integrated_tolerance_lu: 0.5
+      short_term_max_lufs: -20.0
+      short_term_excursion_above_lu: 3.0
+  alignment_tone: {hz: 1000, dbfs: -18.0}            # si une mire 1 kHz est fournie à part
   silence_dbfs: -60.0
   silence_max_seconds: 3.0                           # DEDUIT : aucun seuil chiffré dans le document ; §6.11.1 interdit les génériques silencieux sur noir
   phase_min_correlation: -0.3                        # DEDUIT de §3.3.4.2 : "phase très majoritairement positive"
   phase_min_seconds: 2.0
-  av_sync_ms: {audio_early_max: 40, audio_late_max: 60}   # §3.3.3 (EBU R37) : non mesurable automatiquement sans référence, information
+  av_sync_ms: {audio_early_max: 40, audio_late_max: 60}   # non mesurable automatiquement sans référence, information
   exclude_head_tail: false                           # pas d'amorces chez Arte, tout le fichier est programme
 
 structure:
-  leaders: none                                      # §3.2.2.1 : "Le programme ne doit pas contenir d'amorces de début et de fin"
+  leaders: none
   timecode:
-    file_start: "10:00:00:00"                        # §3.2.2.1 / §3.4.1 : TC In à 10:00:00:00
+    file_start: "10:00:00:00"
     program_start: "10:00:00:00"                     # le programme commence à la première image du fichier
     tolerance_frames: 0
     drop_frame_allowed: false
-    must_be_continuous: true                         # §3.4.1 : aucun saut ni recouvrement
+    must_be_continuous: true
   bars:
     required: false                                  # pas d'amorce (§3.2.2.1) ; la mire est interdite dans le fichier
     forbidden: true
@@ -111,24 +124,19 @@ structure:
     y_max: 68
     silence_dbfs: -60.0
   first_frames:
-    no_subtitles_first_frames: 10                    # §3.5.3 : pas de sous-titre sur les 10 premières images (concerne le fichier STL, information)
+    no_subtitles_first_frames: 10                    # concerne le fichier STL, information
   logo:
-    forbidden: true                                  # §6.1 : pas de logo de chaîne/groupe dans le programme (non détectable automatiquement en v2)
+    forbidden: true                                  # non détectable automatiquement, information
   credits:
-    end_credits_max_seconds: {documentary: 30, fiction: 60, cinema: 120}   # §6.11.2 (non mesurable automatiquement en v2, information)
-    silent_black_credits_forbidden: true             # §6.11.1
+    end_credits_max_seconds: {documentary: 30, fiction: 60, cinema: 120}   # non mesurable automatiquement, information
+    silent_black_credits_forbidden: true
   freeze:
     threshold: 0.5
     min_seconds: 2.0
-  pse:
-    enabled: true                                    # non exigé par Arte dans ce document ; contrôle interne Lumiris
-    max_flashes_per_second: 3
-    flash_min_delta_pct: 10.0
-    flash_min_area_pct: 25.0
-  safe_areas:                                        # §3.2.6 / §13.1 (EBU R95), information en v2
+  safe_areas:                                        # information
     title_safe_pct: {horizontal: 5.0, vertical: 5.0}
     subtitle_safe: "cadre rouge, voir annexe 13.1"
-    logo_corners_free: true                          # §3.2.7
+    logo_corners_free: true
 
 rules:
   merge_gap_frames: 12
@@ -141,6 +149,7 @@ rules:
   score_formula: "100 - 40*blocking - 10*major - 2*minor"
   # Chaque règle cite sa source : un paragraphe des consignes Arte V2, une décision interne Lumiris,
   # ou DEDUIT (aucun texte ne le dit). Une règle DEDUIT ne dépasse jamais minor (validate-profile le vérifie).
+  # pse et integrity viennent de normes/lumiris_maison.yaml.
   severity:
     white_clip:
       - {if: "area_pct_max >= 1 and duration_frames >= 25", then: major, source: "Arte §3.2.3.3"}   # erreur dès 1 % de la surface
@@ -160,8 +169,6 @@ rules:
       - {else: minor, source: "DEDUIT"}                                # le document ne parle pas de noirs isolés
     duplicate_frame:
       - {else: minor, source: "DEDUIT"}
-    pse:
-      - {else: major, source: "Lumiris : contrôle interne (SPEC §6.6)"}   # non exigé par Arte ; à vérifier avec un analyseur Harding certifié
     audio_loudness:
       - {else: blocking, source: "Arte §3.3.2.4"}
     audio_true_peak:
@@ -188,8 +195,6 @@ rules:
       - {else: minor, source: "Arte §3.2.4"}
     format:
       - {else: blocking, source: "Arte §3.2.2.1"}
-    integrity:
-      - {else: blocking, source: "Lumiris : fichier corrompu ou incomplet"}
 
 llm:                                                 # couche IA locale, désactivée sauf --llm ollama
   backend: ollama
@@ -198,3 +203,73 @@ llm:                                                 # couche IA locale, désact
   num_ctx: 8192
   temperature: 0.1
   language: fr
+
+# Paragraphes des consignes Arte V2 (V2-01-00 sauf mention V2-01-03), affichés par explain-profile.
+sources:
+  format.codecs: "Lumiris : master interne ProRes 422 HQ ou DNxHR HQX (le PAD Arte est en XAVC, §3.2.2.1)"
+  format.containers: "Lumiris : master interne en MOV ou MXF"
+  format.pix_fmt: "Arte §3.1 : 4:2:2 10 bits"
+  format.width: "Arte §3.2.2.1 : 1920 x 1080"
+  format.height: "Arte §3.2.2.1 : 1920 x 1080"
+  format.fps_allowed: "Arte §3.2.2.1 : 50p, ou 25p si tournage 24p/25p"
+  format.field_order: "Arte §3.2.2.1 : progressif"
+  format.color_primaries: "Arte §3.2.2.1 : ITU-R BT.709"
+  format.color_transfer: "Arte §3.2.2.1 : ITU-R BT.709"
+  format.color_space: "Arte §3.2.2.1 : ITU-R BT.709"
+  format.color_range: "Arte §3.2.3.2 : 64-940 en 10 bits"
+  format.unknown_color_tags_severity: "Lumiris : balise absente = avertissement"
+  format.letterbox: "Arte §3.2.4 : lignes actives attendues selon le format d'image (tolerance_lines : DEDUIT)"
+  format.delivery.scan: "Arte V2-01-03 §3.2.2.1, « Spécification des profils du fichier version SDR » : « Type de Balayage Progressif »"
+  format.delivery.fps: "Arte V2-01-03 §3.2.2.1 : « Fréquence image 50p / sec ; 25p / sec si tournage en 24p ou 25p »"
+  format.delivery.codec: "Arte V2-01-03 §3.2.2.1 : « Profil XAVC HD Intra Class 100 CBG pour HD 1080p / 50 ou 25 images par seconde » ; « Format de fichier MXF » (SMPTE ST 377-1:2019, SMPTE RDD 32:2017)"
+  video.bit_depth: "Arte §3.1 : 10 bits"
+  video.y_tolerance_low_pct: "Arte §3.2.3.3 : « La luminance (Y) doit être entre -1 % et 103 % (-7 mV et 721 mV) »"
+  video.y_tolerance_high_pct: "Arte §3.2.3.3 : « La luminance (Y) doit être entre -1 % et 103 % (-7 mV et 721 mV) »"
+  video.prefilter_taps: "A VERIFIER : choix pad-checker ; Arte §3.2.3.3 « filtré avant la mesure » ne chiffre pas le noyau"
+  video.measure_spaces: "Arte §3.2.3 : mesures dans les deux espaces (RVB et YCrCb)"
+  audio.sample_rate: "Arte §3.3 / §3.3.4"
+  audio.bit_depth: "Arte §3.3.4 : 24 bits prioritaire (16 bits seulement pour SD up-converti)"
+  audio.bit_depth_allowed: "Arte §3.3.4"
+  audio.same_bit_depth_all_tracks: "Arte §3.3.4"
+  audio.channel_layout: "Arte §3.2.2.1 / §3.3.4 : pistes gérées par paire AES"
+  audio.max_pairs: "Arte §3.3 : jusqu'à 8 paires AES"
+  audio.no_silent_tracks: "Arte §3.2.2.1 : « pas de piste avec silence »"
+  audio.silent_track_dbfs: "DEDUIT"
+  audio.dual_mono_must_be_identical: "Arte §3.3.4.1 : mono = 2 pistes strictement identiques et en phase"
+  audio.groups: "Arte §3.2.2.1 : ordre des paires déclaré dans Partner (mapping par défaut Lumiris)"
+  audio.loudness_exempt_groups: "DEDUIT"
+  audio.loudness.long_program_min_seconds: "Arte §3.3.2.4 : programmes > 2'00"
+  audio.loudness.long.integrated_tolerance_lu: "Arte §3.3.2.4 : « -23 LUFS (avec une tolérance de ± 1 LU pour les diffusions en direct) »"
+  audio.loudness.long.short_term_dialogue_excursion_lu: "Arte §3.3.2.5 : « ± 7 LU mesuré en Short Term autour de la valeur cible » (dialogue)"
+  audio.loudness.long.lra_max_lu: "Arte §3.3.2.5 : « La valeur du LRA doit être inférieure ou égale à 20 LU »"
+  audio.loudness.long.lra_recommended_range_lu: "Arte §3.3.2.5 : « comprise entre 5 et 15 LU » (bonne pratique)"
+  audio.loudness.short.integrated_lufs: "Arte §3.3.2.4 : « - 23 LUFS (avec une tolérance de ± 0.5 LU) »"
+  audio.loudness.short.integrated_tolerance_lu: "Arte §3.3.2.4 : « ± 0.5 LU »"
+  audio.loudness.short.short_term_max_lufs: "Arte §3.3.2.4 : « Short Term […] inférieure ou égale à -20 LUFS »"
+  audio.loudness.short.short_term_excursion_above_lu: "Arte §3.3.2.5 : + 3 LU max au-dessus de la cible"
+  audio.alignment_tone: "Arte §3.3.2.3 : 1000 Hz à -18 dBFS"
+  audio.silence_dbfs: "DEDUIT"
+  audio.silence_max_seconds: "DEDUIT"
+  audio.phase_min_correlation: "DEDUIT de Arte §3.3.4.2"
+  audio.phase_min_seconds: "DEDUIT"
+  audio.av_sync_ms: "Arte §3.3.3 (EBU R37), information"
+  audio.exclude_head_tail: "Arte §3.2.2.1 : pas d'amorces, tout le fichier est programme"
+  structure.leaders: "Arte §3.2.2.1 : « Le programme ne doit pas contenir d'amorces de début et de fin »"
+  structure.timecode: "Arte §3.2.2.1 / §3.4.1 : TC In à 10:00:00:00, aucun saut ni recouvrement"
+  structure.bars.required: "Arte §3.2.2.1 : pas d'amorce"
+  structure.bars.forbidden: "Arte §3.2.2.1 : pas d'amorce, la mire est interdite dans le fichier"
+  structure.bars.tolerance: "pad-checker : paramètre de reconnaissance de la mire (pas une valeur Arte)"
+  structure.black.head_max_seconds: "DEDUIT (Arte §3.2.2.1 interdit les amorces)"
+  structure.black.tail_max_seconds: "DEDUIT (Arte §3.2.2.1 interdit les amorces)"
+  structure.black.y_max: "pad-checker : une image est noire si y_p99 < 68 (1 % au-dessus de 64)"
+  structure.black.silence_dbfs: "DEDUIT"
+  structure.first_frames: "Arte §3.5.3 : pas de sous-titre sur les 10 premières images"
+  structure.logo: "Arte §6.1 : pas de logo de chaîne ou de groupe dans le programme"
+  structure.credits: "Arte §6.11.1 / §6.11.2"
+  structure.freeze: "pad-checker : le document ne parle pas d'images figées"
+  structure.safe_areas: "Arte §3.2.6 / §3.2.7 / §13.1 (EBU R95), information"
+  rules.merge_gap_frames: "pad-checker : agrégation des images en événements (SPEC §7.1)"
+  rules.min_event_frames: "pad-checker (SPEC §7.1) ; gamut : Arte §3.2.3.3"
+  rules.max_major: "Lumiris : une seule anomalie majeure rend le PAD non conforme"
+  rules.score_formula: "pad-checker (SPEC §7.3), informatif"
+  llm: "Lumiris : couche IA locale (CLAUDE.md), désactivée par défaut"

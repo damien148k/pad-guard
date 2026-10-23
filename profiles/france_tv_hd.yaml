@@ -5,13 +5,21 @@
 # officiel du diffuseur avant toute utilisation en production.
 # Les champs à null sont volontairement non renseignés : l'outil refuse de tourner
 # si une règle activée dépend d'un champ null.
+# Ce fichier ne garde que ce qui diffère des normes héritées (meta.extends) :
+# `pad-checker explain-profile profiles/france_tv_hd.yaml` montre le profil effectif.
+# Hérité de normes/ebu_r103.yaml : Y légal 64-940, RVB -5 % / 105 %, surface 1 %, préfiltre.
+# Hérité de normes/ebu_r128.yaml : loudness cible -23 LUFS. Hérité de normes/lumiris_maison.yaml :
+# paramètres du PSE et de la détection du balayage.
+# Pas de format.delivery : le document FTV (diffuseurs/) n'a pas encore été relu.
 
-profile:
+meta:
   name: france_tv_hd
   version: "0.1"
   broadcaster: "France Télévisions"
   source_document: "Cahier des charges technique FTV HD — A VERIFIER (référence et date)"
   notes: "Profil de démarrage, à valider par Vincent."
+  extends: [ebu_r128, ebu_r103, lumiris_maison]
+  status: draft                           # jamais validé par Vincent : rapport indicatif
 
 format:
   codecs:
@@ -31,15 +39,9 @@ format:
 
 video:
   bit_depth: 10
-  y_min_legal: 64
-  y_max_legal: 940
-  y_tolerance_low_pct: -1.0               # EBU R103 : -1 % -> 55 en 10 bits
-  y_tolerance_high_pct: 103.0             # EBU R103 : +103 % -> 967 en 10 bits
-  rgb_min_pct: -5.0                       # EBU R103
-  rgb_max_pct: 105.0                      # EBU R103
-  max_out_of_range_area_pct: 1.0          # EBU R103 : max 1 % des pixels par image
-  prefilter: true                         # lissage horizontal avant mesure (R103)
-  prefilter_taps: 3                       # A VERIFIER : R103 ne chiffre pas le noyau ; 3 = [1 2 1]/4 horizontal
+  y_tolerance_low_pct: -1.0               # A VERIFIER : attribué à EBU R103, mais R 103 v3.0 dit -5 % (voir normes/ebu_r103.yaml)
+  y_tolerance_high_pct: 103.0             # A VERIFIER : idem, R 103 v3.0 dit 105 %
+  prefilter_taps: 3                       # A VERIFIER : 3 = [1 2 1]/4 horizontal ; R 103 v3.0 recommande 7 coefficients horizontaux + 3 verticaux, non pris en charge
 
 audio:
   sample_rate: 48000
@@ -49,8 +51,7 @@ audio:
     - {name: "VI stéréo", tracks: [3, 4], layout: stereo, required: false}
   loudness:                               # pas de distinction programme court / long : "long" s'applique à tout
     long:
-      integrated_lufs: -23.0              # EBU R128 / CST RT-017
-      integrated_tolerance_lu: 1.0
+      integrated_tolerance_lu: 1.0        # A VERIFIER : EBU R 128 dit ± 0,2 LU hors direct (± 1 LU en direct)
       lra_max_lu: 20.0                    # A VERIFIER
   true_peak_max_dbtp: -3.0                # CST RT-017 (France) ; EBU R128 seul dirait -1
   silence_dbfs: -60.0
@@ -83,11 +84,6 @@ structure:
   freeze:
     threshold: 0.5                        # diff. absolue moyenne (code 10 bits) entre images consécutives
     min_seconds: 2.0
-  pse:
-    enabled: true
-    max_flashes_per_second: 3
-    flash_min_delta_pct: 10.0             # variation de luminance relative
-    flash_min_area_pct: 25.0
 
 rules:
   merge_gap_frames: 12

@@ -1,12 +1,16 @@
 # Profil de TEST : seuils de France TV (exemple), structure adaptée aux fixtures synthétiques.
 # Ne pas utiliser en production.
 
-profile:
+meta:
   name: test_classic
   version: "0.1"
   broadcaster: "Tests pad-checker"
   source_document: "tests/fixtures/make_fixtures.sh"
   notes: "Profil de test aligné sur les fixtures à amorce classique (ok_prores.mov, bad_*.mov). Pas une norme."
+  extends: [lumiris_maison]               # détection du balayage ; tout le reste est redéfini ici
+  status: validated                       # aligné sur les fixtures par construction
+  validated_by: "suite de tests pad-checker"
+  validated_at: 2026-10-08
 
 format:
   codecs:

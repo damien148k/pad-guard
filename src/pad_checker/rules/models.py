@@ -21,7 +21,7 @@ class Event(BaseModel):
     severity: Severity
     severity_source: str  # source of the profile rule that gave the severity ("Arte §3.2.3.3", "DEDUIT"...)
     title: str  # French, what is wrong
-    source: Literal["probe", "measure", "structure", "integrity"]
+    source: Literal["probe", "measure", "structure", "integrity", "delivery"]
     scope: Literal["range", "file"]  # file: a property of the whole file (codec, loudness...)
     frame_start: int
     frame_end: int  # inclusive
@@ -58,3 +58,6 @@ class Verdict(BaseModel):
     counts: dict[Severity, int]
     max_major: int
     reasons: list[str]  # French, why NON-CONFORME (empty when CONFORME)
+    # Profile in meta.status draft: the status above is computed as usual, but the report shows
+    # it only as indicative and never says CONFORME (CLAUDE.md principle 7).
+    indicative: bool = False

@@ -1,0 +1,60 @@
+# Norme : EBU R 103, tolérance des signaux vidéo dans les systèmes de télévision numérique
+# (version 3.0, mai 2020).
+#
+# Valeurs et citations relevées le 23 octobre 2026 dans normes/sources/TV/r103.pdf.
+# Les pourcentages sont ceux du schéma de profil ; convertis en codes 10 bits (SPEC §5.2, arrondi
+# vers l'extérieur) ils redonnent exactement le tableau 1 : -5 % -> 20, 105 % -> 984.
+#
+# ATTENTION, écarts avec profiles/arte_hd_sdr.yaml (à arbitrer, rien n'est corrigé) :
+# - R 103 v3.0 applique la même plage « Preferred Min./Max. » (20-984) aux composantes RVB ET à la
+#   luminance Y. Les consignes Arte (§3.2.3.3) attribuent à la « Rec103 de l'EBU » une plage Y
+#   de -1 % / 103 % (55-967), qui n'apparaît pas dans R 103 v3.0. Le profil Arte garde ses valeurs.
+# - R 103 v3.0 recommande un filtre horizontal à 7 coefficients (1/16, 2/16, 3/16, 4/16, 3/16, 2/16,
+#   1/16) et un filtre vertical (1/4, 1/2, 1/4). pad-checker ne sait appliquer que [1 2 1]/4 ou
+#   [1 4 6 4 1]/16 en horizontal (video.prefilter_taps) : le noyau n'est pas fixé ici.
+# - R 103 : erreur « only after the error exceeds 1% of the image » (strictement plus de 1 %) ;
+#   Arte et pad-checker : « au moins 1 % » (1 % compris).
+
+meta:
+  kind: norm
+  name: ebu_r103
+  document:
+    title: "EBU R 103 — Video signal tolerance in digital television systems"
+    version: "version 3.0, mai 2020"
+  source_pdf: "normes/sources/TV/r103.pdf"
+
+video:
+  y_min_legal: 64
+  y_max_legal: 940
+  y_tolerance_low_pct: -5.0
+  y_tolerance_high_pct: 105.0
+  rgb_min_pct: -5.0
+  rgb_max_pct: 105.0
+  max_out_of_range_area_pct: 1.0
+  prefilter: true
+
+sources:
+  video.y_min_legal: >-
+    EBU R 103 v3.0, annexe 1, tableau 1, ligne « 10-bit », colonne « Nominal Video Range » : « 64 - 940 ».
+  video.y_max_legal: >-
+    EBU R 103 v3.0, annexe 1, tableau 1, ligne « 10-bit », colonne « Nominal Video Range » : « 64 - 940 ».
+  video.y_tolerance_low_pct: >-
+    EBU R 103 v3.0, annexe 1, « Video Signal Tolerance » : « the RGB components and the corresponding
+    Luminance (Y) signal should not normally exceed the “Preferred Minimum/Maximum” range of digital
+    sample levels in Table 1 » ; tableau 1, ligne « 10-bit », « Preferred Min. / Max. » : « 20 - 984 ».
+  video.y_tolerance_high_pct: >-
+    EBU R 103 v3.0, annexe 1, « Video Signal Tolerance » (Y et RVB, même plage) ; tableau 1, ligne
+    « 10-bit », « Preferred Min. / Max. » : « 20 - 984 ».
+  video.rgb_min_pct: >-
+    EBU R 103 v3.0, annexe 1, « Video Signal Tolerance » : « the RGB components […] should not
+    normally exceed the “Preferred Minimum/Maximum” range » ; tableau 1, ligne « 10-bit » : « 20 - 984 ».
+  video.rgb_max_pct: >-
+    EBU R 103 v3.0, annexe 1, « Video Signal Tolerance » ; tableau 1, ligne « 10-bit », « Preferred
+    Min. / Max. » : « 20 - 984 ».
+  video.max_out_of_range_area_pct: >-
+    EBU R 103 v3.0, annexe 1, « Signal Issues » : « measuring equipment should indicate an
+    “Out-of-Gamut” occurrence only after the error exceeds 1% of the image ».
+  video.prefilter: >-
+    EBU R 103 v3.0, annexe 1, « Video Signal Filtering » : « the use of appropriate filters in all
+    measurement channels is recommended » (coefficients recommandés : horizontal 1/16, 2/16, 3/16,
+    4/16, 3/16, 2/16, 1/16 ; vertical 1/4, 1/2, 1/4).

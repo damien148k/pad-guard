@@ -1,5 +1,7 @@
 # Rapport de contrôle PAD — {{ h.file_name | cell }}
-
+{% if h.indicative %}
+> **PROFIL NON VALIDÉ — résultat indicatif**
+{% endif %}
 ## 1. En-tête
 
 | | |
@@ -12,6 +14,8 @@
 | Timecode | {{ h.timecode }} |
 | Vidéo | {{ h.video | cell }} |
 | Profil | {{ h.profile | cell }} |
+| Statut du profil | {{ h.profile_status | cell }} |
+| Empreinte du profil effectif | `{{ h.fingerprint }}` |
 | Document de référence | {{ h.source_document | cell }} |
 | Version de pad-checker | {{ h.tool_version }} |
 | Date d'analyse | {{ h.analyzed_at }} |
@@ -22,7 +26,7 @@
 
 ## 2. Statut
 
-**{{ v.status }}** — score {{ score }}/100
+**{{ status }}** — score {{ score }}/100
 
 | Bloquant | Majeur | Mineur | Info |
 |---|---|---|---|
@@ -64,6 +68,18 @@ Une même erreur signalée plusieurs fois pour un paquet (message du décodeur e
 - {{ c }}
 {%- endfor %}
 {% endif %}
+### Livraison
+
+| | |
+|---|---|
+| Master analysé | {{ delivery.master | cell }} |
+| Livraison attendue | {{ delivery.expected | cell }} |
+
+{{ delivery.conclusion }}
+{%- if delivery.warning %}
+
+{{ delivery.warning }}
+{%- endif %}
 
 ## 5. Audio
 

@@ -1,0 +1,49 @@
+# Règles maison de Lumiris Production : décisions internes, pas des normes internationales.
+#
+# Elles s'appliquent après les normes et avant le profil du diffuseur (dernière entrée de
+# meta.extends). Ce sont les règles marquées « source: Lumiris » dans les profils v2, plus les
+# paramètres de détection du balayage (v3).
+
+meta:
+  kind: norm
+  name: lumiris_maison
+  document:
+    title: "Règles internes Lumiris Production pour le pré-contrôle des PAD"
+    version: "2026-10-23"
+  notes: >
+    Le contrôle PSE n'est exigé par aucun diffuseur dans les profils actuels : c'est un contrôle
+    interne, à confirmer avec un analyseur Harding certifié.
+
+video:
+  scan_detection:
+    comb_ratio_min: 0.9
+    motion_min: 1.0
+    interlaced_min_pct: 50.0
+    progressive_max_pct: 10.0
+    min_moving_frames: 25
+
+structure:
+  pse:
+    enabled: true
+    max_flashes_per_second: 3
+    flash_min_delta_pct: 10.0
+    flash_min_area_pct: 25.0
+
+rules:
+  severity:
+    pse:
+      - {else: major, source: "Lumiris : contrôle interne (SPEC §6.6)"}   # à vérifier avec un analyseur Harding certifié
+    integrity:
+      - {else: blocking, source: "Lumiris : fichier corrompu ou incomplet"}
+    delivery_conversion_required:
+      - {else: info, source: "Lumiris : information de livraison, pas une non-conformité du master (CLAUDE.md, Format de livraison)"}
+
+sources:
+  video.scan_detection: >-
+    Lumiris : paramètres de la détection de peignage (SPEC §12.5), calibrés le 23/10/2026 sur
+    testsrc2 entrelacé par FFmpeg tinterlace (comb ≥ 0,99 sur toutes les images), testsrc2 progressif
+    (comb ≤ 0,72) et un master Arte réel 1080 signalé « tb » à contenu progressif (comb 0,60 à 0,78).
+    A VERIFIER sur d'autres masters entrelacés réels.
+  structure.pse: >-
+    Lumiris : contrôle interne PSE (SPEC §6.6, inspiré d'ITU-R BT.1702 et des lignes directrices
+    Ofcom) ; non exigé par Arte (profil v2 : « contrôle interne Lumiris »).

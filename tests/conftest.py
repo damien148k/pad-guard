@@ -21,6 +21,8 @@ FIXTURE_FILES = (
     "arte_ok.mov",
     "arte_4tracks.mov",
     "arte_bad.mov",
+    "interlaced_prores.mov",
+    "rate24_prores.mov",
 )
 
 

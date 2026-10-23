@@ -22,9 +22,15 @@ from pad_checker.probe.models import (
     SourceInfo,
     VideoInfo,
 )
+from pad_checker.profiles import fingerprint
 from pad_checker.rules.profile import Profile
 
 _UNKNOWN = {None, "", "unknown", "unspecified", "N/A"}
+
+# Frame rates the measurements support until Phase 6 (docs/ROADMAP.md). Nothing else may assume
+# a rate: durations and timecodes always come from the rate read in probe.json.
+MEASURABLE_RATES = (Fraction(25, 1),)
+_INTERLACED = {"tt", "bb", "tb", "bt"}
 
 
 class ProbeError(Exception):
@@ -79,6 +85,18 @@ def _fps(rate: str) -> Fraction | None:
     return f if f > 0 else None
 
 
+def _scan_flag(field_order: str | None) -> str:
+    if field_order == "progressive":
+        return "progressive"
+    return "interlaced" if field_order in _INTERLACED else "unknown"
+
+
+def rate_text(fps: Fraction) -> str:
+    """'25/1 (25 i/s)', '30000/1001 (29,97 i/s)'."""
+    per_second = f"{float(fps):.3f}".rstrip("0").rstrip(".").replace(".", ",")
+    return f"{fps.numerator}/{fps.denominator} ({per_second} i/s)"
+
+
 def _container(fmt: dict[str, Any], path: Path) -> ContainerInfo:
     names = fmt.get("format_name", "").split(",")
     if "mxf" in names:
@@ -107,7 +125,9 @@ def _video(stream: dict[str, Any]) -> VideoInfo:
         height=_int(stream.get("height")) or 0,
         r_frame_rate=stream.get("r_frame_rate", "0/0"),
         avg_frame_rate=stream.get("avg_frame_rate", "0/0"),
+        fps=None if fps is None else f"{fps.numerator}/{fps.denominator}",
         field_order=_clean(stream.get("field_order")),
+        scan_flag=_scan_flag(_clean(stream.get("field_order"))),
         color_primaries=_clean(stream.get("color_primaries")),
         color_transfer=_clean(stream.get("color_transfer")),
         color_space=_clean(stream.get("color_space")),
@@ -194,6 +214,9 @@ def _check_format(c: _Checks, p: Profile, container: ContainerInfo, v: VideoInfo
     c.add("frame_rate", "Cadence", "format", " ou ".join(f.fps_allowed), v.r_frame_rate, r in allowed)
     c.add("frame_rate_constant", "Cadence constante", "format", "r_frame_rate = avg_frame_rate",
           f"{v.r_frame_rate} / {v.avg_frame_rate}", r is not None and r == avg)
+    c.add("frame_rate_measurable", "Cadence prise en charge par pad-checker", "format",
+          " ou ".join(rate_text(x) for x in MEASURABLE_RATES), rate_text(r) if r else v.r_frame_rate,
+          r in MEASURABLE_RATES, refusal=True)
     c.add("field_order", "Balayage", "format", f.field_order, v.field_order or "absent", v.field_order == f.field_order)
 
     for key, label in (("color_primaries", "Primaires"), ("color_transfer", "Transfert"), ("color_space", "Matrice")):
@@ -269,6 +292,13 @@ def _source(path: Path, known: SourceInfo | None) -> SourceInfo:
     return SourceInfo(path=resolved, size_bytes=size, sha256=sha256_file(path))
 
 
+def _refusal(ch: Check) -> str:
+    if ch.id == "frame_rate_measurable":
+        return (f"cadence {ch.actual} : pad-checker ne mesure pour l'instant que {ch.expected} "
+                "(autres cadences prévues en Phase 6).")
+    return f"{ch.label} : {ch.actual} n'est pas accepté (attendu : {ch.expected})."
+
+
 def probe_file(
     path: str | Path, profile: Profile, profile_path: str | Path, audio_map: AudioMap | None = None,
     known: SourceInfo | None = None,
@@ -307,7 +337,8 @@ def probe_file(
     profile_path = Path(profile_path)
     return ProbeResult(
         tool_version=__version__,
-        profile=ProfileRef(name=profile.profile.name, version=profile.profile.version, sha256=sha256_file(profile_path)),
+        profile=ProfileRef(name=profile.meta.name, version=profile.meta.version, sha256=sha256_file(profile_path),
+                           status=profile.meta.status, effective_sha256=fingerprint(profile)),
         source=_source(path, known),
         container=container,
         video=video,
@@ -318,5 +349,5 @@ def probe_file(
         timecode_source=tc_source,
         checks=c.items,
         accepted=not refusals,
-        refusal_reasons=[f"{ch.label} : {ch.actual} n'est pas accepté (attendu : {ch.expected})." for ch in refusals],
+        refusal_reasons=[_refusal(ch) for ch in refusals],
     )

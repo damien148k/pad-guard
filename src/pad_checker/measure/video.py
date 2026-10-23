@@ -18,6 +18,11 @@ with the previous frame: ``d_mean`` is the mean absolute difference in 10-bit co
 than ``structure.pse.flash_min_delta_pct``. Relative luminance is the BT.1886 display response
 with a zero black level, ``((Y - 64) / 876) ** 2.4`` clipped to [0, 1]; the comparison goes
 through two integer lookup tables indexed by the previous code value, so it is exact.
+
+Combing (scan detection, SPEC §12.5): ``comb`` is the mean absolute difference between
+neighbouring lines (opposite fields) divided by the mean absolute difference between lines two
+apart (same field), on the unfiltered Y plane. Around 0.5-0.8 for progressive pictures, above 1
+where the two fields of an interlaced frame show different instants. Integer sums, so exact.
 """
 
 from __future__ import annotations
@@ -46,7 +51,7 @@ FIELDS = (
     "f", "y_min", "y_max", "y_p01", "y_p99", "y_mean",
     "y_below_pct", "y_above_pct", "y_below_legal_pct", "y_above_legal_pct",
     "rgb_out_pct", "cb_min", "cb_max", "cr_min", "cr_max", "sat_max",
-    "d_mean", "d_up_pct", "d_down_pct",
+    "d_mean", "d_up_pct", "d_down_pct", "comb",
 )
 LUMINANCE_GAMMA = 2.4  # ITU-R BT.1886 display response (a definition, not a threshold)
 
@@ -239,6 +244,7 @@ class FrameMeter:
         sat2 = 0.0
         rgb_out = 0
         d_sum = d_up = d_down = 0
+        across = within = 0
         for top in range(0, h, self.strip_rows):
             rows = slice(top, top + self.strip_rows)
             y, cb, cr = frame.y[rows], frame.cb[rows], frame.cr[rows]
@@ -246,6 +252,8 @@ class FrameMeter:
             if previous is not None:  # before the prefilter: frame differences use the raw plane
                 s, u, d = self._diff(y, previous[rows], ws)
                 d_sum, d_up, d_down = d_sum + s, d_up + u, d_down + d
+            across += self._line_diff(frame.y, top, y.shape[0], 1, ws)
+            within += self._line_diff(frame.y, top, y.shape[0], 2, ws)
             if lim.prefilter_taps:
                 y = hfilter(y, lim.prefilter_taps, ws.y, ws.pad_y)
                 cb = hfilter(cb, lim.prefilter_taps, ws.cb, ws.pad_c)
@@ -293,7 +301,21 @@ class FrameMeter:
             "d_mean": None if previous is None else round(d_sum / n, 3),
             "d_up_pct": None if previous is None else _pct(d_up, n),
             "d_down_pct": None if previous is None else _pct(d_down, n),
+            "comb": None if within == 0 or h < 3 else round((across / (h - 1)) / (within / (h - 2)), 4),
         }
+
+    @staticmethod
+    def _line_diff(plane: np.ndarray, top: int, rows: int, step: int, ws: _Workspace) -> int:
+        """Sum of |Y(l) - Y(l + step)| for the lines l of the strip that have a line ``step`` below."""
+        n = max(0, min(rows, plane.shape[0] - step - top))
+        if n == 0:
+            return 0
+        a, b = plane[top: top + n], plane[top + step: top + step + n]
+        hi, lo = ws.dmax[:n], ws.dmin[:n]
+        np.maximum(a, b, out=hi)
+        np.minimum(a, b, out=lo)
+        hi -= lo
+        return int(hi.sum(dtype=np.uint64))
 
     def _diff(self, y: np.ndarray, prev: np.ndarray, ws: _Workspace) -> tuple[int, int, int]:
         """(sum of |Y - Y_prev|, pixels whose luminance rose, pixels whose luminance fell)."""

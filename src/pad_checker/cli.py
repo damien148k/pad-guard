@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 import time
 from enum import Enum
@@ -15,14 +16,17 @@ from rich.table import Table
 
 from pad_checker import __version__, audio_map as amap, jsonio, measure, pipeline, workdir as wd
 from pad_checker.decode.video import DecoderOpenError, VideoDecoder
-from pad_checker.labels import SEVERITY_LABELS, SEVERITY_ORDER
+from pad_checker.labels import SEVERITY_LABELS, SEVERITY_ORDER, status_label
+from pad_checker.measure import scan as scan_mod
 from pad_checker.measure.models import Measurements
 from pad_checker.probe import ProbeError, probe_file
 from pad_checker.probe.models import ProbeResult
+from pad_checker.profiles import ResolvedProfile, is_norm, load_norm, resolve_profile
+from pad_checker.profiles.resolve import leaves, read_yaml
 from pad_checker.report import ReportError
 from pad_checker.rules.engine import RulesError
 from pad_checker.rules.models import Verdict
-from pad_checker.rules.profile import Profile, ProfileError, ProfileValueError, load_profile, null_fields
+from pad_checker.rules.profile import Profile, ProfileError, ProfileValueError, null_fields
 from pad_checker.structure import StructureError
 from pad_checker.structure.bars import BarsError
 
@@ -85,7 +89,8 @@ def analyze(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Affiche la progression détaillée."),
 ) -> None:
     """Analyse un fichier et produit mesures, événements, verdict et rapport."""
-    prof = _load_profile_or_exit(profile)
+    resolved = _load_profile_or_exit(profile)
+    prof = resolved.profile
     mapping = _audio_map_or_exit(audio_map, prof)
     for flag, name in ((quick, "--quick"), (llm != LlmBackend.none, "--llm")):
         if flag:
@@ -106,7 +111,7 @@ def analyze(
         err_console.print(f"[red]Fichier refusé : {exc}[/red]")
         raise typer.Exit(EXIT_REFUSED) from None
     if not benchmark:
-        pipeline.start_run(out, profile, command)
+        pipeline.start_run(out, profile, command, resolved)
     jsonio.write(out / wd.PROBE, result)
     _print_probe(result)
     console.print(f"probe.json écrit dans {out}")
@@ -142,7 +147,7 @@ def rerun(
 ) -> None:
     """Relance structure, règles et rapport à partir des JSON existants, sans refaire les mesures."""
     if profile is not None:
-        prof = _load_profile_or_exit(profile)
+        prof = _load_profile_or_exit(profile).profile
         problems = pipeline.preflight(prof, prof.audio.groups)
         if problems:
             err_console.print(f"[red]Profil incomplet pour cette analyse : {profile}[/red]")
@@ -184,10 +189,7 @@ def _steps(action) -> None:
     try:
         action()
     except ProfileError as exc:
-        err_console.print(f"[red]Profil invalide : {exc.path}[/red]")
-        for msg in exc.messages:
-            err_console.print(f"  - {msg}")
-        raise typer.Exit(EXIT_USAGE) from None
+        raise _profile_error(exc) from None
     except _STEP_ERRORS as exc:
         err_console.print(f"[red]{exc}[/red]")
         raise typer.Exit(EXIT_USAGE) from None
@@ -198,9 +200,12 @@ def _steps(action) -> None:
 
 def _finish(out: Path) -> None:
     verdict = jsonio.read(out / wd.VERDICT, Verdict)
-    colour = "green" if verdict.status == "CONFORME" else "red"
+    colour = "red" if verdict.status != "CONFORME" else "yellow" if verdict.indicative else "green"
     counts = ", ".join(f"{verdict.counts[s]} {SEVERITY_LABELS[s]}" for s in SEVERITY_ORDER)
-    console.print(f"[bold {colour}]{verdict.status}[/bold {colour}] — score {verdict.score:g}/100 ({counts})")
+    if verdict.indicative:
+        console.print("[bold yellow]PROFIL NON VALIDÉ — résultat indicatif[/bold yellow]")
+    label = status_label(verdict.status, verdict.indicative)
+    console.print(f"[bold {colour}]{label}[/bold {colour}] — score {verdict.score:g}/100 ({counts})")
     for reason in verdict.reasons:
         console.print(f"  - {reason}")
     console.print(f"Rapport : {out / wd.REPORT_MD} et {out / wd.REPORT_PDF}")
@@ -208,14 +213,19 @@ def _finish(out: Path) -> None:
         raise typer.Exit(EXIT_NON_CONFORME)
 
 
-def _load_profile_or_exit(path: Path) -> Profile:
+def _profile_error(exc: ProfileError) -> typer.Exit:
+    err_console.print(f"[red]Profil invalide : {exc.path}[/red]")
+    for msg in exc.messages:
+        err_console.print(f"  - {msg}")
+    return typer.Exit(EXIT_USAGE)
+
+
+def _load_profile_or_exit(path: Path) -> ResolvedProfile:
+    """Effective profile (profile + inherited norms), or exit with the reasons."""
     try:
-        return load_profile(path)
+        return resolve_profile(path)
     except ProfileError as exc:
-        err_console.print(f"[red]Profil invalide : {exc.path}[/red]")
-        for msg in exc.messages:
-            err_console.print(f"  - {msg}")
-        raise typer.Exit(EXIT_USAGE) from None
+        raise _profile_error(exc) from None
 
 
 def _audio_map_or_exit(spec: str | None, prof: Profile) -> amap.AudioMap:
@@ -284,6 +294,12 @@ def _print_measurements(m: Measurements, out: Path) -> None:
             f"Intégrité : [red]ÉCHEC[/red] ({integ.frames_decoded}/{integ.frames_expected} images, "
             f"{len(integ.errors)} erreur(s) de décodage, {len(integ.pts_discontinuities)} discontinuité(s))"
         )
+    s = m.scan
+    console.print(f"Balayage : drapeau {s.field_order or 'absent'}, détecté {scan_mod.SCAN_LABELS[s.detected]} "
+                  f"({s.combed_frames} image(s) peignée(s) sur {s.moving_frames} en mouvement)")
+    warning = scan_mod.warning(s)
+    if warning:
+        err_console.print(f"[yellow]Attention : {warning}.[/yellow]")
     if m.audio is not None:
         prog = m.audio.program
         where = f"{prog.tc_start} → {prog.tc_end}" if prog.tc_start else f"images {prog.frame_start} → {prog.frame_end}"
@@ -332,11 +348,31 @@ def _benchmark(file: Path, result: ProbeResult) -> None:
 def validate_profile(
     profile: Path = typer.Argument(..., help="Profil de chaîne (YAML)."),
 ) -> None:
-    """Vérifie un profil de chaîne : schéma, champs inconnus, expressions de gravité."""
-    prof = _load_profile_or_exit(profile)
-    meta = prof.profile
+    """Vérifie un profil de chaîne ou une norme : schéma, normes héritées, cycles, sources, gravités."""
+    try:
+        norm = load_norm(profile) if is_norm(read_yaml(profile)) else None
+    except ProfileError as exc:
+        raise _profile_error(exc) from None
+    if norm is not None:
+        d = norm.meta.document
+        console.print(f"[green]Norme valide[/green] : {norm.name} — {d.title} ({d.version})")
+        count = len(leaves({k: v for k, v in norm.raw.items() if k != "sources"}))
+        console.print(f"  {count} valeur(s), chacune avec sa source.")
+        return
+    resolved = _load_profile_or_exit(profile)
+    prof = resolved.profile
+    meta = prof.meta
     console.print(f"[green]Profil valide[/green] : {meta.name} v{meta.version} ({meta.broadcaster})")
     console.print(f"  Source : {meta.source_document}")
+    console.print(f"  Normes héritées : {', '.join(meta.extends) or 'aucune'}")
+    if meta.status == "validated":
+        console.print(f"  Statut : validé par {meta.validated_by} le {meta.validated_at.isoformat()}")
+    else:
+        console.print("  Statut : [yellow]brouillon (draft)[/yellow] — les rapports seront indicatifs")
+    console.print(f"  Empreinte du profil effectif : {resolved.fingerprint}")
+    if resolved.conflicts:
+        console.print(f"  {len(resolved.conflicts)} valeur(s) redéfinie(s) par rapport aux normes : "
+                      "voir « pad-checker explain-profile ».")
     unsourced = [f"rules.severity.{name}[{i}] ({rule.severity}) : {rule.source}"
                  for name, chain in prof.rules.severity.items() for i, rule in enumerate(chain)
                  if rule.severity in ("blocking", "major") and "A VERIFIER" in rule.source.upper()]
@@ -352,6 +388,56 @@ def validate_profile(
         )
         for name in nulls:
             console.print(f"  - {name}")
+
+
+def _value(value: object) -> str:
+    if isinstance(value, list) and value and all(isinstance(r, dict) and "source" in r for r in value):
+        # Severity chain: "if ... -> major ; else -> minor".
+        return " ; ".join(f"{r['if']} → {r['then']}" if "if" in r else f"sinon → {r['else']}" for r in value)
+    return json.dumps(value, ensure_ascii=False)
+
+
+@app.command("explain-profile")
+def explain_profile(
+    profile: Path = typer.Argument(..., help="Profil de chaîne (YAML)."),
+) -> None:
+    """Affiche le profil effectif : chaque valeur, le fichier d'où elle vient, sa source, et les conflits."""
+    resolved = _load_profile_or_exit(profile)
+    meta = resolved.profile.meta
+    status = (f"validé par {meta.validated_by} le {meta.validated_at.isoformat()}" if meta.status == "validated"
+              else "[yellow]brouillon (draft)[/yellow]")
+    console.print(f"[bold]{meta.name}[/bold] v{meta.version} ({meta.broadcaster}) — {status}")
+    console.print(f"Empreinte du profil effectif : {resolved.fingerprint}")
+    layers = Table(title="Couches appliquées (la dernière gagne)")
+    for col in ("Ordre", "Fichier", "Document", "SHA-256"):
+        layers.add_column(col)
+    for i, layer in enumerate(resolved.layers, start=1):
+        layers.add_row(str(i), layer.file, layer.document, layer.sha256[:16] + "…")
+    console.print(layers)
+
+    values = dict(leaves({k: v for k, v in resolved.values.items() if k != "meta"}))
+    table = Table(title="Profil effectif", show_lines=False)
+    for col in ("Champ", "Valeur", "Origine", "Source"):
+        table.add_column(col, overflow="fold")
+    for path, value in values.items():
+        origin = resolved.origins.get(path)
+        file = origin.file if origin else "?"
+        mark = " [yellow](redéfini)[/yellow]" if origin and origin.replaced else ""
+        table.add_row(path, _value(value), file + mark, (origin.source if origin else None) or "[dim]non citée[/dim]")
+    console.print(table)
+
+    if resolved.conflicts:
+        conflicts = Table(title="Conflits : valeurs redéfinies avec une autre valeur")
+        for col in ("Champ", "Valeur retenue", "Fichier", "Valeur remplacée", "Remplacée de"):
+            conflicts.add_column(col, overflow="fold")
+        for c in resolved.conflicts:
+            conflicts.add_row(c.path, _value(c.value), c.file, _value(c.replaced_value), c.replaced_file)
+        console.print(conflicts)
+    else:
+        console.print("Aucun conflit avec les normes héritées.")
+    nulls = null_fields(resolved.profile)
+    if nulls:
+        console.print("[yellow]Valeurs non renseignées (null)[/yellow] : " + ", ".join(nulls))
 
 
 if __name__ == "__main__":

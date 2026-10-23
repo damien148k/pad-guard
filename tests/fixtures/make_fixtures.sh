@@ -20,6 +20,11 @@
 #   arte_bad.mov       5 s EBU bars + 1 kHz tone, then the arte_ok program (25 s), TC 10:00:00:00;
 #                      pair 2 (tracks 3-4) silent for the whole file; 10 ms burst at -0.5 dBTP on
 #                      pair 1 at t = 15 s.
+#   interlaced_prores.mov  ok_prores made interlaced: the same segments rendered at 50p, then
+#                      FFmpeg tinterlace (two successive images -> the two fields of one frame),
+#                      25 frames/s, flagged interlaced. Moving pictures show combing.
+#   rate24_prores.mov  2 s of testsrc2 at 24 frames/s (FFmpeg -r 24), TC 10:00:00:00, no audio:
+#                      refused until Phase 6 (only 25 frames/s are measured).
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -31,7 +36,8 @@ command -v ffmpeg >/dev/null || { echo "ffmpeg introuvable dans le PATH" >&2; ex
 
 FF=(ffmpeg -v error -nostdin -y)
 SIZE=1920x1080
-FPS=25
+FPS=25            # rate of the generated sources (make_fixture), 50 for interlaced_prores.mov
+FIELD_MODE=prog   # scan flag written by make_fixture: prog | tff
 AR=48000
 
 # Audio levels, measured with FFmpeg ebur128 (stereo = same signal on L and R).
@@ -121,7 +127,7 @@ make_fixture() {
         k=$((k + 1))
     done
     graph+="concat=n=$k:v=1:a=0,scale=out_color_matrix=bt709:out_range=tv,format=yuv422p10le$extra,"
-    graph+="setparams=field_mode=prog:range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709[v]"
+    graph+="setparams=field_mode=$FIELD_MODE:range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709[v]"
 
     local maps=(-map "[v]") w a=0
     for w in "${wavs[@]}"; do
@@ -183,6 +189,21 @@ if need arte_bad.mov; then
     audio_track "$WORK/arte_bad_vi.wav" tone:5 pink23:20:13
     make_fixture arte_bad.mov 10:00:00:00 "bars:5 prog:20" "" 1 "${PRORES_HQ[@]}" -- \
         "$WORK/arte_bad_vo.wav" "$WORK/arte_bad_vf.wav" "$WORK/arte_bad_vi.wav"
+fi
+
+# Interlaced variant of ok_prores: sources at 50p, two successive images become the top and
+# bottom fields of one 25 frames/s frame.
+if need interlaced_prores.mov; then
+    [[ -s "$WORK/classic_m23.wav" ]] || audio_track "$WORK/classic_m23.wav" tone:5 silence:5 pink23:10:1
+    FPS=50 FIELD_MODE=tff make_fixture interlaced_prores.mov 09:59:50:00 "$CLASSIC" ",tinterlace=mode=interleave_top" 0 \
+        "${PRORES_HQ[@]}" -flags +ilme+ildct -- "$WORK/classic_m23.wav"
+fi
+
+if need rate24_prores.mov; then
+    "${FF[@]}" -f lavfi -i "testsrc2=s=$SIZE:r=24:d=2" \
+        -vf "scale=out_color_matrix=bt709:out_range=tv,format=yuv422p10le,setparams=field_mode=prog:range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709" \
+        -r 24 "${PRORES_HQ[@]}" -timecode 10:00:00:00 "$HERE/rate24_prores.mov"
+    echo "  rate24_prores.mov"
 fi
 
 rm -rf "$WORK"

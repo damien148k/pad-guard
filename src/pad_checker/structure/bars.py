@@ -61,7 +61,7 @@ def reference(pattern: str, width: int, height: int) -> np.ndarray:
     if exe is None:
         raise BarsError("ffmpeg introuvable : installer FFmpeg 6+ et l'ajouter au PATH.")
     proc = subprocess.run(
-        [exe, "-v", "error", "-nostdin", "-f", "lavfi", "-i", f"{PATTERNS[pattern]}=s={width}x{height}:r=25:d=1",
+        [exe, "-v", "error", "-nostdin", "-f", "lavfi", "-i", f"{PATTERNS[pattern]}=s={width}x{height}:r=1:d=1",
          "-frames:v", "1", "-vf", "scale=out_color_matrix=bt709:out_range=tv,format=yuv422p10le",
          "-f", "rawvideo", "-"],
         capture_output=True,

@@ -1,18 +1,20 @@
 """Broadcaster profile (YAML) schema and loader.
 
-Every threshold used by the tool lives in a profile. Unknown fields are rejected so that a
-typo cannot silently disable a rule. Fields that a broadcaster document leaves open are
-``null`` in the YAML; :func:`null_fields` lists them so that the rules engine can refuse to
-run a rule that depends on one (SPEC §9, CLAUDE.md principle 2).
+Every threshold used by the tool lives in the effective profile: the broadcaster profile merged
+over the norms it extends (``meta.extends``, SPEC §12, resolved by :mod:`pad_checker.profiles`).
+Unknown fields are rejected so that a typo cannot silently disable a rule. Fields that a
+document leaves open are ``null`` in the YAML; :func:`null_fields` lists them so that the rules
+engine can refuse to run a rule that depends on one (SPEC §9, CLAUDE.md principle 2).
 """
 
 from __future__ import annotations
 
+import datetime as dt
+import re
 from pathlib import Path
 from typing import Any, Literal
 
-import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from pad_checker import timecode
 from pad_checker.rules import expr
@@ -46,6 +48,7 @@ EVENT_TYPES = (
     "structure_black_too_long",
     "format",
     "integrity",
+    "delivery_conversion_required",
 )
 EventType = Literal[EVENT_TYPES]  # type: ignore[valid-type]
 
@@ -64,7 +67,19 @@ def _check_tc(value: str | None) -> str | None:
     return value
 
 
+def _check_rates(v: list[str] | None) -> list[str] | None:
+    for fps in v or []:
+        num, _, den = fps.partition("/")
+        if not (num.isdigit() and den.isdigit() and int(den) > 0):
+            raise ValueError(f"cadence {fps!r} : format attendu 'num/den', ex. '25/1'")
+    return v
+
+
 # --- profile ------------------------------------------------------------------------------
+
+
+ProfileStatus = Literal["draft", "validated"]
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
 class ProfileMeta(_Model):
@@ -73,6 +88,44 @@ class ProfileMeta(_Model):
     broadcaster: str
     source_document: str
     notes: str | None = None
+    kind: Literal["profile"] = "profile"
+    # Norms of normes/ (file names without extension) merged under this profile, in this order.
+    extends: list[str] = []
+    # draft: usable, but the report is only indicative and never says CONFORME (CLAUDE.md principle 7).
+    status: ProfileStatus = "draft"
+    validated_by: str | None = None
+    validated_at: dt.date | None = None
+    source_pdf: str | None = None  # broadcaster document, in diffuseurs/
+    source_pdf_sha256: str | None = None
+
+    @field_validator("source_pdf_sha256")
+    @classmethod
+    def _sha(cls, v: str | None) -> str | None:
+        if v is not None and not _SHA256.match(v):
+            raise ValueError("empreinte SHA-256 attendue : 64 caractères hexadécimaux en minuscules")
+        return v
+
+    @model_validator(mode="after")
+    def _validated(self) -> ProfileMeta:
+        if self.status == "validated" and (self.validated_by is None or self.validated_at is None):
+            raise ValueError("status: validated demande validated_by et validated_at")
+        return self
+
+
+class NormDocument(_Model):
+    title: str
+    version: str  # exact version of the document, e.g. "V5, novembre 2023"
+
+
+class NormMeta(_Model):
+    """``meta`` of a file of normes/: a partial profile whose every value cites its source."""
+
+    kind: Literal["norm"]
+    name: str
+    document: NormDocument
+    source_pdf: str | None = None  # in normes/sources/
+    notes: str | None = None
+    extends: list[str] = []
 
 
 # --- format -------------------------------------------------------------------------------
@@ -97,6 +150,16 @@ class Letterbox(_Model):
     tolerance_lines: int | None
 
 
+class Delivery(_Model):
+    """Format the broadcaster expects in delivery; the master may differ (CLAUDE.md, Format de livraison)."""
+
+    scan: Literal["progressive", "interlaced_tff", "interlaced_bff", "psf"] | None
+    fps: list[str] | None = Field(min_length=1)
+    codec: str | None  # information: the master is always transcoded by the facility
+
+    _rates = field_validator("fps")(_check_rates)
+
+
 class Format(_Model):
     codecs: list[CodecSpec] = Field(min_length=1)
     containers: list[Literal["mov", "mxf"]] = Field(min_length=1)
@@ -111,18 +174,29 @@ class Format(_Model):
     color_range: Literal["tv", "pc"]
     unknown_color_tags_severity: Severity
     letterbox: Letterbox | None = None
+    delivery: Delivery | None = None
 
-    @field_validator("fps_allowed")
-    @classmethod
-    def _rational(cls, v: list[str]) -> list[str]:
-        for fps in v:
-            num, _, den = fps.partition("/")
-            if not (num.isdigit() and den.isdigit() and int(den) > 0):
-                raise ValueError(f"cadence {fps!r} : format attendu 'num/den', ex. '25/1'")
-        return v
+    _rates = field_validator("fps_allowed")(_check_rates)
 
 
 # --- video --------------------------------------------------------------------------------
+
+
+class ScanDetection(_Model):
+    """Combing detection (SPEC §12.5): a moving frame is combed if its ``comb`` ratio reaches
+    ``comb_ratio_min``; the share of combed frames among the moving ones gives the scan."""
+
+    comb_ratio_min: float = Field(gt=0)
+    motion_min: float = Field(ge=0)  # d_mean, 10-bit code values
+    interlaced_min_pct: float = Field(ge=0, le=100)
+    progressive_max_pct: float = Field(ge=0, le=100)
+    min_moving_frames: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def _ordered(self) -> ScanDetection:
+        if self.progressive_max_pct > self.interlaced_min_pct:
+            raise ValueError("progressive_max_pct ne peut pas dépasser interlaced_min_pct")
+        return self
 
 
 class Video(_Model):
@@ -138,6 +212,7 @@ class Video(_Model):
     # Horizontal binomial low-pass applied before measuring: 3 = [1 2 1]/4, 5 = [1 4 6 4 1]/16.
     prefilter_taps: Literal[3, 5] | None = None
     measure_spaces: list[Literal["ycbcr", "rgb"]] | None = None
+    scan_detection: ScanDetection | None = None
 
     @model_validator(mode="after")
     def _prefilter(self) -> Video:
@@ -186,6 +261,7 @@ class LoudnessRules(_Model):
 
 
 class Loudness(_Model):
+    method: str | None = None  # information: measurement standard (EBU R 128 / ITU-R BS.1770)
     # Programs strictly shorter than this use ``short``. Without ``short``, ``long`` applies to all.
     long_program_min_seconds: float | None = None
     long: LoudnessRules
@@ -417,7 +493,8 @@ class Llm(_Model):
 
 
 class Profile(_Model):
-    profile: ProfileMeta
+    # ``profile:`` was the name of this section before v3 (SPEC §12.2); still accepted.
+    meta: ProfileMeta = Field(validation_alias=AliasChoices("meta", "profile"))
     format: Format
     video: Video
     audio: Audio
@@ -445,8 +522,9 @@ def _loc(loc: tuple[Any, ...]) -> str:
     return "".join(parts)
 
 
-def _translate(err: dict[str, Any]) -> str:
-    where = _loc(err["loc"]) or "(racine)"
+def translate(err: dict[str, Any], prefix: str = "") -> str:
+    """French message for one pydantic error; ``prefix`` is prepended to its location."""
+    where = prefix + _loc(err["loc"]) or "(racine)"
     kind = err["type"]
     if kind == "extra_forbidden":
         return f"champ inconnu « {where} » (faute de frappe ?)"
@@ -459,19 +537,10 @@ def _translate(err: dict[str, Any]) -> str:
 
 
 def load_profile(path: str | Path) -> Profile:
-    path = Path(path)
-    try:
-        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        raise ProfileError(path, ["fichier introuvable"]) from None
-    except yaml.YAMLError as exc:
-        raise ProfileError(path, [f"YAML invalide : {exc}"]) from None
-    if not isinstance(raw, dict):
-        raise ProfileError(path, ["le profil doit être un dictionnaire YAML"])
-    try:
-        return Profile.model_validate(raw)
-    except ValidationError as exc:
-        raise ProfileError(path, [_translate(e) for e in exc.errors()]) from None
+    """Effective profile of the YAML file at ``path``, with the norms it extends (SPEC §12.3)."""
+    from pad_checker.profiles import resolve_profile  # the resolver imports this module
+
+    return resolve_profile(path).profile
 
 
 class ProfileValueError(ValueError):

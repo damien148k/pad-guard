@@ -27,6 +27,7 @@ TYPE_LABELS = {
     "structure_black_too_long": "Noir de tête ou de queue trop long",
     "format": "Format du fichier",
     "integrity": "Intégrité du fichier",
+    "delivery_conversion_required": "Conversion pour la livraison",
 }
 
 SEVERITY_LABELS = {"blocking": "bloquant", "major": "majeur", "minor": "mineur", "info": "info"}
@@ -37,6 +38,13 @@ VIDEO_TYPES = frozenset({
     "white_clip", "black_crush", "gamut", "freeze", "isolated_black_frame", "duplicate_frame", "pse", "letterbox",
     "structure_bars_present",
 })
+
+
+def status_label(status: str, indicative: bool) -> str:
+    """Verdict as shown to the user. A draft profile never yields CONFORME (CLAUDE.md principle 7)."""
+    if not indicative:
+        return status
+    return "INDICATIF : NON-CONFORME" if status == "NON-CONFORME" else "INDICATIF : sans anomalie bloquante"
 
 
 def type_label(event_type: str) -> str:

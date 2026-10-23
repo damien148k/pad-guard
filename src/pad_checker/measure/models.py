@@ -16,10 +16,11 @@ from pydantic import BaseModel
 
 from pad_checker.decode.video import IntegrityReport
 from pad_checker.probe.models import ProfileRef
-from pad_checker.rules.profile import AudioGroup
+from pad_checker.rules.profile import AudioGroup, ScanDetection
 
 # 2: frame differences (d_mean, d_up_pct, d_down_pct) and flash delta in video_settings.
-SCHEMA_VERSION = 2
+# 3: combing indicator per frame (comb) and scan detection (scan).
+SCHEMA_VERSION = 3
 
 
 class MeasuredSource(BaseModel):
@@ -41,6 +42,19 @@ class VideoSettings(BaseModel):
     luminance: Literal["bt1886_gamma_2.4"] = "bt1886_gamma_2.4"
     chroma_upsampling: Literal["linear"] = "linear"
     percentiles: Literal["nearest_rank"] = "nearest_rank"
+
+
+class ScanSummary(BaseModel):
+    """Scan declared by the container and scan seen in the pictures (SPEC §12.5)."""
+
+    field_order: str | None  # ffprobe flag
+    flag: Literal["progressive", "interlaced", "unknown"]
+    detected: Literal["progressive", "interlaced", "undetermined"]
+    moving_frames: int
+    combed_frames: int
+    combed_pct: float | None
+    agrees: bool | None  # None: flag unknown or detection undetermined
+    settings: ScanDetection
 
 
 class VideoSection(BaseModel):
@@ -118,4 +132,5 @@ class Measurements(BaseModel):
     integrity: IntegrityReport
     video_settings: VideoSettings
     video: VideoSection
+    scan: ScanSummary
     audio: AudioSection | None  # None: no audio track in the file
