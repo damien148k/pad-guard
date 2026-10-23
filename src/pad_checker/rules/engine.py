@@ -162,8 +162,31 @@ def depends_on(d: Draft, loudness_set: str) -> tuple[str, ...]:
     }
     paths = by_type.get(d.type, ())
     if d.type == "format" and d.check_id:
-        paths = ("audio",) if d.check_id.startswith("audio_") else ("format",)
+        paths = _CHECK_VALUES.get(d.check_id) or next(
+            (v for prefix, v in _CHECK_PREFIX_VALUES if d.check_id.startswith(prefix)), ())
     return (f"rules.severity.{d.type}", *paths)
+
+
+# Probe checks of type "format" -> the profile values they compare with (none: a property of the file).
+_CHECK_VALUES: dict[str, tuple[str, ...]] = {
+    "container": ("format.containers",),
+    "codec": ("format.codecs",),
+    "pix_fmt": ("format.pix_fmt",),
+    "resolution": ("format.width", "format.height"),
+    "frame_rate": ("format.fps_allowed",),
+    "field_order": ("format.field_order",),
+    "color_primaries": ("format.color_primaries",),
+    "color_transfer": ("format.color_transfer",),
+    "color_space": ("format.color_space",),
+    "color_range": ("format.color_range",),
+    "audio_max_pairs": ("audio.max_pairs",),
+    "audio_same_bit_depth": ("audio.same_bit_depth_all_tracks",),
+}
+_CHECK_PREFIX_VALUES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("audio_group_", ("audio.groups",)),
+    ("audio_sample_rate_", ("audio.sample_rate",)),
+    ("audio_bit_depth_", ("audio.bit_depth", "audio.bit_depth_allowed")),
+)
 
 
 class Engine:
