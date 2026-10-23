@@ -9,11 +9,12 @@ La spécification complète est dans `docs/SPEC.md`. La feuille de route et les 
 ## Principes non négociables
 
 1. **Verdict déterministe.** Le statut CONFORME / NON-CONFORME, le score et la gravité de chaque anomalie sont calculés par des règles. L'IA ne touche jamais au verdict ; elle rédige la synthèse et propose des qualifications que l'humain valide.
-2. **Tout seuil vient du profil YAML** (`profiles/*.yaml`). Aucune valeur de norme n'est codée en dur. Si une valeur manque dans le profil, l'outil refuse de tourner avec un message clair. Le profil de référence est `profiles/arte_hd_sdr.yaml` : chaque valeur y cite le paragraphe des consignes Arte V2 ; les chaînes diffèrent sur des points importants (Arte : pas d'amorce, true peak -1 dBTP ; usage CST français : amorce, -3 dBTP), donc ne jamais supposer qu'une règle est universelle.
+2. **Tout seuil vient du profil effectif**, résolu de façon déterministe à partir de `profiles/*.yaml` et des `normes/*.yaml` dont il hérite (priorité : profil diffuseur > `lumiris_maison` > normes internationales, dans l'ordre de `extends`). Le profil effectif est écrit dans `out/effective_profile.json` avec l'origine de chaque valeur. Aucune valeur de norme n'est codée en dur. Si une valeur manque dans le profil effectif, l'outil refuse de tourner avec un message clair. Le profil de référence est `profiles/arte_hd_sdr.yaml` : chaque valeur propre à Arte y cite le paragraphe des consignes Arte V2 ; les chaînes diffèrent sur des points importants (Arte : pas d'amorce, true peak -1 dBTP ; usage CST français : amorce, -3 dBTP), donc ne jamais supposer qu'une règle est universelle.
 3. **Reproductibilité.** Même fichier + même profil + même version = même JSON de mesures, à l'octet près (pas d'échantillonnage aléatoire, pas de timestamps dans les données de mesure).
 4. **Toutes les images sont analysées.** Pas d'échantillonnage par défaut. Un mode `--quick` peut exister pour un aperçu, mais il n'émet jamais de verdict.
 5. **Confidentialité.** Rien ne sort de la machine, jamais. La couche IA tourne en local via Ollama ; aucun connecteur vers une API externe ne doit être ajouté.
 6. **Les images sont la vérité.** Toute anomalie signalée dans le rapport doit être vérifiable : timecode exact, numéro d'image, valeur mesurée, seuil appliqué, et si possible une vignette.
+7. **Profil non validé.** Un profil en `meta.status: draft` peut être utilisé, mais le rapport porte en tête « PROFIL NON VALIDÉ — résultat indicatif » et n'affiche jamais CONFORME (il affiche « INDICATIF : sans anomalie bloquante » ou « INDICATIF : NON-CONFORME »). Les valeurs venant d'un PDF par IA sont toujours `A_VERIFIER` tant qu'un humain ne les a pas validées.
 
 ## Stack
 
@@ -24,31 +25,43 @@ La spécification complète est dans `docs/SPEC.md`. La feuille de route et les 
 - `typer` pour la CLI, `rich` pour l'affichage.
 - `jinja2` pour le rapport Markdown, `weasyprint` (ou `markdown-pdf`) pour le PDF.
 - Tests avec `pytest`. Fixtures vidéo générées par `tests/fixtures/make_fixtures.sh` (FFmpeg `testsrc2`, `smptehdbars`, `color`, `sine`).
-- Couche IA : **Ollama uniquement** (bibliothèque Python `ollama`), modèle par défaut `qwen3-vl:32b-instruct`, repli `qwen3-vl:8b-instruct`, derrière une interface `LLMClient` (pour pouvoir brancher un autre moteur local plus tard). Pas d'API externe. Désactivée par défaut.
+- Couche IA : **Ollama uniquement** (bibliothèque Python `ollama`), modèle par défaut `qwen3-vl:32b-instruct`, repli `qwen3-vl:8b-instruct`, derrière une interface `LLMClient` (pour pouvoir brancher un autre moteur local plus tard). Pas d'API externe. Désactivée par défaut. Deux usages : la synthèse du rapport (Phase 4c) et l'extraction d'un profil brouillon depuis le PDF d'un diffuseur (`draft-profile`, Phase 4b), toujours en `A_VERIFIER`.
+- Lecture des PDF (Phase 4b) : `pdfplumber` (texte) et `pypdfium2` (rendu des pages). Pas de PyMuPDF pour cet usage (licence AGPL).
 
-## Architecture (dossier `src/pad_checker/`)
+## Architecture
 
 ```
-probe/        lecture des métadonnées (ffprobe) et de l'en-tête du conteneur
-decode/       décodage image par image (PyAV) et audio
-measure/      mesures par image et par bloc audio -> measurements.json
-structure/    mire, noirs de tête/queue, timecode, images figées, PSE
-rules/        chargement du profil, application des règles -> events.json + verdict
-report/       génération Markdown / PDF
-llm/          synthèse rédigée et qualification suggérée (optionnel)
-cli.py        point d'entrée `pad-checker`
+profiles/             profils des diffuseurs (YAML) ; meta.extends cite les normes héritées
+normes/               normes lisibles par l'outil (YAML partiels, une source par valeur)
+normes/sources/       PDF des normes (non versionné, inventaire dans README.md)
+diffuseurs/           PDF des cahiers des charges des diffuseurs (non versionné, inventaire dans README.md)
+src/pad_checker/
+  profiles/   résolution de l'héritage -> profil effectif, origine de chaque valeur, conflits
+  probe/      lecture des métadonnées (ffprobe) et de l'en-tête du conteneur
+  decode/     décodage image par image (PyAV) et audio
+  measure/    mesures par image (dont le peignage) et par bloc audio -> measurements.json
+  structure/  mire, noirs de tête/queue, timecode, images figées, PSE
+  rules/      schéma du profil, application des règles -> events.json + verdict
+  report/     génération Markdown / PDF
+  llm/        synthèse rédigée, qualification suggérée, profil brouillon depuis un PDF (optionnel)
+  cli.py      point d'entrée `pad-checker`
 ```
 
-Le flux est strictement linéaire : `probe -> decode+measure -> structure -> rules -> report`, avec un fichier JSON écrit entre chaque étape dans le dossier de travail. Chaque étape doit pouvoir être relancée seule à partir du JSON précédent.
+Le flux est strictement linéaire : `profil effectif -> probe -> decode+measure -> structure -> rules -> report`, avec un fichier JSON écrit entre chaque étape dans le dossier de travail (`effective_profile.json`, `probe.json`, `measurements.json`…). Chaque étape doit pouvoir être relancée seule à partir du JSON précédent.
 
 ## Conventions
 
 - Code et commentaires en anglais, messages utilisateur et rapport en français.
-- Timecodes toujours au format `HH:MM:SS:FF` (25 i/s) ; en interne, stocker aussi le numéro d'image absolu.
+- Timecodes au format `HH:MM:SS:FF` ; en interne, stocker aussi le numéro d'image absolu.
+- La cadence et le balayage du fichier d'entrée ne sont pas maîtrisés (ils dépendent du client) ; ils sont lus dans `probe.json` (`r_frame_rate`, `avg_frame_rate`, `field_order`) et confirmés par une détection de peignage pendant le décodage. Jusqu'à la Phase 6, seul le 25 i/s est pris en charge pour les mesures : toute autre cadence fait refuser l'analyse avec un message qui nomme la cadence trouvée. Aucun 25 ne doit plus être écrit en dur dans le code à partir de maintenant : utiliser la cadence de `probe.json`.
 - Niveaux vidéo exprimés en valeurs de code **10 bits** dans le JSON, et en pourcentage dans le rapport. Pour un fichier 8 bits (ne devrait pas arriver avec ces codecs), convertir en 10 bits avant toute comparaison.
 - Un événement = une plage continue d'images (`frame_start`, `frame_end`) partageant la même anomalie. Jamais une ligne par image dans le rapport.
 - Gravité : `blocking` (fait échouer le PAD), `major` (à corriger, verdict NON-CONFORME), `minor` (toléré, signalé), `info`.
 - Les tests ne dépendent d'aucun fichier externe au dépôt.
+
+## Format de livraison
+
+Le profil décrit le format que le diffuseur attend en livraison (`format.delivery` : `scan` `progressive` | `interlaced_tff` | `interlaced_bff` | `psf`, cadences, codec de livraison). Quand le fichier analysé (le master Lumiris) diffère du format de livraison, le rapport l'indique dans une section « Livraison » avec un événement de gravité `info` nommé `delivery_conversion_required` (ex. « Master 25p détecté ; le diffuseur attend du 50i entrelacé : conversion requise »). Ce n'est pas une non-conformité du master. Les valeurs de `format.delivery` d'Arte doivent citer le paragraphe des consignes Arte ; sinon `null` et `A VERIFIER`.
 
 ## Commandes
 
@@ -57,6 +70,8 @@ uv sync                                     # installer
 uv run pad-checker analyze film.mov --profile profiles/france_tv_hd.yaml --out ./out/
 uv run pad-checker rerun ./out/ [--from structure|rules|report] [--profile p.yaml]   # relancer sans refaire les mesures
 uv run pad-checker report ./out/            # régénérer le rapport sans refaire les mesures
+uv run pad-checker validate-profile profiles/arte_hd_sdr.yaml   # schéma, normes héritées, cycles
+uv run pad-checker explain-profile profiles/arte_hd_sdr.yaml    # chaque valeur, son origine, les conflits
 uv run pytest
 ```
 

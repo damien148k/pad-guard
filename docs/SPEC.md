@@ -385,3 +385,78 @@ Deux profils sont fournis : `profiles/arte_hd_sdr.yaml`, construit à partir des
 - Conversion ou correction du fichier.
 - Fichiers audio externes (WAV).
 - Interface web (Phase 5 de la feuille de route, après validation de la CLI).
+
+---
+
+## 12. Normes et héritage (v3, Phase 4a)
+
+### 12.1 Fichiers de normes
+
+Le dossier `normes/` contient des fichiers YAML lisibles par l'outil (`ebu_r128.yaml`, `ebu_r103.yaml`, `lumiris_maison.yaml`…). Ils ont **le même schéma que les profils (§9), mais partiel** : seules les valeurs que le document fixe y figurent. Les PDF dont elles sont tirées sont dans `normes/sources/` (non versionné ; inventaire, versions et empreintes dans `normes/sources/README.md`).
+
+```yaml
+meta:
+  kind: norm                      # obligatoire dans normes/
+  name: ebu_r128                  # = nom du fichier sans extension
+  document: {title: "EBU R 128 — Loudness normalisation…", version: "V5, novembre 2023"}
+  source_pdf: normes/sources/AUDIO/r128.pdf
+audio:
+  true_peak_max_dbtp: -1.0
+sources:                          # une source par valeur : document + paragraphe ou tableau
+  audio.true_peak_max_dbtp: "EBU R 128 (2023), recommends m) : « … shall not exceed −1 dBTP … »"
+```
+
+- `sources` associe à un chemin pointé (`audio.true_peak_max_dbtp`) la citation exacte. Une entrée couvre aussi les valeurs situées sous ce chemin. Dans une norme, **toute valeur doit avoir une source** ; les chaînes de gravité (`rules.severity.*`) portent déjà la leur (`source:` de chaque règle).
+- Une valeur que le document ne permet pas de fixer est absente, ou `null` avec le commentaire `# A VERIFIER : paragraphe à confirmer` ; elle n'est jamais déduite de mémoire.
+- `lumiris_maison.yaml` regroupe les règles internes de Lumiris (gravités « Lumiris : … », contrôle PSE, paramètres de détection du balayage). Il a la forme d'une norme mais une priorité plus haute.
+
+### 12.2 Profils : nouvelles métadonnées
+
+La section d'en-tête du profil s'appelle désormais `meta:` (l'ancien nom `profile:` reste accepté pour les profils v2). Champs ajoutés :
+
+| Champ | Rôle |
+|---|---|
+| `meta.extends` | liste de normes héritées (noms de fichiers de `normes/` sans extension), dans l'ordre d'application |
+| `meta.status` | `draft` (défaut) ou `validated` |
+| `meta.validated_by`, `meta.validated_at` | obligatoires si `status: validated` (date `AAAA-MM-JJ`) |
+| `meta.source_pdf`, `meta.source_pdf_sha256` | cahier des charges du diffuseur dans `diffuseurs/` et son empreinte |
+
+Un profil peut aussi porter une section `sources` (même forme que dans une norme) pour citer ses propres valeurs. Nouvelles valeurs du schéma : `format.delivery` (format attendu en livraison : `scan`, `fps`, `codec`), `video.scan_detection` (seuils de la détection de peignage) et `audio.loudness.method` (méthode de mesure, information).
+
+### 12.3 Résolution du profil effectif
+
+Résolution déterministe, sans IA :
+
+1. Lire le profil et, récursivement, les normes de `meta.extends` dans `normes/` (dossier `normes/` voisin du dossier du profil s'il existe, sinon celui du dépôt). Une norme introuvable ou un cycle d'héritage fait refuser le profil.
+2. Appliquer les couches dans l'ordre : normes dans l'ordre de `extends` (une norme héritée par une autre passe avant elle), puis `lumiris_maison` (obligatoirement le dernier de `extends` s'il est cité), puis le profil.
+3. Fusion **champ par champ** : les dictionnaires sont fusionnés, toute autre valeur (nombre, texte, liste, chaîne de gravité) est remplacée en bloc par la couche suivante. Le dernier niveau gagne, y compris un `null` explicite.
+4. Valider le résultat avec le schéma complet (§9). La règle « une valeur `null` dont dépend une règle fait refuser l'analyse » s'applique au profil effectif.
+5. Lister les **conflits** : valeurs redéfinies avec une valeur différente (couche remplacée, couche gagnante, les deux valeurs).
+
+`analyze` et `rerun` écrivent `effective_profile.json` dans le dossier de travail : couches appliquées (fichier, document, SHA-256 du fichier, fins de ligne normalisées), valeurs du profil effectif, origine de chaque valeur (fichier + source), conflits et empreinte. Clés triées, aucune date : même profil + mêmes normes = même fichier, à l'octet. L'**empreinte** est le SHA-256 des valeurs du profil effectif sérialisées de façon canonique ; elle est affichée dans le rapport avec le nom et le statut du profil, et `rerun` sans `--profile` réutilise ce profil effectif tel quel.
+
+`pad-checker explain-profile <profil.yaml>` affiche chaque valeur, son origine et sa source, les couches et les conflits. `validate-profile` vérifie le schéma de chaque couche, l'existence des normes citées, l'absence de cycle et les sources des normes.
+
+### 12.4 Statut du profil
+
+Un profil `draft` peut servir, mais le rapport porte en tête « PROFIL NON VALIDÉ — résultat indicatif » et n'affiche jamais CONFORME : le statut devient « INDICATIF : sans anomalie bloquante » ou « INDICATIF : NON-CONFORME » (le verdict calculé par les règles est inchangé dans `verdict.json`, qui porte `indicative: true`).
+
+### 12.5 Cadence, balayage et livraison
+
+- Cadence : `probe.json` donne `r_frame_rate` et `avg_frame_rate` (fractions exactes). Jusqu'à la Phase 6, seule la cadence 25/1 est mesurée : toute autre cadence fait refuser le fichier (code 2) avec un message qui la nomme.
+- Balayage : `field_order` vient de `probe.json` ; la passe de mesure calcule pour chaque image un indicateur de peignage `comb` = moyenne de |Y(l) − Y(l+1)| (lignes voisines, trames opposées) divisée par la moyenne de |Y(l) − Y(l+2)| (lignes de même trame). Une image en mouvement (`d_mean` ≥ `video.scan_detection.motion_min`) est « peignée » si `comb` ≥ `comb_ratio_min`. Selon la part d'images peignées parmi les images en mouvement, `scan_detected` vaut `interlaced`, `progressive` ou `undetermined` (moins de `min_moving_frames` images en mouvement, ou part intermédiaire). Un avertissement est émis si le drapeau `field_order` et la détection ne concordent pas.
+- Livraison : le balayage du master (détecté, sinon le drapeau) et sa cadence sont comparés à `format.delivery`. S'ils diffèrent, la section « Livraison » du rapport l'explique et un événement `delivery_conversion_required` est émis, de gravité `info` (règle `rules.severity.delivery_conversion_required`) : ce n'est pas une non-conformité du master. Le codec de livraison est rappelé dans la section mais ne déclenche pas l'événement (le master ProRes ou DNxHR est toujours transcodé par le prestataire).
+
+---
+
+## 13. `draft-profile` (v3, Phase 4b, à venir)
+
+`pad-checker draft-profile <pdf>` propose un profil brouillon à partir du cahier des charges d'un diffuseur (rangé dans `diffuseurs/`) :
+
+- extraction du texte (`pdfplumber`) et rendu des pages (`pypdfium2`) ;
+- Qwen3-VL via Ollama, en local, avec une sortie JSON contrainte par un schéma généré depuis le modèle pydantic du profil ; chaque valeur proposée porte `value`, `page`, `quote` et `status: A_VERIFIER` ;
+- contrôle déterministe : la citation doit exister dans le texte du PDF (après normalisation des espaces, des césures et des ligatures) et contenir la valeur numérique proposée ; sinon la valeur devient `null` et l'écart est signalé. Un PDF sans couche texte donne « citation non vérifiable » partout. Aucun champ n'est deviné ;
+- le brouillon est écrit avec `meta.status: draft`, `meta.source_pdf` et `meta.source_pdf_sha256` ; il hérite des normes comme tout profil ;
+- `pad-checker review-profile` fait passer `meta.status` de `draft` à `validated` en renseignant `validated_by` et `validated_at`.
+
+Critère d'acceptation : sur le PDF Arte V2, toute valeur proposée a une citation vérifiée, et la comparaison automatique avec `profiles/arte_hd_sdr.yaml` ne montre aucune valeur fausse non signalée.

@@ -1,10 +1,10 @@
 # Feuille de route — pad-checker
 
-Cinq phases. Chaque phase se termine par des tests qui passent et une démonstration sur une fixture. Ne pas commencer la phase suivante sans validation de Damien ou Vincent.
+Orientation v3 du 23 octobre 2026 : multi-diffuseurs, profils hérités de normes. Chaque phase se termine par des tests qui passent et une démonstration sur une fixture. Ne pas commencer la phase suivante sans validation de Damien ou Vincent.
 
 ---
 
-## Phase 0 : squelette du projet (une session)
+## Phase 0 : squelette du projet (une session) — terminée
 
 **Livrables**
 - `pyproject.toml`, structure `src/pad_checker/`, CLI `typer` avec les trois commandes (`analyze`, `report`, `validate-profile`) qui affichent « non implémenté ».
@@ -25,7 +25,7 @@ Cinq phases. Chaque phase se termine par des tests qui passent et une démonstra
 
 ---
 
-## Phase 1 : probe et décodage (§4, §5.1)
+## Phase 1 : probe et décodage (§4, §5.1) — terminée
 
 **Livrables**
 - `probe/` : `probe.json` complet, comparaison aux règles `format` du profil, table des pistes audio (flux, canal) → numéro de piste.
@@ -39,7 +39,7 @@ Cinq phases. Chaque phase se termine par des tests qui passent et une démonstra
 
 ---
 
-## Phase 2 : moteur de mesures (§5.2, §5.3, §5.4)
+## Phase 2 : moteur de mesures (§5.2, §5.3, §5.4) — terminée
 
 **Livrables**
 - `measure/video.py` : toutes les mesures par image du tableau §5.2, conversion RGB BT.709, préfiltre optionnel.
@@ -55,7 +55,7 @@ Cinq phases. Chaque phase se termine par des tests qui passent et une démonstra
 
 ---
 
-## Phase 3 : structure, règles, verdict, rapport sans IA (§6, §7, §8)
+## Phase 3 : structure, règles, verdict, rapport sans IA (§6, §7, §8) — terminée
 
 **Livrables**
 - `structure/` : mire + 1 kHz, noirs de tête/queue, timecode, images figées, noirs isolés, dupliquées, PSE simplifié.
@@ -75,13 +75,47 @@ Cinq phases. Chaque phase se termine par des tests qui passent et une démonstra
 
 ---
 
-## Phase 4 : couche IA (§8.1)
+## Phase 4a : normes et héritage de profils (sans IA)
 
 **Livrables**
-- `llm/` : interface `LLMClient` et implémentation `OllamaClient` (bibliothèque `ollama`, sortie forcée au schéma JSON, images jointes). Modèle par défaut `qwen3-vl:32b-instruct`, repli `qwen3-vl:8b-instruct`. Commande `pad-checker llm-check` qui vérifie qu'Ollama répond, que le modèle est installé et qu'il tient en VRAM.
+- Dossier `normes/` : fichiers YAML de même schéma que les profils, mais partiels, avec `meta.kind: norm`, `meta.document` (titre et version exacte) et une source (document + paragraphe) pour chaque valeur. Pour commencer : `ebu_r128.yaml`, `ebu_r103.yaml` et `lumiris_maison.yaml` (règles internes Lumiris). Les PDF sources sont dans `normes/sources/` (non versionné, inventaire dans son `README.md`). BT.709, BT.2100 et BT.2408 viendront aux phases 6 et 7.
+- Profils : `meta.extends` (normes héritées), `meta.status` (`draft` | `validated`, `draft` par défaut), `meta.validated_by`, `meta.validated_at`, `meta.source_pdf`, `meta.source_pdf_sha256`. `validate-profile` vérifie que chaque norme citée existe et refuse les cycles.
+- Résolution déterministe (`src/pad_checker/profiles/`) : fusion champ par champ, le dernier niveau gagne (normes dans l'ordre de `extends`, puis `lumiris_maison`, puis le profil). Profil effectif complet, chaque valeur avec son origine (fichier + source) ; conflits listés. Un `null` du profil effectif fait refuser l'analyse.
+- `analyze` et `rerun` écrivent `effective_profile.json` (sans date, clés triées) et utilisent le profil effectif ; le rapport donne le nom du profil, son statut et l'empreinte SHA-256 du profil effectif.
+- Commande `pad-checker explain-profile <profil.yaml>` : chaque valeur, son origine, les conflits.
+- `profiles/arte_hd_sdr.yaml` réécrit avec `extends: [ebu_r128, ebu_r103, lumiris_maison]` (statut `validated`) ; `profiles/france_tv_hd.yaml` de même (statut `draft`).
+- Profil `draft` : le rapport porte « PROFIL NON VALIDÉ — résultat indicatif » et n'affiche jamais CONFORME.
+- Cadence et balayage : cadence (fraction exacte) et `field_order` lus par `probe`, indicateur de peignage par image pendant la passe de mesure, `scan_detected` (`progressive` | `interlaced` | `undetermined`) et avertissement si le drapeau et la détection ne concordent pas. Toute cadence autre que 25 i/s est refusée (jusqu'à la Phase 6). Section « Livraison » du rapport et événement `delivery_conversion_required` (info) quand le master diffère de `format.delivery`.
+
+**Acceptation**
+- Le profil effectif d'`arte_hd_sdr.yaml` réécrit est identique, valeur par valeur, à l'ancien profil (copie dans `tests/profiles/`).
+- Les rapports des fixtures de la Phase 3 sont inchangés, hormis les lignes nouvelles (profil, statut, empreinte, livraison, balayage).
+- Tests de priorité, de conflit, de norme manquante, de cycle et de `null` hérité (refus).
+- Profil `draft` : jamais « CONFORME » dans le rapport.
+- Fixture entrelacée → `scan_detected = interlaced` ; `ok_prores.mov` → `progressive` ; master 25p comparé à une livraison 50i → événement info `delivery_conversion_required`, verdict inchangé ; fixture à 24 i/s → refus nommant la cadence.
+
+---
+
+## Phase 4b : `draft-profile` depuis un PDF diffuseur
+
+**Livrables**
+- Extraction du texte du PDF (`pdfplumber`) et rendu des pages en images (`pypdfium2`). Pas de PyMuPDF (licence AGPL).
+- Qwen3-VL via Ollama (local) avec sortie JSON contrainte par un schéma généré depuis le modèle pydantic du profil. Chaque valeur proposée porte `value`, `page`, `quote` et `status: A_VERIFIER`.
+- Contrôle déterministe de chaque proposition : la citation doit exister dans le texte du PDF (normalisation des espaces, césures et ligatures) et contenir la valeur numérique ; sinon `value: null` et signalement. PDF sans couche texte : « citation non vérifiable » partout. Aucun champ deviné.
+- Le profil brouillon est écrit en `meta.status: draft`, avec `meta.source_pdf` (dans `diffuseurs/`) et `meta.source_pdf_sha256`.
+- Commande `pad-checker review-profile` qui fait passer `meta.status` de `draft` à `validated`, avec `validated_by` et `validated_at`.
+
+**Acceptation**
+- Sur le PDF Arte V2, toute valeur proposée a une citation vérifiée, et la comparaison automatique avec `profiles/arte_hd_sdr.yaml` ne montre aucune valeur fausse non signalée.
+
+---
+
+## Phase 4c : synthèse IA du rapport (§8.1)
+
+**Livrables**
+- `llm/` : interface `LLMClient` et implémentation `OllamaClient` (bibliothèque `ollama`, sortie forcée au schéma JSON, images jointes). Modèle par défaut `qwen3-vl:32b-instruct`, repli `qwen3-vl:8b-instruct`. Commande `pad-checker llm-check` qui vérifie qu'Ollama répond, que le modèle est installé et qu'il tient en VRAM. Aucun autre moteur, aucune API externe.
 - Prompt système versionné dans `llm/prompts/`, qui interdit explicitement toute modification du verdict.
 - Synthèse rédigée insérée en section 3 du rapport ; colonne « qualification suggérée » remplie à partir des vignettes.
-- Outil annexe `pad-checker draft-profile <pdf>` : propose un profil YAML à partir du PDF d'un diffuseur, avec tous les champs incertains marqués `# A VERIFIER`.
 
 **Acceptation**
 - Avec `--llm none`, le rapport est strictement identique à la Phase 3.
@@ -94,10 +128,38 @@ Cinq phases. Chaque phase se termine par des tests qui passent et une démonstra
 
 **Livrables**
 - Interface web locale (Gradio ou Streamlit, au choix justifié) : glisser un fichier, choisir un profil, lancer, suivre la progression, télécharger le PDF.
+- Dépôt du PDF d'un diffuseur (appel de `draft-profile`) et écran de validation du profil brouillon (appel de `review-profile`).
 - Aucune logique métier dans l'interface : elle appelle la CLI ou les mêmes fonctions Python.
 
 **Acceptation**
 - Vincent produit un rapport sans ouvrir de terminal.
+
+---
+
+## Phase 6 : formats SDR étendus
+
+**Livrables**
+- Codecs : ProRes 4444 et 4444 XQ, DNxHR 444, XAVC Intra en MXF ; résolution UHD.
+- Cadences 23,976 / 24 / 25 / 29,97 / 50 / 59,94 i/s et timecode drop frame : fin du 25 i/s figé (toutes les durées et tous les timecodes viennent de la cadence de `probe.json`).
+- Norme `normes/itu_bt709.yaml` (à partir de `normes/sources/`).
+
+---
+
+## Phase 7 : HDR
+
+**Livrables**
+- PQ et HLG (ITU-R BT.2100), conteneur BT.2020 ; luminance en cd/m² par image.
+- MaxCLL / MaxFALL mesurés et comparés aux métadonnées ; métadonnées SMPTE ST 2086 ; gamut P3 dans BT.2020.
+- Normes `normes/itu_bt2100.yaml` et `normes/itu_bt2408.yaml`.
+
+**Acceptation**
+- Recette obligatoire sur un vrai master HDR.
+
+---
+
+## Hors périmètre v3
+
+- IMF (SMPTE ST 2067) et Dolby Vision, donc les livraisons Netflix.
 
 ---
 
