@@ -51,9 +51,13 @@ def test_arte_inherits_and_conflicts() -> None:
     assert r.profile.meta.status == "validated" and r.profile.meta.validated_by == "Vincent"
     assert [layer.file for layer in r.layers] == [
         "normes/ebu_r128.yaml", "normes/ebu_r103.yaml", "normes/lumiris_maison.yaml", "profiles/arte_hd_sdr.yaml"]
-    assert r.origins["audio.true_peak_max_dbtp"].file == "normes/ebu_r128.yaml"
-    assert "−1 dBTP" in r.origins["audio.true_peak_max_dbtp"].source
-    assert r.origins["video.y_max_legal"].file == "normes/ebu_r103.yaml"
+    # The client's document is authoritative: every value Arte states is in the Arte profile, cited.
+    assert r.origins["audio.true_peak_max_dbtp"].file == "profiles/arte_hd_sdr.yaml"
+    assert r.origins["audio.true_peak_max_dbtp"].source.startswith("Arte §3.3.2.1")
+    assert r.origins["audio.true_peak_max_dbtp"].replaced == [{"file": "normes/ebu_r128.yaml", "value": -1.0}]
+    assert r.origins["video.y_max_legal"].file == "profiles/arte_hd_sdr.yaml"
+    from_norms = {p for p, o in r.origins.items() if o.file in ("normes/ebu_r128.yaml", "normes/ebu_r103.yaml")}
+    assert from_norms == {"audio.loudness.method"}  # information only, no rule depends on it
     assert r.origins["rules.severity.pse"].file == "normes/lumiris_maison.yaml"
     assert r.origins["format.delivery.scan"].source.startswith("Arte V2-01-03 §3.2.2.1")
     assert {(c.path, c.replaced_value, c.value, c.replaced_file) for c in r.conflicts} == {
@@ -268,3 +272,10 @@ def test_scan_detection_rules() -> None:
     assert combed.detected == "interlaced" and combed.agrees is False  # flag and pictures disagree
     still = detect(_video("tt", "interlaced"), [1.1] * 4, [nan, 0, 0, 0], SCAN)
     assert still.detected == "undetermined" and still.agrees is None  # nothing moves: no evidence
+
+
+def test_france_tv_a_verifier_never_about_norms() -> None:
+    """« A VERIFIER » means: no citation of the client's document, never « differs from a norm »."""
+    for line in (PROFILES / "france_tv_hd.yaml").read_text(encoding="utf-8").splitlines():
+        if "A VERIFIER" in line:
+            assert not any(n in line for n in ("R103", "R 103", "R128", "R 128")), line

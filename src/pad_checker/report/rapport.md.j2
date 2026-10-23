@@ -150,6 +150,14 @@ Aucune.
 - {{ p }}
 {%- endfor %}
 
+{% if norm_gaps %}
+### Écarts entre le profil et les normes (information)
+
+Le cahier des charges du client fait foi : ces valeurs sont appliquées telles qu'il les fixe, l'écart avec la norme est donné pour information et n'a pas d'effet sur le verdict.
+{% for g in norm_gaps %}
+- {{ g }}
+{%- endfor %}
+{% endif %}
 ### Méthodes et limites
 {% for n in notes %}
 - {{ n }}

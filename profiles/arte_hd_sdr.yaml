@@ -9,10 +9,11 @@
 # marquées "DEDUIT" ne sont pas écrites noir sur blanc dans le document et sont une
 # interprétation à valider.
 #
-# Hérité de normes/ebu_r128.yaml : loudness cible -23 LUFS, true peak -1 dBTP (identiques à
-# Arte §3.3.2.4 et §3.3.2.1). Hérité de normes/ebu_r103.yaml : Y légal 64-940, RVB -5 % / 105 %,
-# surface 1 %, préfiltre (identiques à Arte §3.2.3.2 et §3.2.3.3). Hérité de
-# normes/lumiris_maison.yaml : contrôle PSE et gravités « Lumiris ».
+# Le document du client fait foi (CLAUDE.md, principe 2) : toute valeur que les consignes Arte
+# fixent est écrite ici avec sa citation, même quand une norme dit la même chose. Les écarts avec
+# les normes sont donnés en information dans le rapport, sans effet sur le verdict.
+# Hérité de normes/ebu_r128.yaml : méthode de mesure du loudness (information). Hérité de
+# normes/lumiris_maison.yaml : contrôle PSE, gravités « Lumiris », détection du balayage.
 
 meta:
   name: arte_hd_sdr
@@ -65,9 +66,15 @@ format:
 
 video:
   bit_depth: 10
-  y_tolerance_low_pct: -1.0                          # diffère d'EBU R 103 v3.0 (-5 %), voir normes/ebu_r103.yaml
-  y_tolerance_high_pct: 103.0                        # diffère d'EBU R 103 v3.0 (105 %)
-  prefilter_taps: 3                                  # A VERIFIER : 3 = [1 2 1]/4 horizontal ; R 103 v3.0 recommande 7 coefficients horizontaux + 3 verticaux, non pris en charge
+  y_min_legal: 64
+  y_max_legal: 940
+  y_tolerance_low_pct: -1.0                          # EBU R 103 v3.0 : -5 % (écart signalé dans le rapport)
+  y_tolerance_high_pct: 103.0                        # EBU R 103 v3.0 : 105 % (écart signalé dans le rapport)
+  rgb_min_pct: -5.0
+  rgb_max_pct: 105.0
+  max_out_of_range_area_pct: 1.0
+  prefilter: true
+  prefilter_taps: 3                                  # A VERIFIER : Arte ne chiffre pas le noyau ; choix pad-checker [1 2 1]/4 en attendant le filtre de R 103 (étape séparée)
   measure_spaces: [ycbcr, rgb]
 
 audio:
@@ -89,7 +96,8 @@ audio:
   loudness:
     long_program_min_seconds: 120
     long:
-      integrated_tolerance_lu: 1.0                   # diffère d'EBU R 128 (± 0,2 LU) ; le texte Arte précise "pour les diffusions en direct" ; pour un fichier viser -23 exactement
+      integrated_lufs: -23.0
+      integrated_tolerance_lu: 1.0                   # le texte Arte précise "pour les diffusions en direct" ; pour un fichier viser -23 exactement
       short_term_dialogue_excursion_lu: 7.0
       lra_max_lu: 20.0
       lra_recommended_range_lu: [5, 15]              # bonne pratique, information seulement
@@ -98,6 +106,7 @@ audio:
       integrated_tolerance_lu: 0.5
       short_term_max_lufs: -20.0
       short_term_excursion_above_lu: 3.0
+  true_peak_max_dbtp: -1.0                           # Arte, et non -3 dBTP comme CST RT-017
   alignment_tone: {hz: 1000, dbfs: -18.0}            # si une mire 1 kHz est fournie à part
   silence_dbfs: -60.0
   silence_max_seconds: 3.0                           # DEDUIT : aucun seuil chiffré dans le document ; §6.11.1 interdit les génériques silencieux sur noir
@@ -225,7 +234,13 @@ sources:
   video.bit_depth: "Arte §3.1 : 10 bits"
   video.y_tolerance_low_pct: "Arte §3.2.3.3 : « La luminance (Y) doit être entre -1 % et 103 % (-7 mV et 721 mV) »"
   video.y_tolerance_high_pct: "Arte §3.2.3.3 : « La luminance (Y) doit être entre -1 % et 103 % (-7 mV et 721 mV) »"
-  video.prefilter_taps: "A VERIFIER : choix pad-checker ; Arte §3.2.3.3 « filtré avant la mesure » ne chiffre pas le noyau"
+  video.y_min_legal: "Arte §3.2.3.2 : « entre 64 et 940 (systèmes 10-bit) »"
+  video.y_max_legal: "Arte §3.2.3.2 : « entre 64 et 940 (systèmes 10-bit) »"
+  video.rgb_min_pct: "Arte §3.2.3.3 : « Les composantes RVB doivent être entre -5 % et 105 % (-35 et 735 mV) »"
+  video.rgb_max_pct: "Arte §3.2.3.3 : « Les composantes RVB doivent être entre -5 % et 105 % (-35 et 735 mV) »"
+  video.max_out_of_range_area_pct: "Arte §3.2.3.3 : « une erreur ne sera affichée que si le dépassement de Gamut représente au moins 1 % de la superficie de l'image »"
+  video.prefilter: "Arte §3.2.3.3 : « Un léger dépassement fugitif est généralement filtré avant la mesure »"
+  video.prefilter_taps: "A VERIFIER : Arte §3.2.3.3 ne chiffre pas le noyau ; choix pad-checker"
   video.measure_spaces: "Arte §3.2.3 : mesures dans les deux espaces (RVB et YCrCb)"
   audio.sample_rate: "Arte §3.3 / §3.3.4"
   audio.bit_depth: "Arte §3.3.4 : 24 bits prioritaire (16 bits seulement pour SD up-converti)"
@@ -239,6 +254,8 @@ sources:
   audio.groups: "Arte §3.2.2.1 : ordre des paires déclaré dans Partner (mapping par défaut Lumiris)"
   audio.loudness_exempt_groups: "DEDUIT"
   audio.loudness.long_program_min_seconds: "Arte §3.3.2.4 : programmes > 2'00"
+  audio.loudness.long.integrated_lufs: "Arte §3.3.2.4 : « Programmes de durée supérieure à 2’00 » : « -23 LUFS (avec une tolérance de ± 1 LU pour les diffusions en direct) »"
+  audio.true_peak_max_dbtp: "Arte §3.3.2.1 : « Ce niveau ne doit pas dépasser -1 dB TP en PCM »"
   audio.loudness.long.integrated_tolerance_lu: "Arte §3.3.2.4 : « -23 LUFS (avec une tolérance de ± 1 LU pour les diffusions en direct) »"
   audio.loudness.long.short_term_dialogue_excursion_lu: "Arte §3.3.2.5 : « ± 7 LU mesuré en Short Term autour de la valeur cible » (dialogue)"
   audio.loudness.long.lra_max_lu: "Arte §3.3.2.5 : « La valeur du LRA doit être inférieure ou égale à 20 LU »"

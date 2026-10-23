@@ -7,6 +7,7 @@ structure.json, events.json, verdict.json and run.json. The source file is neede
 
 from __future__ import annotations
 
+import json
 import math
 from collections.abc import Callable
 from fractions import Fraction
@@ -21,7 +22,8 @@ from pad_checker.measure import scan as scan_mod
 from pad_checker.measure.models import Measurements
 from pad_checker.measure.series import load_audio, load_video
 from pad_checker.probe.models import ProbeResult
-from pad_checker.profiles import fingerprint
+from pad_checker.profiles import fingerprint, from_json
+from pad_checker.profiles.resolve import HOUSE
 from pad_checker.report import charts, pdf, thumbnails as thumbs
 from pad_checker.rules import delivery
 from pad_checker.rules.engine import error_key
@@ -305,6 +307,22 @@ class _Builder:
         ]
         return out
 
+    def norm_gaps(self) -> list[str]:
+        """Client values that differ from a norm: information, no effect on the verdict (CLAUDE.md principle 2)."""
+        path = self.dir / wd.EFFECTIVE_PROFILE
+        if not path.is_file():
+            return []
+        resolved = from_json(json.loads(path.read_text(encoding="utf-8")), path)
+        norms = {layer.file: layer.document.split(" — ")[0] for layer in resolved.layers
+                 if layer.kind == "norm" and layer.name != HOUSE}
+        client = self.p.meta.broadcaster
+
+        def show(value: object) -> str:
+            return number(value, 1) if isinstance(value, float) else str(value)
+
+        return [f"{c.path} : {client} {show(c.value)} ; {norms[c.replaced_file]} {show(c.replaced_value)}"
+                for c in resolved.conflicts if c.file == resolved.profile_file and c.replaced_file in norms]
+
     def notes(self) -> list[str]:
         notes = list(self.st.limitations)
         notes.append("PSE : approximation inspirée d'ITU-R BT.1702 (variations de luminance relative sur l'image "
@@ -354,6 +372,7 @@ def run(workdir: Path, profile: Profile, thumbnails: bool = False, progress: Pro
                            "la tolérance, bleu = Y en dessous, magenta = R, V ou B hors limites (image assombrie)."),
         charts=b.charts(),
         parameters=b.parameters(),
+        norm_gaps=b.norm_gaps(),
         notes=b.notes(),
     )
     md_path = workdir / wd.REPORT_MD

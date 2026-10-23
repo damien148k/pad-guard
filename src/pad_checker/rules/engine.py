@@ -8,6 +8,7 @@ Everything here is deterministic: same JSON in, same JSON out.
 
 from __future__ import annotations
 
+import json
 import math
 import re
 from collections.abc import Iterable
@@ -23,6 +24,8 @@ from pad_checker.labels import SEVERITY_ORDER, number, type_label
 from pad_checker.measure.models import Measurements
 from pad_checker.measure.series import GroupBlocks, VideoSeries, block_frames, load_audio, load_video
 from pad_checker.probe.models import ProbeResult
+from pad_checker.profiles import from_json
+from pad_checker.profiles.resolve import HOUSE
 from pad_checker.rules import delivery, expr
 from pad_checker.rules.models import Event, Events, Verdict
 from pad_checker.rules.profile import EVENT_FIELDS, AudioGroup, LoudnessRules, Profile, Severity, require
@@ -52,6 +55,7 @@ class Draft:
     detail: str = ""
     occurrences: int | None = None
     severity: Severity | None = None  # fixed by the profile outside the severity chains
+    check_id: str | None = None  # probe check that failed
 
 
 def merge(ranges: Iterable[tuple[int, int]], gap: int) -> list[tuple[int, int]]:
@@ -124,10 +128,50 @@ def severity_types(profile: Profile, groups: list[AudioGroup]) -> set[str]:
     return types
 
 
+def depends_on(d: Draft, loudness_set: str) -> tuple[str, ...]:
+    """Profile values (dotted paths, a path covers what is below it) that decide whether ``d`` exists.
+
+    Used to cap the severity of anomalies that rest on a value given by a norm only (CLAUDE.md
+    principle 2). The severity chain of the type always counts.
+    """
+    legal = ("video.y_min_legal", "video.y_max_legal", "video.max_out_of_range_area_pct")
+    loud = f"audio.loudness.{loudness_set}"
+    by_type: dict[str, tuple[str, ...]] = {
+        "white_clip": legal + ("video.y_tolerance_high_pct",),
+        "black_crush": legal + ("video.y_tolerance_low_pct",),
+        "gamut": legal + ("video.rgb_min_pct", "video.rgb_max_pct"),
+        "audio_loudness": (f"{loud}.integrated_lufs", f"{loud}.integrated_tolerance_lu"),
+        "audio_lra": (f"{loud}.lra_max_lu",),
+        "audio_short_term_excursion": (loud, "audio.loudness_exempt_groups"),
+        "audio_true_peak": ("audio.true_peak_max_dbtp",),
+        "audio_silence": ("audio.silence_dbfs", "audio.silence_max_seconds"),
+        "audio_phase": ("audio.phase_min_correlation", "audio.phase_min_seconds"),
+        "audio_silent_track": ("audio.no_silent_tracks", "audio.silent_track_dbfs"),
+        "audio_dual_mono_mismatch": ("audio.dual_mono_must_be_identical",),
+        "freeze": ("structure.freeze",),
+        "duplicate_frame": ("structure.freeze",),
+        "isolated_black_frame": ("structure.black.y_max",),
+        "pse": ("structure.pse",),
+        "structure_timecode": ("structure.timecode",),
+        "structure_bars": ("structure.bars",),
+        "structure_bars_present": ("structure.bars",),
+        "structure_black": ("structure.black", "structure.leaders"),
+        "structure_black_too_long": ("structure.black", "structure.leaders"),
+        "letterbox": ("format.letterbox",),
+        "delivery_conversion_required": ("format.delivery",),
+    }
+    paths = by_type.get(d.type, ())
+    if d.type == "format" and d.check_id:
+        paths = ("audio",) if d.check_id.startswith("audio_") else ("format",)
+    return (f"rules.severity.{d.type}", *paths)
+
+
 class Engine:
     def __init__(self, probe: ProbeResult, m: Measurements, structure: Structure, profile: Profile,
-                 video: VideoSeries, audio: dict[str, GroupBlocks]):
+                 video: VideoSeries, audio: dict[str, GroupBlocks], norm_values: dict[str, str] | None = None):
         self.probe, self.m, self.st, self.p, self.v, self.blocks = probe, m, structure, profile, video, audio
+        # Value path -> norm file, for the values that only an international norm gives (not the client).
+        self.norm_values = norm_values or {}
         self.fps = Fraction(m.source.fps)
         self.clock = timecode.Clock(round(self.fps), structure.timecode_start)
         self.frames = video.frames
@@ -161,7 +205,7 @@ class Engine:
             self.add(type=c.type, title=c.label, source="probe", scope="file", frame_start=0, frame_end=self.last,
                      value_text=c.actual, threshold_text=c.expected,
                      detail="balise absente ou « unknown »" if c.status == "unknown" else "",
-                     severity=unknown_severity if c.status == "unknown" else None)
+                     severity=unknown_severity if c.status == "unknown" else None, check_id=c.id)
 
     def structure_checks(self) -> None:
         for c in self.st.checks:
@@ -484,6 +528,20 @@ class Engine:
                 ) from None
         raise AssertionError("severity chains end with else")  # checked when the profile is loaded
 
+    def norm_cap(self, d: Draft, severity: Severity, source: str) -> tuple[Severity, str]:
+        """An anomaly that rests on a value only a norm gives (not the client's document) is a
+        recommendation: at most minor, source NORME (CLAUDE.md principle 2)."""
+        kind = self.loudness_rules()[0] if self.m.audio is not None else "long"
+        files = sorted({f for p, f in self.norm_values.items()
+                        for dep in depends_on(d, kind) if p == dep or p.startswith(dep + ".")})
+        if not files:
+            return severity, source
+        names = ", ".join(Path(f).stem for f in files)
+        if severity in ("blocking", "major"):
+            return "minor", (f"NORME ({names}) : valeur absente du document du client, gravité plafonnée à minor "
+                             f"(règle : {source}, {severity})")
+        return severity, f"NORME ({names}) : valeur absente du document du client (règle : {source})"
+
     def run(self) -> tuple[list[Event], Verdict]:
         missing = sorted(t for t in self.possible_types() if t not in self.p.rules.severity)
         if missing:
@@ -499,7 +557,7 @@ class Engine:
         self.delivery()
 
         drafts = sorted(self.drafts, key=lambda d: (d.scope != "file", d.frame_start, d.frame_end, d.type, d.title))
-        rated = [(d, *self.severity(d)) for d in drafts]
+        rated = [(d, *self.norm_cap(d, *self.severity(d))) for d in drafts]
         events = [
             Event(id=i, type=d.type, severity=severity, severity_source=rule_source, title=d.title, source=d.source,
                   scope=d.scope,
@@ -529,13 +587,26 @@ class Engine:
         )
 
 
+def norm_values(workdir: Path) -> dict[str, str]:
+    """Values of the effective profile that come from an international norm (not the client's
+    profile, not the house rules), from effective_profile.json. Empty if the file is absent."""
+
+    path = workdir / wd.EFFECTIVE_PROFILE
+    if not path.is_file():
+        return {}
+    resolved = from_json(json.loads(path.read_text(encoding="utf-8")), path)
+    norms = {layer.file for layer in resolved.layers if layer.kind == "norm" and layer.name != HOUSE}
+    return {p: o.file for p, o in resolved.origins.items() if o.file in norms}
+
+
 def run(workdir: Path, profile: Profile) -> tuple[Events, Verdict]:
     probe = wd.load(workdir, wd.PROBE, ProbeResult, "analyze")
     m = wd.load(workdir, wd.MEASUREMENTS, Measurements, "analyze")
     structure = wd.load(workdir, wd.STRUCTURE, Structure, "structure")
     for name in (wd.EVENTS, wd.VERDICT):
         (workdir / name).unlink(missing_ok=True)
-    engine = Engine(probe, m, structure, profile, load_video(workdir, m), load_audio(workdir, m))
+    engine = Engine(probe, m, structure, profile, load_video(workdir, m), load_audio(workdir, m),
+                    norm_values(workdir))
     events, verdict = engine.run()
     result = Events(tool_version=__version__, profile=probe.profile, source_sha256=m.source.sha256, events=events)
     jsonio.write(workdir / wd.EVENTS, result)

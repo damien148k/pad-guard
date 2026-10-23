@@ -62,15 +62,17 @@ def _profile_variant(tmp_path: Path, base: Path, name: str, mutate) -> Path:
 
 VOLATILE = ("| Chemin |", "| SHA-256 |", "| Taille |", "| Date d'analyse |", "| Commande |", "| Relance")
 CHANGED = ("| Profil |", "- Préfiltre avant mesure des niveaux :")  # rewritten lines
+NORM_GAPS = "### Écarts entre le profil et les normes (information)"
 ADDED = ("| Statut du profil |", "| Empreinte du profil effectif |", "| Cadence prise en charge par pad-checker |")
 
 
 def _lines(md: str) -> list[str]:
     lines = [line for line in md.splitlines() if not line.startswith(VOLATILE)]
-    if "### Livraison" in lines:  # new section, up to the next one
-        start = lines.index("### Livraison")
-        end = next(i for i in range(start + 1, len(lines)) if lines[i].startswith("## "))
-        lines = lines[:start] + lines[end:]
+    for title, next_level in (("### Livraison", "## "), (NORM_GAPS, "#")):  # new sections, up to the next one
+        if title in lines:
+            start = lines.index(title)
+            end = next(i for i in range(start + 1, len(lines)) if lines[i].startswith(next_level))
+            lines = lines[:start] + lines[end:]
     return lines
 
 
@@ -191,3 +193,36 @@ def test_24fps_refused(fixtures_dir, tmp_path) -> None:
     message = " ".join(result.output.split())
     assert "cadence 24/1 (24 i/s)" in message and "25/1 (25 i/s)" in message
     assert not (out / wd.MEASUREMENTS).exists()
+
+
+def test_client_values_differing_from_norms_are_information(analysed) -> None:
+    _, _, out = analysed("arte_ok.mov", ARTE)
+    md = (out / wd.REPORT_MD).read_text(encoding="utf-8")
+    gaps = md[md.index(NORM_GAPS):md.index("### Méthodes et limites")]
+    assert "- video.y_tolerance_high_pct : ARTE G.E.I.E. 103,0 ; EBU R 103 105,0" in gaps
+    assert "- audio.loudness.long.integrated_tolerance_lu : ARTE G.E.I.E. 1,0 ; EBU R 128 0,2" in gaps
+    assert _json(out, wd.VERDICT)["status"] == "CONFORME" and _json(out, wd.EVENTS)["events"] == []
+
+
+def test_norm_only_value_capped_at_minor(fixtures_dir, tmp_path) -> None:
+    """bad_levels with a profile that leaves the area threshold to EBU R 103: recommendations only."""
+    import shutil
+
+    (tmp_path / "profiles").mkdir()
+    (tmp_path / "normes").mkdir()
+    for name in ("ebu_r103", "lumiris_maison"):
+        shutil.copyfile(ROOT / "normes" / f"{name}.yaml", tmp_path / "normes" / f"{name}.yaml")
+
+    def area_from_norm(raw):
+        raw["meta"]["extends"] = ["ebu_r103", "lumiris_maison"]
+        del raw["video"]["max_out_of_range_area_pct"]
+
+    profile = _profile_variant(tmp_path / "profiles", CLASSIC, "p.yaml", area_from_norm)
+    out = tmp_path / "out"
+    result = invoke("analyze", str(fixtures_dir / "bad_levels.mov"), "--profile", str(profile), "--out", str(out))
+    events = _json(out, wd.EVENTS)["events"]
+    assert [(e["type"], e["frame_start"], e["frame_end"], e["severity"]) for e in events] == [
+        ("white_clip", 300, 324, "minor"), ("black_crush", 375, 399, "minor")]  # blocking and major in Phase 3
+    assert all(e["severity_source"].startswith("NORME (ebu_r103) : valeur absente du document du client, "
+                                                "gravité plafonnée à minor") for e in events)
+    assert result.exit_code == 0 and _json(out, wd.VERDICT)["status"] == "CONFORME"

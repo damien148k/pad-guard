@@ -437,6 +437,15 @@ Résolution déterministe, sans IA :
 
 `pad-checker explain-profile <profil.yaml>` affiche chaque valeur, son origine et sa source, les couches et les conflits. `validate-profile` vérifie le schéma de chaque couche, l'existence des normes citées, l'absence de cycle et les sources des normes.
 
+### 12.3 bis Le cahier des charges du client fait foi (décision du 23 octobre 2026)
+
+Les normes informent et complètent ; elles ne remplacent jamais le document du client.
+
+1. **Valeur fixée par le client** : appliquée telle quelle. Elle figure dans le profil du client avec sa citation, même si une norme dit la même chose. Si une norme diffère, l'annexe du rapport le signale en information (« Écarts entre le profil et les normes » : `video.y_tolerance_high_pct : ARTE G.E.I.E. 103,0 ; EBU R 103 105,0`), sans effet sur le verdict.
+2. **Valeur absente chez le client mais donnée par une norme** : appliquée comme recommandation. Chaque anomalie déclare les valeurs du profil dont elle dépend (seuils, surface, plage légale, chaîne de gravité) ; si l'une d'elles vient d'une norme internationale (une couche `normes/` autre que `lumiris_maison`), la gravité est plafonnée à `minor` et la source de la règle devient « NORME (nom de la norme) : valeur absente du document du client… ». Une norme seule ne rend donc jamais un PAD NON-CONFORME. Les règles maison gardent leur gravité.
+3. **Méthode de mesure non précisée par le client** (préfiltre, fenêtres, gating) : suivre la norme plutôt qu'un choix maison.
+4. **« A VERIFIER »** signifie uniquement : valeur sans citation du document du client. Un écart avec une norme n'en est jamais un motif.
+
 ### 12.4 Statut du profil
 
 Un profil `draft` peut servir, mais le rapport porte en tête « PROFIL NON VALIDÉ — résultat indicatif » et n'affiche jamais CONFORME : le statut devient « INDICATIF : sans anomalie bloquante » ou « INDICATIF : NON-CONFORME » (le verdict calculé par les règles est inchangé dans `verdict.json`, qui porte `indicative: true`).

@@ -5,11 +5,13 @@
 # officiel du diffuseur avant toute utilisation en production.
 # Les champs à null sont volontairement non renseignés : l'outil refuse de tourner
 # si une règle activée dépend d'un champ null.
-# Ce fichier ne garde que ce qui diffère des normes héritées (meta.extends) :
-# `pad-checker explain-profile profiles/france_tv_hd.yaml` montre le profil effectif.
-# Hérité de normes/ebu_r103.yaml : Y légal 64-940, RVB -5 % / 105 %, surface 1 %, préfiltre.
-# Hérité de normes/ebu_r128.yaml : loudness cible -23 LUFS. Hérité de normes/lumiris_maison.yaml :
-# paramètres du PSE et de la détection du balayage.
+# Le document FTV n'a pas encore été relu : ses valeurs seront reprises du PDF (diffuseurs/) en
+# Phase 4b. En attendant, ce que le fichier ne fixe pas vient des normes (meta.extends) et
+# s'applique comme recommandation : toute anomalie qui en dépend est plafonnée à mineur
+# (CLAUDE.md, principe 2). `pad-checker explain-profile profiles/france_tv_hd.yaml` montre le
+# profil effectif. Hérité de normes/ebu_r103.yaml : Y légal 64-940, RVB -5 % / 105 %, surface 1 %,
+# préfiltre. Hérité de normes/ebu_r128.yaml : loudness cible -23 LUFS. Hérité de
+# normes/lumiris_maison.yaml : paramètres du PSE et de la détection du balayage.
 # Pas de format.delivery : le document FTV (diffuseurs/) n'a pas encore été relu.
 
 meta:
@@ -39,9 +41,9 @@ format:
 
 video:
   bit_depth: 10
-  y_tolerance_low_pct: -1.0               # A VERIFIER : attribué à EBU R103, mais R 103 v3.0 dit -5 % (voir normes/ebu_r103.yaml)
-  y_tolerance_high_pct: 103.0             # A VERIFIER : idem, R 103 v3.0 dit 105 %
-  prefilter_taps: 3                       # A VERIFIER : 3 = [1 2 1]/4 horizontal ; R 103 v3.0 recommande 7 coefficients horizontaux + 3 verticaux, non pris en charge
+  y_tolerance_low_pct: -1.0               # valeur d'exemple, à reprendre du document FTV (Phase 4b)
+  y_tolerance_high_pct: 103.0             # valeur d'exemple, à reprendre du document FTV (Phase 4b)
+  prefilter_taps: 3                       # méthode non fixée par FTV : [1 2 1]/4 en attendant le filtre de R 103 (étape séparée)
 
 audio:
   sample_rate: 48000
@@ -51,7 +53,7 @@ audio:
     - {name: "VI stéréo", tracks: [3, 4], layout: stereo, required: false}
   loudness:                               # pas de distinction programme court / long : "long" s'applique à tout
     long:
-      integrated_tolerance_lu: 1.0        # A VERIFIER : EBU R 128 dit ± 0,2 LU hors direct (± 1 LU en direct)
+      integrated_tolerance_lu: 1.0        # valeur d'exemple, à reprendre du document FTV (Phase 4b)
       lra_max_lu: 20.0                    # A VERIFIER
   true_peak_max_dbtp: -3.0                # CST RT-017 (France) ; EBU R128 seul dirait -1
   silence_dbfs: -60.0
