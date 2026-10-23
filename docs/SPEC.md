@@ -490,11 +490,11 @@ Dans `profiles/drafts/` : `<nom>.yaml` (meta `status: draft`, `source_pdf`, `sou
 
 ### 13.4 Relecture (`pad-checker review-profile <brouillon.yaml> [--base …] [--out …]`)
 
-Pour chaque champ extrait : description, valeur proposée (ou propositions en conflit), page et citation, valeur du profil de base et valeur des normes (information). L'humain accepte, choisit une proposition, corrige (valeur, page et citation facultatives), garde la valeur de base ou laisse vide (le champ est alors hérité d'une norme, donc plafonné à mineur). Les réponses sont gardées dans `<nom>.review.json`.
+Par défaut, seuls les champs à vérifier (`A_VERIFIER`) et en conflit sont présentés (`--tous` : aussi ceux dont toutes les propositions ont été rejetées, qui sinon gardent la valeur du profil de base) ; Entrée choisit la réponse par défaut (accepter, sinon garder la valeur de base, sinon laisser vide). Pour chaque champ : description, valeur proposée (ou propositions en conflit), page et citation, valeur du profil de base et valeur des normes (information). L'humain accepte, choisit une proposition, corrige (valeur, page et citation facultatives), garde la valeur de base ou laisse vide (le champ est alors hérité d'une norme, donc plafonné à mineur). Les réponses sont gardées dans `<nom>.review.json`.
 
 Les valeurs que le PDF n'a pas données viennent du **profil de base** : `profiles/<nom>.yaml` s'il existe, sinon le gabarit `profiles/modeles/gabarit_diffuseur.yaml` (gravités toutes `minor` tant qu'un humain ne les a pas fixées) ; elles sont marquées `A VERIFIER : sans citation` dans le profil écrit. Les valeurs retenues sont citées dans la section `sources`.
 
-Avant d'écrire, le profil est résolu : s'il est incomplet, rien n'est écrit. Puis la liste, en rouge, des **règles bloquantes ou majeures dont une valeur ne viendrait que d'une norme** (elles seraient plafonnées à mineur) ; il faut confirmer pour continuer. Enfin le nom du validateur : le profil est écrit dans `profiles/<nom>.yaml` avec `status: validated`, `validated_by`, `validated_at`.
+Avant d'écrire, le profil est résolu : pour chaque champ obligatoire encore manquant (une section acceptée en partie, comme `format.delivery` réduit au codec), la valeur est demandée, ou la section entière est retirée ; tant que le profil est invalide, rien n'est écrit. Puis la liste, en rouge, des **règles bloquantes ou majeures dont une valeur ne viendrait que d'une norme** (elles seraient plafonnées à mineur) ; il faut confirmer pour continuer. Enfin le nom du validateur : le profil est écrit dans `profiles/<nom>.yaml` avec `status: validated`, `validated_by`, `validated_at`.
 
 ### 13.5 Comparaison (`pad-checker compare-profiles <a.yaml> <b.yaml> [--all]`)
 

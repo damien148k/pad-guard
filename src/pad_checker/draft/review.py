@@ -17,6 +17,7 @@ import copy
 import datetime as dt
 import json
 import os
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -123,16 +124,21 @@ def _citation(doc: str, finding: dict) -> str:
     return f"{doc} p. {finding['page']} : « {one_line(finding['quote'], 300)} »"
 
 
-def ask_fields(review: Review, ask: Ask, say: Say) -> None:
+def ask_fields(review: Review, ask: Ask, say: Say, everything: bool = False) -> list[dict]:
+    """Ask about the fields to verify (A_VERIFIER) and in conflict; with ``everything``, also about
+    the fields whose proposals were all refused. Returns the fields not asked about (they keep the
+    value of the base profile)."""
     specs = {s.path: s for s in catalogue()}
     base_raw = read_yaml(review.base)
     norms = norm_values(review.meta.get("extends", []), norms_dir_for(review.base))
     doc = review.meta.get("source_document", "document")
-    total = len(review.fields)
-    for i, f in enumerate(review.fields, start=1):
+    asked = [f for f in review.fields if everything or f["status"] in (OK, CONFLICT)]
+    skipped = [f for f in review.fields if f not in asked]
+    total = len(asked)
+    for i, f in enumerate(asked, start=1):
         path = f["path"]
         say(f"\n[{i}/{total}] {path} — {f['description']}")
-        good = [x for x in f["findings"] if x["status"] == OK]
+        good = [x for x in f["findings"] if x["status"] in (OK, CONFLICT)]
         candidates = good if f["status"] == CONFLICT else []
         if f["status"] == OK:
             first = next(x for x in good if x["value"] == f["value"])
@@ -152,8 +158,9 @@ def ask_fields(review: Review, ask: Ask, say: Say) -> None:
         choices += ["c", "v"] + (["g"] if base_value is not None else [])
         labels = {"a": "accepter", "c": "corriger", "v": "laisser vide", "g": "garder la valeur de base"}
         menu = " ".join(f"[{c}] {labels.get(c, 'choisir ce candidat')}" for c in choices)
+        default = "a" if "a" in choices else "g" if "g" in choices else "v"
         while True:
-            answer = ask(f"  {menu} ").strip().lower()
+            answer = ask(f"  {menu} (Entrée = {default})").strip().lower() or default
             if answer in choices:
                 break
             say(f"  Réponse attendue : {', '.join(choices)}")
@@ -169,11 +176,12 @@ def ask_fields(review: Review, ask: Ask, say: Say) -> None:
             review.decisions.append(Decision(path, "keep"))
         else:
             review.decisions.append(_correct(path, specs.get(path), doc, ask, say))
+    return skipped
 
 
 def _correct(path: str, spec, doc: str, ask: Ask, say: Say) -> Decision:
     while True:
-        text = ask("  Valeur (YAML, ex. -23 ou [\"25/1\"]) : ")
+        text = ask("  Valeur (YAML, ex. -23 ou [\"25/1\"])")
         try:
             value = yaml.safe_load(text)
         except yaml.YAMLError:
@@ -184,8 +192,8 @@ def _correct(path: str, spec, doc: str, ask: Ask, say: Say) -> Decision:
             say(f"  {why}")
             continue
         break
-    page = ask("  Page du document (vide si aucune) : ").strip()
-    quote = ask("  Citation exacte du document (vide si aucune) : ").strip()
+    page = ask("  Page du document (vide si aucune)").strip()
+    quote = ask("  Citation exacte du document (vide si aucune)").strip()
     if page and quote:
         source = f"{doc} p. {page} : « {quote} » (corrigé à la relecture)"
     else:
@@ -220,6 +228,39 @@ def build(review: Review) -> tuple[dict[str, Any], dict[str, str]]:
         if not any(path == c or path.startswith(c + ".") for c in cited) and not path.startswith("rules.severity."):
             comments[path] = f"A VERIFIER : sans citation de {m['source_document']} (valeur de {review.base.name})"
     return data, comments
+
+
+_MISSING = re.compile(r"champ obligatoire manquant « ([\w.]+) »")
+
+
+def missing_fields(error: ReviewError) -> list[str]:
+    return _MISSING.findall(str(error))
+
+
+def complete(data: dict[str, Any], comments: dict[str, str], missing: list[str], doc: str, ask: Ask,
+             say: Say) -> None:
+    """Ask for each required field left missing (a section accepted only in part, e.g. format.delivery
+    with its codec only). An empty answer removes the incomplete section instead."""
+    specs = {s.path: s for s in catalogue()}
+    for path in missing:
+        parent = path.rsplit(".", 1)[0]
+        if _get(data, parent) is None:
+            continue  # already removed with another missing field of the same section
+        spec = specs.get(path)
+        say(f"\nChamp obligatoire manquant : {path}" + (f" — {spec.description}" if spec else ""))
+        while True:
+            text = ask(f"  Valeur (YAML), ou Entrée pour retirer toute la section {parent}").strip()
+            if not text:
+                _delete(data, parent)
+                data["sources"] = {k: v for k, v in data["sources"].items() if not k.startswith(parent + ".")}
+                break
+            value, why = (check_value(spec, yaml.safe_load(text)) if spec else (yaml.safe_load(text), None))
+            if why:
+                say(f"  {why}")
+                continue
+            _set(data, path, value)
+            comments[path] = f"A VERIFIER : valeur saisie à la relecture, sans citation de {doc}"
+            break
 
 
 def norm_only_rules(resolved: ResolvedProfile) -> list[str]:

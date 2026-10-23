@@ -338,6 +338,23 @@ def test_review_refuses_incomplete_profile(review_lab, tmp_path) -> None:
     assert "structure.leaders" in " ".join(result.output.split())
 
 
+def test_review_completes_or_removes_partial_sections() -> None:
+    from pad_checker.draft import review
+
+    data = {"format": {"width": 1920, "delivery": {"codec": "XDCAM"}},
+            "audio": {"loudness": {"short": {"short_term_max_lufs": -20.0}}},
+            "sources": {"format.delivery.codec": "p. 8", "audio.loudness.short.short_term_max_lufs": "p. 7"}}
+    comments: dict[str, str] = {}
+    answers = iter(["interlaced_tff", '["25/1"]', ""])
+    missing = ["format.delivery.scan", "format.delivery.fps", "audio.loudness.short.integrated_lufs",
+               "audio.loudness.short.integrated_tolerance_lu"]
+    review.complete(data, comments, missing, "doc.pdf", ask=lambda _: next(answers), say=lambda _: None)
+    assert data["format"]["delivery"] == {"codec": "XDCAM", "scan": "interlaced_tff", "fps": ["25/1"]}
+    assert "short" not in data["audio"]["loudness"]  # empty answer: the incomplete section is removed
+    assert "audio.loudness.short.short_term_max_lufs" not in data["sources"]
+    assert comments["format.delivery.scan"].startswith("A VERIFIER")
+
+
 def test_compare_profiles() -> None:
     result = CliRunner().invoke(app, ["compare-profiles", str(ROOT / "profiles" / "arte_hd_sdr.yaml"),
                                       str(ROOT / "profiles" / "france_tv_hd.yaml")], env={"COLUMNS": "250"})

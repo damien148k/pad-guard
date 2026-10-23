@@ -507,6 +507,8 @@ def review_profile(
     base: Path | None = typer.Option(
         None, "--base", help="Profil de base pour les valeurs absentes du PDF (défaut : profiles/<nom>.yaml, sinon le gabarit)."),
     out: Path | None = typer.Option(None, "--out", help="Profil validé à écrire (défaut : profiles/<nom>.yaml)."),
+    everything: bool = typer.Option(
+        False, "--tous", help="Relire aussi les champs dont toutes les propositions ont été rejetées."),
 ) -> None:
     """Relit un brouillon champ par champ, puis écrit le profil validé (status: validated)."""
     try:
@@ -517,17 +519,31 @@ def review_profile(
     out = out or (review.ROOT / "profiles" / f"{rv.meta['name']}.yaml")
     console.print(f"Relecture de [bold]{draft_file}[/bold] : {len(rv.fields)} champ(s) extrait(s) ; "
                   f"profil de base {rv.base}")
-    review.ask_fields(rv, ask=lambda text: typer.prompt(text, default="", show_default=False),
-                      say=lambda text: console.print(text, markup=False, highlight=False))
+    skipped = review.ask_fields(rv, ask=lambda text: typer.prompt(text, default="", show_default=False),
+                                say=lambda text: console.print(text, markup=False, highlight=False),
+                                everything=everything)
+    if skipped:
+        console.print(f"\n{len(skipped)} champ(s) dont toutes les propositions ont été rejetées n'ont pas été "
+                      "relus : ils gardent la valeur du profil de base (A VERIFIER). Les relire avec --tous :")
+        console.print(", ".join(f["path"] for f in skipped), markup=False, highlight=False)
     answers = review.save_answers(rv)
     console.print(f"Réponses enregistrées dans {answers}")
     data, comments = review.build(rv)
     review.validate(data, "(validation en cours)")
-    try:
-        resolved, tmp = review.write(rv, out, data, comments)
-    except review.ReviewError as exc:
-        err_console.print(f"[red]{exc}[/red]")
-        raise typer.Exit(EXIT_USAGE) from None
+    ask = lambda text: typer.prompt(text, default="", show_default=False)  # noqa: E731
+    say = lambda text: console.print(text, markup=False, highlight=False)  # noqa: E731
+    asked: set[str] = set()
+    while True:
+        try:
+            resolved, tmp = review.write(rv, out, data, comments)
+            break
+        except review.ReviewError as exc:
+            missing = [p for p in review.missing_fields(exc) if p not in asked]
+            if not missing:  # not something the reviewer can fill in here
+                err_console.print(f"[red]{exc}[/red]")
+                raise typer.Exit(EXIT_USAGE) from None
+            asked.update(missing)
+            review.complete(data, comments, missing, rv.meta.get("source_document", "document"), ask, say)
     tmp.unlink(missing_ok=True)
     risks = review.norm_only_rules(resolved)
     if risks:
