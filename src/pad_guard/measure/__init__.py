@@ -46,8 +46,9 @@ __all__ = ["MeasureSetupError", "am", "default_workers", "run"]
 
 
 def default_workers() -> int:
-    """Half the logical CPUs (the decoder threads use the rest), at most 8: beyond, no gain measured."""
-    return max(1, min(8, (os.cpu_count() or 2) // 2))
+    """Half the logical CPUs (the decoder threads use the rest), at most 12: 12 measured faster than 8
+    at every size on a 16-core Zen 3, 16 no faster than 12 (25 October 2026)."""
+    return max(1, min(12, (os.cpu_count() or 2) // 2))
 
 
 def _line(record: dict) -> str:

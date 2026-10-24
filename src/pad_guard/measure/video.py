@@ -207,7 +207,7 @@ def _pct(count: int, total: int) -> float:
 class _Workspace:
     """Buffers for one strip of rows, reused from strip to strip and frame to frame.
 
-    A frame is processed by strips of ``STRIP_ROWS`` rows so that the temporaries stay in the
+    A frame is processed by strips of a few rows (``strip_rows_for``) so that the temporaries stay in the
     core's cache instead of streaming whole 1080p planes through memory, and are never
     reallocated (a fresh multi-megabyte temporary costs a page fault per 4 KiB).
     """
@@ -239,13 +239,22 @@ class _Workspace:
         return v
 
 
-STRIP_ROWS = 64  # fastest of 8..1080 on a 16-core Zen 3 (16.7 ms per 1080p frame)
+# A strip holds about this many pixels, whatever the width: its temporaries (a dozen float32 rows)
+# must stay in the cache of each core while 12 processes measure at once. Measured on a 16-core
+# Zen 3 (25 October 2026, 12 processes): 32 rows at 1920 (124 frames/s, 91 with 64 rows), 16 rows
+# at 3840 (56 frames/s, 25 with 64 rows) and at 4096 (53 frames/s, 23 with 64 rows).
+STRIP_PIXELS = 16 * 3840
+
+
+def strip_rows_for(width: int) -> int:
+    """Rows per strip for a frame this wide: an even number (4:2:0 chroma rows), at least 8."""
+    return max(8, STRIP_PIXELS // max(width, 1) // 2 * 2)
 
 
 class FrameMeter:
     """Measures one frame. Not thread-safe (one workspace): use one meter per process."""
 
-    def __init__(self, limits: VideoLimits, strip_rows: int = STRIP_ROWS):
+    def __init__(self, limits: VideoLimits, strip_rows: int | None = None):
         self.limits = limits
         self.strip_rows = strip_rows
         self._k = tuple(np.float32(c) for c in limits.rgb_coefficients())  # same at every scale
@@ -272,9 +281,14 @@ class FrameMeter:
         reachable = np.flatnonzero(table < self._size)
         self._min_step = int((table[reachable] - reachable).min()) if reachable.size else 1 << 16
 
-    def _workspace(self, width: int, chroma_width: int) -> _Workspace:
-        if self._ws is None or self._ws.key != (self.strip_rows, width, chroma_width):
-            self._ws = _Workspace(self.strip_rows, width, chroma_width, self.limits.prefilter_taps)
+    def _rows(self, width: int, vsub: int) -> int:
+        """Rows per strip: given, else from the width; even for 4:2:0 (a chroma row covers two)."""
+        rows = self.strip_rows or strip_rows_for(width)
+        return rows + rows % 2 if vsub == 2 else rows
+
+    def _workspace(self, rows: int, width: int, chroma_width: int) -> _Workspace:
+        if self._ws is None or self._ws.key != (rows, width, chroma_width):
+            self._ws = _Workspace(rows, width, chroma_width, self.limits.prefilter_taps)
         return self._ws
 
     def _value(self, code: float, digits: int = 2) -> float | int:
@@ -307,7 +321,8 @@ class FrameMeter:
             raise ValueError(f"image {frame.index} : taille {(h, w)} différente de l'image précédente {previous.shape}")
         self._set_scale(frame.scale)
         scale = frame.scale
-        full = self._workspace(w, frame.cb.shape[1])
+        strip = self._rows(w, frame.vsub)
+        full = self._workspace(strip, w, frame.cb.shape[1])
         hist = np.zeros(self._size, dtype=np.int64)
         cb_min = cr_min = 1 << 16
         cb_max = cr_max = -1
@@ -315,8 +330,8 @@ class FrameMeter:
         rgb_out = 0
         d_sum = d_up = d_down = 0
         across = within = 0
-        for top in range(0, h, self.strip_rows):
-            rows = slice(top, top + self.strip_rows)
+        for top in range(0, h, strip):
+            rows = slice(top, top + strip)
             y = frame.y[rows]
             if frame.vsub == 2:  # 4:2:0: each chroma row covers two luma rows (strips start on even rows)
                 n = y.shape[0]
@@ -515,7 +530,7 @@ def _slot_views(buf, slots: int, h: int, w: int, ch: int, cw: int) -> list[tuple
 
 
 def _worker_init(shm_name: str, slots: int, shapes: tuple[int, int, int, int], layout: tuple[int, int, int],
-                 limits: VideoLimits, strip_rows: int, first: str | None) -> None:
+                 limits: VideoLimits, strip_rows: int | None, first: str | None) -> None:
     shm = SharedMemory(name=shm_name)
     _worker.update(shm=shm, views=_slot_views(shm.buf, slots, *shapes), layout=layout, first=first,
                    meter=FrameMeter(limits, strip_rows))
@@ -531,7 +546,7 @@ def _worker_measure(slot: int, index: int, previous_slot: int | None) -> dict:
 
 
 def measure_frames(
-    frames: Iterable[VideoFrame], limits: VideoLimits, workers: int, strip_rows: int = STRIP_ROWS,
+    frames: Iterable[VideoFrame], limits: VideoLimits, workers: int, strip_rows: int | None = None,
     first_field: str | None = None,
 ) -> Iterator[dict]:
     """Measure every frame, yielding the results in frame order.

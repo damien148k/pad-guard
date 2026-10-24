@@ -78,7 +78,18 @@ Analyse complète décodage + mesures (`analyze`, Phase 2), même machine, 60 s 
 
 Phase 3 (8 octobre 2026) : les différences entre images (figées, dupliquées, PSE) sont calculées pendant la même passe. Même fichier : **14 s, soit 4,3× le temps réel** (6,3× sans ces différences, mesuré dans les mêmes conditions). Structure, règles et rapport ajoutent quelques secondes (accès direct à quelques centaines d'images).
 
-Les mesures vidéo tournent dans des processus séparés (`--workers`, 8 par défaut sur 16 cœurs ; au-delà, aucun gain mesuré) qui reçoivent les images décodées par mémoire partagée : le fichier reste lu séquentiellement par un seul décodeur. Le nombre de processus ne change pas les résultats (testé à l'octet près).
+Les mesures vidéo tournent dans des processus séparés (`--workers`, 12 par défaut sur 16 cœurs ; 16 n'est pas plus rapide) qui reçoivent les images décodées par mémoire partagée : le fichier reste lu séquentiellement par un seul décodeur. Le nombre de processus et la taille des bandes de lignes ne changent pas les résultats (testé à l'octet près).
+
+Phase 6 (25 octobre 2026), toutes résolutions : chaque image est mesurée par bandes d'environ 61 000 pixels (32 lignes en 1080, 16 en UHD) pour que les tampons de travail des 12 processus tiennent dans le cache ; avec des bandes fixes de 64 lignes, l'UHD plafonnait à 0,8× le temps réel. Analyse complète (`analyze`), clips de 24 s ProRes 422 HQ `testsrc2` + grain à 25 i/s, 2 pistes mono, même machine :
+
+| Image | Mesures (vidéo + audio) | × temps réel | Film de 90 min (estimation) |
+|---|---|---|---|
+| 1920×1080 | 600 images en 4,0 s | 6,1× | ≈ 15 min (25p), ≈ 30 min (50p) |
+| 2048×1556 | 600 images en 6,4 s | 3,7× | ≈ 24 min |
+| 3840×2160 | 600 images en 17,4 s | 1,4× | ≈ 65 min (25p) |
+| 4096×2160 | 600 images en 18,6 s | 1,3× | ≈ 70 min (24p) |
+
+Objectif Phase 6 : UHD 25p ≥ 1× temps réel, atteint sans découper le fichier en segments. Un ProRes HQ UHD 25p se lit à environ 100 Mo/s : sur un disque dur ou un NAS, le disque peut redevenir le facteur limitant.
 
 Objectif Phase 1 : ≥ 4× temps réel. À 30× temps réel, la lecture d'un ProRes HQ demande environ 700 Mo/s : sur un vrai film, le disque (NAS, disque dur, SSD SATA) sera probablement le facteur limitant, pas le décodage.
 
