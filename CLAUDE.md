@@ -32,6 +32,7 @@ La spécification complète est dans `docs/SPEC.md`. La feuille de route et les 
 - Tests avec `pytest`. Fixtures vidéo générées par `tests/fixtures/make_fixtures.sh` (FFmpeg `testsrc2`, `smptehdbars`, `color`, `sine`).
 - Couche IA : **Ollama uniquement** (bibliothèque Python `ollama`), modèle par défaut `qwen3-vl:32b-instruct`, repli `qwen3-vl:8b-instruct`, derrière une interface `LLMClient` (pour pouvoir brancher un autre moteur local plus tard). Pas d'API externe. Désactivée par défaut. Deux usages : la synthèse du rapport (Phase 4c) et l'extraction d'un profil brouillon depuis le PDF d'un diffuseur (`draft-profile`, Phase 4b), toujours en `A_VERIFIER`.
 - Lecture des PDF (Phase 4b) : `pdfplumber` (texte) et `pypdfium2` (rendu des pages). Pas de PyMuPDF pour cet usage (licence AGPL).
+- pymupdf (AGPL) est utilisé pour produire rapport.pdf : acceptable pour un usage interne Lumiris ; à remplacer avant toute distribution de PAD Guard.
 
 ## Architecture
 
