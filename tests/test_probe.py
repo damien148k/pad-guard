@@ -73,23 +73,55 @@ def test_ok_dnxhr_mxf(fixtures_dir) -> None:
     assert failed(r) == {}
 
 
-def test_wrong_codec_refused(fixtures_dir) -> None:
+def test_wrong_codec_is_a_format_anomaly(fixtures_dir) -> None:
+    """ProRes 422 LT is measurable: the profile difference is an anomaly, not a refusal (Phase 6)."""
     r = probe(fixtures_dir / "wrong_codec.mov")
-    assert not r.accepted
+    assert r.accepted and r.refusal_reasons == []
     assert failed(r) == {"codec": "fail"}
-    (reason,) = r.refusal_reasons
-    assert "prores LT" in reason
-    assert "prores HQ" in reason and "dnxhd DNXHR HQX" in reason
+    codec = next(c for c in r.checks if c.id == "codec")
+    assert (codec.type, codec.actual, codec.expected, codec.refusal) == (
+        "format", "prores LT", "prores HQ, dnxhd DNXHR HQX", False)
 
 
 def test_wrong_codec_cli(fixtures_dir, tmp_path) -> None:
     result = CliRunner().invoke(
         app, ["analyze", str(fixtures_dir / "wrong_codec.mov"), "--profile", str(CLASSIC), "--out", str(tmp_path)]
     )
-    assert result.exit_code == EXIT_REFUSED
-    output = " ".join(result.output.split())  # Rich wraps long lines
-    assert "Fichier refusé" in output
-    assert "Codec et profil : prores LT n'est pas accepté (attendu : prores HQ, dnxhd DNXHR HQX)" in output
+    assert result.exit_code == EXIT_NON_CONFORME, result.output
+    events = json.loads((tmp_path / "events.json").read_text(encoding="utf-8"))["events"]
+    codec = [e for e in events if e["type"] == "format"]
+    assert [(e["severity"], e["value_text"]) for e in codec] == [("blocking", "prores LT")]
+
+
+def test_measurable_checks_refuse(fixtures_dir) -> None:
+    """Only what PAD Guard cannot measure refuses a file: pixel format, frame rate, decoder."""
+    r = probe(fixtures_dir / "ok_prores.mov")
+    measurable = {c.id: (c.status, c.refusal) for c in r.checks if c.refusal}
+    assert measurable == {"decoder": ("ok", True), "pix_fmt_measurable": ("ok", True),
+                          "frame_rate_measurable": ("ok", True), "frame_rate_variable": ("ok", True)}
+    from pad_guard.probe import probe as probe_mod
+
+    info = probe_mod.run_ffprobe(fixtures_dir / "ok_prores.mov")
+    video = next(s for s in info["streams"] if s["codec_type"] == "video")
+    for changes, wanted in (({"pix_fmt": "bayer_rggb16le"}, "format de pixel bayer_rggb16le"),
+                            ({"codec_name": "nothing"}, "codec nothing : aucun décodeur"),
+                            ({"avg_frame_rate": "24/1"}, "cadence variable (25/1 / 24/1)")):
+        v = probe_mod._video({**video, **changes})
+        c = probe_mod._Checks()
+        probe_mod._check_measurable(c, v)
+        reasons = [probe_mod._refusal(ch) for ch in c.items if ch.status == "fail"]
+        assert len(reasons) == 1 and reasons[0].startswith(wanted), reasons
+
+
+def test_rounding_of_avg_frame_rate_is_not_variable(fixtures_dir) -> None:
+    from pad_guard.probe import probe as probe_mod
+
+    info = probe_mod.run_ffprobe(fixtures_dir / "ok_prores.mov")
+    video = next(s for s in info["streams"] if s["codec_type"] == "video")
+    v = probe_mod._video({**video, "avg_frame_rate": "250000/10001", "duration": "20"})  # 0.05 frame over 20 s
+    c = probe_mod._Checks()
+    probe_mod._check_measurable(c, v)
+    assert {ch.id: ch.status for ch in c.items}["frame_rate_variable"] == "ok"
 
 
 def test_bad_structure_timecode(fixtures_dir) -> None:

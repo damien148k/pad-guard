@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 import time
 from enum import Enum
 from fractions import Fraction
@@ -36,7 +37,7 @@ from pad_guard.structure import StructureError
 from pad_guard.structure.bars import BarsError
 
 app = typer.Typer(
-    help="PAD Guard : contrôle qualité de fichiers Prêt à Diffuser (ProRes 422 HQ / DNxHR HQX).",
+    help="PAD Guard : contrôle qualité de fichiers Prêt à Diffuser (masters ProRes, DNxHR…).",
     no_args_is_help=True,
     add_completion=False,
 )
@@ -65,6 +66,18 @@ class StepName(str, Enum):
     structure = "structure"
     rules = "rules"
     report = "report"
+
+
+def _utf8_streams() -> None:
+    """The messages are French (é, →, ≤): a redirected Windows console would encode them in cp1252
+    and fail. Standard output and error are switched to UTF-8 instead."""
+    for stream in (sys.stdout, sys.stderr):
+        encoding = (getattr(stream, "encoding", None) or "").lower().replace("-", "").replace("_", "")
+        if encoding != "utf8" and hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
+
+_utf8_streams()  # before any output, --help included
 
 
 def _version(value: bool) -> None:

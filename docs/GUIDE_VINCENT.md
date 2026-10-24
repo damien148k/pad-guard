@@ -14,7 +14,7 @@ Le navigateur s'ouvre sur `http://127.0.0.1:8765/`. Laisser le terminal ouvert p
 
 ## Contrôler un film
 
-1. **Dépôt.** « Parcourir… » ouvre la fenêtre Windows de choix de fichier : choisir le master (.mov ou .mxf). On peut aussi coller le chemin du fichier. Le film n'est pas copié : PAD Guard le lit là où il est. Choisir ensuite le profil de la chaîne (par exemple `arte_hd_sdr`). PAD Guard lit alors le format du fichier ; un fichier refusé (codec, cadence) est signalé avec le motif.
+1. **Dépôt.** « Parcourir… » ouvre la fenêtre Windows de choix de fichier : choisir le master (.mov ou .mxf). On peut aussi coller le chemin du fichier. Le film n'est pas copié : PAD Guard le lit là où il est. Choisir ensuite le profil de la chaîne (par exemple `arte_hd_sdr`). PAD Guard lit alors le format du fichier ; un fichier que PAD Guard ne sait pas mesurer est signalé avec le motif ; les formats mesurés sont rappelés sur l'écran de dépôt.
 2. **Récapitulatif.** Vérifier les caractéristiques du master, le profil appliqué et ses exigences principales (avec le paragraphe du cahier des charges), et la correspondance des pistes audio : un bouton par piste pour choisir son groupe (VO, VF…). Cocher « Synthèse … par l'IA locale » pour une synthèse rédigée (à relire ; le verdict n'en dépend pas). Puis « Lancer l'analyse ».
 3. **Analyse.** La progression montre les étapes, les images mesurées et le temps restant estimé. La lecture du fichier (calcul de son empreinte) et les mesures audio n'ont pas de compteur. Sur un long métrage, compter environ 20 minutes. On peut fermer le navigateur : l'analyse continue, et on la retrouve en rouvrant la page. « Annuler » arrête l'analyse, et le dossier reste incomplet.
 4. **Rapport.** Le verdict, le score, les anomalies (filtrables par gravité) et, pour chacune, le timecode, la valeur mesurée, le seuil appliqué, la règle du profil et une vignette quand il s'agit d'une anomalie d'image. « Télécharger le PDF » enregistre le rapport. « Dossier de données » ouvre le dossier de l'analyse dans l'Explorateur.
@@ -34,7 +34,7 @@ Onglet **Profils** :
 
 ## En cas de problème
 
-- **« Fichier refusé »** : le master n'est pas un ProRes 422 HQ ou un DNxHR HQX à 25 i/s ; le motif exact est affiché.
+- **« Fichier refusé »** : PAD Guard ne sait pas mesurer ce fichier (format de pixel, cadence, cadence variable, codec sans décodeur) ; le motif exact est affiché. Un codec, une résolution ou une cadence que la chaîne n'accepte pas ne sont pas un refus : le fichier est analysé et l'écart figure dans le rapport comme une anomalie de format.
 - **Synthèse IA absente** : Ollama n'est pas lancé ou le modèle n'est pas installé ; le rapport utilise alors la synthèse par gabarit et le signale.
 - **La page affiche « jeton de session »** : PAD Guard a été relancé, il suffit de recharger la page (F5).
 - **La fenêtre de choix de fichier n'apparaît pas** : elle peut s'ouvrir derrière le navigateur ; sinon coller le chemin du fichier dans le champ prévu.

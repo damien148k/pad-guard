@@ -10,7 +10,7 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
-from pad_guard import __version__, audio_map as amap, timecode
+from pad_guard import __version__, audio_map as amap, formats, timecode
 from pad_guard.audio_map import AudioMap
 from pad_guard.probe.models import (
     AudioStreamInfo,
@@ -27,9 +27,6 @@ from pad_guard.rules.profile import Profile
 
 _UNKNOWN = {None, "", "unknown", "unspecified", "N/A"}
 
-# Frame rates the measurements support until Phase 6 (docs/ROADMAP.md). Nothing else may assume
-# a rate: durations and timecodes always come from the rate read in probe.json.
-MEASURABLE_RATES = (Fraction(25, 1),)
 _INTERLACED = {"tt", "bb", "tb", "bt"}
 
 
@@ -91,10 +88,7 @@ def _scan_flag(field_order: str | None) -> str:
     return "interlaced" if field_order in _INTERLACED else "unknown"
 
 
-def rate_text(fps: Fraction) -> str:
-    """'25/1 (25 i/s)', '30000/1001 (29,97 i/s)'."""
-    per_second = f"{float(fps):.3f}".rstrip("0").rstrip(".").replace(".", ",")
-    return f"{fps.numerator}/{fps.denominator} ({per_second} i/s)"
+rate_text = formats.rate_text
 
 
 def _container(fmt: dict[str, Any], path: Path) -> ContainerInfo:
@@ -195,6 +189,25 @@ class _Checks:
         )
 
 
+def _check_measurable(c: _Checks, v: VideoInfo) -> None:
+    """What PAD Guard can measure (formats.py): the only checks that refuse a file."""
+    c.add("decoder", "Décodeur disponible", "format", "décodeur FFmpeg pour ce codec", v.codec_name,
+          formats.decoder_available(v.codec_name), refusal=True)
+    c.add("pix_fmt_measurable", "Format de pixel mesurable par PAD Guard", "format",
+          " ou ".join(formats.MEASURABLE_PIX_FMTS), v.pix_fmt or "inconnu",
+          v.pix_fmt in formats.MEASURABLE_PIX_FMTS, refusal=True)
+    r, avg = _fps(v.r_frame_rate), _fps(v.avg_frame_rate)
+    c.add("frame_rate_measurable", "Cadence prise en charge par PAD Guard", "format",
+          " ou ".join(rate_text(x) for x in formats.MEASURABLE_RATES), rate_text(r) if r else v.r_frame_rate,
+          r in formats.MEASURABLE_RATES, refusal=True)
+    # Variable frame rate: the frames are not evenly spaced, durations and timecodes would be wrong.
+    # A rounding difference of less than one frame over the stream is not one.
+    variable = r is None or avg is None or (r != avg and (v.duration_s is None or abs(r - avg) * Fraction(
+        str(v.duration_s)) >= 1))
+    c.add("frame_rate_variable", "Cadence fixe", "format", "cadence fixe (r_frame_rate = avg_frame_rate)",
+          f"{v.r_frame_rate} / {v.avg_frame_rate}", not variable, refusal=True)
+
+
 def _check_format(c: _Checks, p: Profile, container: ContainerInfo, v: VideoInfo) -> None:
     f = p.format
     c.add("container", "Conteneur", "format", " ou ".join(f.containers), container.kind if container.kind != "other"
@@ -203,9 +216,8 @@ def _check_format(c: _Checks, p: Profile, container: ContainerInfo, v: VideoInfo
     accepted = [(spec.codec_name, spec.profile) for spec in f.codecs]
     expected_codecs = ", ".join(f"{name} {prof}" for name, prof in accepted)
     found_codec = f"{v.codec_name} {v.profile or '(profil inconnu)'}"
-    c.add("codec", "Codec et profil", "format", expected_codecs, found_codec,
-          (v.codec_name, v.profile) in accepted, refusal=True)
-    c.add("pix_fmt", "Format de pixel", "format", f.pix_fmt, v.pix_fmt or "inconnu", v.pix_fmt == f.pix_fmt, refusal=True)
+    c.add("codec", "Codec et profil", "format", expected_codecs, found_codec, (v.codec_name, v.profile) in accepted)
+    c.add("pix_fmt", "Format de pixel", "format", f.pix_fmt, v.pix_fmt or "inconnu", v.pix_fmt == f.pix_fmt)
     c.add("resolution", "Résolution", "format", f"{f.width}x{f.height}", f"{v.width}x{v.height}",
           (v.width, v.height) == (f.width, f.height))
 
@@ -214,9 +226,6 @@ def _check_format(c: _Checks, p: Profile, container: ContainerInfo, v: VideoInfo
     c.add("frame_rate", "Cadence", "format", " ou ".join(f.fps_allowed), v.r_frame_rate, r in allowed)
     c.add("frame_rate_constant", "Cadence constante", "format", "r_frame_rate = avg_frame_rate",
           f"{v.r_frame_rate} / {v.avg_frame_rate}", r is not None and r == avg)
-    c.add("frame_rate_measurable", "Cadence prise en charge par PAD Guard", "format",
-          " ou ".join(rate_text(x) for x in MEASURABLE_RATES), rate_text(r) if r else v.r_frame_rate,
-          r in MEASURABLE_RATES, refusal=True)
     c.add("field_order", "Balayage", "format", f.field_order, v.field_order or "absent", v.field_order == f.field_order)
 
     for key, label in (("color_primaries", "Primaires"), ("color_transfer", "Transfert"), ("color_space", "Matrice")):
@@ -294,8 +303,13 @@ def _source(path: Path, known: SourceInfo | None, hash_source: bool = True) -> S
 
 def _refusal(ch: Check) -> str:
     if ch.id == "frame_rate_measurable":
-        return (f"cadence {ch.actual} : PAD Guard ne mesure pour l'instant que {ch.expected} "
-                "(autres cadences prévues en Phase 6).")
+        return f"cadence {ch.actual} : PAD Guard ne sait mesurer que {ch.expected}."
+    if ch.id == "pix_fmt_measurable":
+        return f"format de pixel {ch.actual} : PAD Guard ne sait mesurer que {ch.expected}."
+    if ch.id == "decoder":
+        return f"codec {ch.actual} : aucun décodeur disponible, le fichier ne peut pas être lu."
+    if ch.id == "frame_rate_variable":
+        return f"cadence variable ({ch.actual}) : les images ne sont pas régulièrement espacées, PAD Guard ne la mesure pas."
     return f"{ch.label} : {ch.actual} n'est pas accepté (attendu : {ch.expected})."
 
 
@@ -331,6 +345,7 @@ def probe_file(
     c = _Checks()
     if len(videos) > 1:
         c.add("video_streams", "Nombre de flux vidéo", "format", "1", str(len(videos)), False)
+    _check_measurable(c, video)
     _check_format(c, profile, container, video)
     _check_duration(c, video)
     _check_timecode(c, profile, tc)

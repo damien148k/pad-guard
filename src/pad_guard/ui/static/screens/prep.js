@@ -26,7 +26,7 @@ function PathPicker({ kind, label, placeholder, onPath, initial }) {
     <${ErrorLine} error=${error} />`;
 }
 
-function Master({ form, setForm }) {
+function Master({ form, setForm, caps }) {
   const m = form.master, pv = form.preview;
   const [error, setError] = useState('');
   const choose = async (path, fail) => {
@@ -49,14 +49,14 @@ function Master({ form, setForm }) {
     return html`<div class="zone bp"><${Corners} />
       <${Logo} width=${64} variant="outline" ink="#749dc4" accent="#749dc4" />
       <span class="big">Choisissez le film master</span>
-      <span class="small">ProRes 422 HQ ou DNxHR HQX. Le film reste où il est : PAD Guard le lit sur place.</span>
+      <span class="small">${caps ? caps.summary + '. ' : ''}Le film reste où il est : PAD Guard le lit sur place.</span>
       <${PathPicker} kind="master" label="Chemin du film master" placeholder="ou collez le chemin : D:\\Masters\\film.mov" onPath=${choose} /></div>`;
   }
   return html`<div class="card bp"><${Corners} />
     <div class="card-head"><div class="film-icon">master</div>
       <div class="name"><span>${m.name}</span><span class="sub">${m.size} · ${m.path}</span></div>
       <button class="mini" onClick=${() => setForm(f => ({ ...f, master: null, preview: null, assign: null }))}>Retirer</button></div>
-    ${!m.supported_extension && html`<span class="ok-line amber"><i></i>Extension inattendue : PAD Guard attend un .mov ou un .mxf</span>`}
+    ${!m.supported_extension && html`<span class="ok-line amber"><i></i>Extension inattendue : PAD Guard attend ${caps ? caps.extensions.join(', ') : 'un film master'}</span>`}
     ${!form.profile && html`<span class="hint" style="margin-top:auto">Choisissez le profil de chaîne pour lire le format du fichier.</span>`}
     ${pv && pv.loading && html`<${Busy} text="Détection du format…" />`}
     <${ErrorLine} error=${error} />
@@ -102,6 +102,9 @@ function Broadcaster({ form, setForm, profiles, toProfiles }) {
 }
 
 export function Prep({ form, setForm, profiles, job, next, toProfiles, openRun }) {
+  // Formats PAD Guard measures (formats.py): the hint is never written in the page.
+  const [caps, setCaps] = useState(null);
+  useEffect(() => { api('/api/capabilities').then(setCaps).catch(() => setCaps(null)); }, []);
   const ready = form.master && form.profile && form.preview && form.preview.accepted;
   const busy = job && job.state === 'running' && job.kind === 'analyze';
   return html`<div class="page">
@@ -109,8 +112,8 @@ export function Prep({ form, setForm, profiles, job, next, toProfiles, openRun }
       <p class="lead">Choisissez le film master et le profil de la chaîne. Le format du master est lu dans le fichier.</p></div>
     ${busy && html`<div class="note amber"><b>Analyse en cours</b>${job.title} : une seule analyse à la fois.</div>`}
     <div class="grid2">
-      <div class="col"><div class="split"><span class="label">Film master</span><span class="hint">ProRes 422 HQ · DNxHR HQX · 25 i/s</span></div>
-        <${Master} form=${form} setForm=${setForm} /></div>
+      <div class="col"><div class="split"><span class="label">Film master</span><span class="hint">${caps ? caps.summary : ''}</span></div>
+        <${Master} form=${form} setForm=${setForm} caps=${caps} /></div>
       <div class="col"><div class="split"><span class="label">Profil de chaîne</span><span class="hint">profiles/*.yaml</span></div>
         <${Broadcaster} form=${form} setForm=${setForm} profiles=${profiles} toProfiles=${toProfiles} /></div>
     </div>

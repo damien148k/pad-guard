@@ -80,6 +80,17 @@ def test_no_network_resource_in_the_page() -> None:
     assert (server.STATIC / "vendor" / "LICENSE-preact.txt").is_file()
 
 
+def test_drop_screen_formats_come_from_capabilities(client) -> None:
+    """The formats PAD Guard measures are never written in the page: they come from formats.py."""
+    from pad_guard import formats
+
+    caps = client.get("/api/capabilities").json()
+    assert caps == formats.capabilities()
+    assert "25 i/s" in caps["summary"] and ".mov" in caps["extensions"]
+    page = (server.STATIC / "screens" / "prep.js").read_text(encoding="utf-8")
+    assert "ProRes 422 HQ" not in page and "25 i/s" not in page
+
+
 def test_profiles_as_their_files_say(client) -> None:
     data = client.get("/api/profiles").json()
     arte = next(p for p in data["profiles"] if p["name"] == "arte_hd_sdr")

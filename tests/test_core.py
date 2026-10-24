@@ -66,3 +66,18 @@ def test_cli_version() -> None:
     result = CliRunner().invoke(app, ["--version"])
     assert result.exit_code == 0
     assert "PAD Guard" in result.output
+
+
+def test_cli_output_redirected_is_utf8(tmp_path) -> None:
+    """Redirected to a file on Windows (cp1252 by default), the French messages must not crash."""
+    import os
+    import subprocess
+    import sys
+
+    env = {k: v for k, v in os.environ.items() if k not in ("PYTHONIOENCODING", "PYTHONUTF8")}
+    out = tmp_path / "help.txt"
+    with out.open("wb") as f:
+        done = subprocess.run([sys.executable, "-m", "pad_guard", "--help"], stdout=f, stderr=subprocess.STDOUT,
+                              env=env, check=False)
+    assert done.returncode == 0, out.read_bytes()[-500:]
+    assert "contrôle qualité" in out.read_text(encoding="utf-8")

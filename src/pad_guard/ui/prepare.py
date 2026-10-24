@@ -20,7 +20,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
-from pad_guard import audio_map as amap, timecode
+from pad_guard import audio_map as amap, formats, timecode
 from pad_guard.audio_map import describe, tracks_text
 from pad_guard.draft import pdf as pdf_mod
 from pad_guard.draft.write import scalar
@@ -31,20 +31,20 @@ from pad_guard.profiles.resolve import leaves
 from pad_guard.rules.profile import ProfileError
 from pad_guard.ui.server import ApiError, Context, body, ctx_of
 
-MASTER_TYPES = (".mov", ".mxf")
+MASTER_TYPES = tuple(formats.capabilities()["extensions"])
 
 # Run in a separate process: Tk must own the main thread of its process, the server's is uvicorn's.
 PICK_SCRIPT = r"""
 import json, sys, tkinter as tk
 from tkinter import filedialog
-kind, initial, title = sys.argv[1:4]
+kind, initial, title, patterns = sys.argv[1:5]
 root = tk.Tk()
 root.withdraw()
 root.attributes("-topmost", True)
 if kind == "folder":
     path = filedialog.askdirectory(parent=root, initialdir=initial or None, title=title, mustexist=False)
 else:
-    types = ([("Masters ProRes / DNxHR", "*.mov *.mxf"), ("Tous les fichiers", "*.*")] if kind == "master"
+    types = ([("Films masters", patterns), ("Tous les fichiers", "*.*")] if kind == "master"
              else [("PDF", "*.pdf"), ("Tous les fichiers", "*.*")])
     path = filedialog.askopenfilename(parent=root, initialdir=initial or None, title=title, filetypes=types)
 root.destroy()
@@ -56,7 +56,8 @@ PICK_TITLES = {"master": "Choisir le film master", "pdf": "Choisir le cahier des
 
 def native_pick(kind: str, initial: str) -> str | None:
     """Path chosen in the native file dialog, None if cancelled."""
-    done = subprocess.run([sys.executable, "-I", "-c", PICK_SCRIPT, kind, initial, PICK_TITLES[kind]],
+    patterns = " ".join(f"*{ext}" for ext in MASTER_TYPES)
+    done = subprocess.run([sys.executable, "-I", "-c", PICK_SCRIPT, kind, initial, PICK_TITLES[kind], patterns],
                           capture_output=True, text=True, encoding="utf-8", timeout=3600, check=False)
     if done.returncode != 0:
         raise ApiError("boîte de dialogue impossible à ouvrir : saisir le chemin à la main")
@@ -331,8 +332,13 @@ async def match_pdf(request: Request) -> Response:
     return JSONResponse(await run_in_threadpool(work))
 
 
+async def capabilities(_request: Request) -> Response:
+    return JSONResponse(formats.capabilities())
+
+
 def routes() -> list:
     return [
+        Route("/api/capabilities", capabilities),
         Route("/api/pick", pick, methods=["POST"]),
         Route("/api/file-info", file_info, methods=["POST"]),
         Route("/api/probe-preview", preview, methods=["POST"]),
