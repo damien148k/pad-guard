@@ -29,7 +29,9 @@ from pad_guard.profiles.resolve import capped_norm_values
 from pad_guard.rules import delivery, expr
 from pad_guard.rules import scan as scan_rule
 from pad_guard.rules.models import Event, Events, Verdict
-from pad_guard.rules.profile import EVENT_FIELDS, AudioGroup, LoudnessRules, Profile, Severity, require
+from pad_guard.rules.profile import (
+    EVENT_FIELDS, PARAM_NAMES, AudioGroup, LoudnessRules, Profile, Severity, require,
+)
 from pad_guard.structure import detect
 from pad_guard.structure.models import Structure
 
@@ -219,8 +221,8 @@ class Engine:
         self.drafts.append(Draft(**kw))
 
     def aggregate(self, event_type: str, mask: np.ndarray) -> list[tuple[int, int]]:
-        ranges = merge(detect.runs(mask), self.p.rules.merge_gap_frames)
-        minimum = self.p.rules.min_event_frames.get(event_type, 1)
+        ranges = merge(detect.runs(mask), self.p.rules.gap_frames(self.fps))
+        minimum = self.p.rules.min_frames(event_type, self.fps)
         return [(a, b) for a, b in ranges if b - a + 1 >= minimum]
 
     # --- probe, structure, integrity ------------------------------------------------------
@@ -252,9 +254,9 @@ class Engine:
         by_type: dict[str, list] = {}
         for f in self.st.findings:
             by_type.setdefault(f.type, []).append(f)
-        gap = self.p.rules.merge_gap_frames
+        gap = self.p.rules.gap_frames(self.fps)
         for event_type, findings in by_type.items():
-            minimum = self.p.rules.min_event_frames.get(event_type, 1)
+            minimum = self.p.rules.min_frames(event_type, self.fps)
             for a, b in merge(((f.frame_start, f.frame_end) for f in findings), gap):
                 if b - a + 1 < minimum:
                     continue
@@ -292,7 +294,7 @@ class Engine:
             self.add(type="integrity", title=f"Erreur de décodage : {key}", source="integrity", scope="range",
                      frame_start=a, frame_end=b, value_text=f"{len(ordered)} image(s)", threshold_text="aucune erreur",
                      occurrences=len(ordered), detail=f"image(s) {_frames_list(ordered)}")
-        for a, b in merge(((f, f) for f in integ.pts_discontinuities), self.p.rules.merge_gap_frames):
+        for a, b in merge(((f, f) for f in integ.pts_discontinuities), self.p.rules.gap_frames(self.fps)):
             inside = [f for f in integ.pts_discontinuities if a <= f <= b]
             self.add(type="integrity", title="Discontinuité de timestamp (image manquante ou dupliquée)",
                      source="integrity", scope="range", frame_start=a, frame_end=b,
@@ -546,13 +548,15 @@ class Engine:
         """(severity, source of the rule that gave it)."""
         if d.severity is not None:
             return d.severity, "format.unknown_color_tags_severity"
+        frames = d.frame_end - d.frame_start + 1
         env = {
-            "duration_frames": d.frame_end - d.frame_start + 1, "worst_value": d.worst_value,
+            "duration_frames": frames, "duration_s": self.seconds(frames), "worst_value": d.worst_value,
             "area_pct_max": d.area_pct_max, "threshold": d.threshold, "frame_start": d.frame_start,
             "frame_end": d.frame_end,
         }
         assert set(env) == set(EVENT_FIELDS)
-        defined = {k: v for k, v in env.items() if v is not None}
+        params = self.p.rules.params.model_dump()
+        defined = {k: v for k, v in {**env, **params}.items() if v is not None}
         for rule in self.p.rules.severity[d.type]:
             if rule.else_ is not None:
                 return rule.else_, rule.source
@@ -561,6 +565,8 @@ class Engine:
                     return rule.then, rule.source
             except expr.ExpressionError:
                 missing = [k for k in env if k not in defined and re.search(rf"\b{k}\b", rule.if_)]
+                missing += [f"rules.params.{k}" for k in params
+                            if k not in defined and re.search(rf"\b{k}\b", rule.if_)]
                 raise RulesError(
                     f"rules.severity.{d.type} : la condition « {rule.if_} » utilise "
                     f"{', '.join(missing) or 'un nom inconnu'}, non défini pour l'anomalie « {d.title} »"
@@ -571,8 +577,11 @@ class Engine:
         """An anomaly that rests on a value only a norm gives (not the client's document) is a
         recommendation: at most minor, source NORME (CLAUDE.md principle 2)."""
         kind = self.loudness_rules()[0] if self.m.audio is not None else "long"
+        # Named values of rules.params used by the severity chain count like the other values.
+        params = tuple(f"rules.params.{name}" for name in PARAM_NAMES
+                       if any(r.if_ and re.search(rf"\b{name}\b", r.if_) for r in self.p.rules.severity[d.type]))
         files = sorted({f for p, f in self.norm_values.items()
-                        for dep in depends_on(d, kind) if p == dep or p.startswith(dep + ".")})
+                        for dep in depends_on(d, kind) + params if p == dep or p.startswith(dep + ".")})
         if not files:
             return severity, source
         names = ", ".join(Path(f).stem for f in files)

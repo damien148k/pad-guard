@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import re
 import shutil
 from collections.abc import Callable
 from pathlib import Path
@@ -97,6 +98,13 @@ def preflight(profile: Profile, groups: list[AudioGroup]) -> list[str]:
         except ProfileValueError as exc:
             problems.append(str(exc))
 
+    params = profile.rules.params.model_dump()
+    for name, chain in sorted(profile.rules.severity.items()):
+        for rule in chain:
+            used = [k for k, v in params.items() if v is None and rule.if_ and re.search(rf"\b{k}\b", rule.if_)]
+            for param in sorted(used):
+                problems.append(f"rules.params.{param} : valeur absente du profil effectif, nécessaire pour "
+                                f"rules.severity.{name} (« {rule.if_} »)")
     problems += [f"le profil n'a pas de gravité pour « rules.severity.{t} »"
                  for t in sorted(engine.severity_types(profile, groups)) if t not in profile.rules.severity]
     return problems

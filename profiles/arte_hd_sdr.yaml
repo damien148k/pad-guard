@@ -3,6 +3,17 @@
 # Historique
 #   1.0  23/10/2026  validé par Vincent. Version initiale, construite sur les consignes V2-01-00 ;
 #                    format.delivery relu dans la V2-01-03.
+#   1.2  24/10/2026  validé par Damien (Phase 6, durées en secondes).
+#                    - Le 50p était déjà accepté (§3.2.2.1) ; PAD Guard le mesure désormais.
+#                    - Les règles white_clip / black_crush / gamut ne comptent plus des images
+#                      (« duration_frames >= 25 », soit 0,5 s en 50p) mais des secondes : la durée
+#                      minimale d'un dépassement majeur, rules.params.levels_major_min_seconds (1 s),
+#                      est un choix de regroupement Lumiris de normes/lumiris_maison.yaml, pas une
+#                      exigence d'Arte : le §3.2.3.3 ne fixe que la surface (1 %). Le seuil de
+#                      surface reste cité d'Arte.
+#                    - merge_gap et la durée minimale des images figées viennent de
+#                      normes/lumiris_maison.yaml, en secondes (0,5 s et 2 s : les mêmes 12 et 50
+#                      images qu'avant en 25 i/s).
 #   1.1  24/10/2026  validé par Damien.
 #                    - Balayage : la règle se fonde sur le balayage détecté sur les images, plus sur
 #                      le drapeau seul. Images progressives sous un drapeau entrelacé :
@@ -35,7 +46,7 @@
 
 meta:
   name: arte_hd_sdr
-  version: "1.1"
+  version: "1.2"
   broadcaster: "ARTE G.E.I.E."
   source_document: "Consignes Techniques Globales ARTE G.E.I.E. V2-01-03 (septembre 2026)"
   notes: >
@@ -167,12 +178,11 @@ structure:
     logo_corners_free: true
 
 rules:
-  merge_gap_frames: 12
+  # merge_gap_seconds, min_event_seconds.freeze et params.levels_major_min_seconds : normes/lumiris_maison.yaml
   min_event_frames:
     white_clip: 1
     black_crush: 1
     gamut: 1                                         # §3.2.3.3 : le seuil de surface (1 %) fait déjà le filtrage
-    freeze: 50
   max_major: 0
   score_formula: "100 - 40*blocking - 10*major - 2*minor"
   # Chaque règle cite sa source : un paragraphe des consignes Arte V2, une décision interne Lumiris,
@@ -180,15 +190,15 @@ rules:
   # pse et integrity viennent de normes/lumiris_maison.yaml.
   severity:
     white_clip:
-      - {if: "area_pct_max >= 1 and duration_frames >= 25", then: major, source: "Arte §3.2.3.3"}   # erreur dès 1 % de la surface
+      - {if: "area_pct_max >= 1 and duration_s >= levels_major_min_seconds", then: major, source: "Arte §3.2.3.3 (surface) ; durée : Lumiris (rules.params.levels_major_min_seconds)"}   # erreur dès 1 % de la surface
       - {if: "area_pct_max >= 1", then: minor, source: "DEDUIT"}       # dépassement bref : signalé, toléré
       - {else: info, source: "DEDUIT"}
     black_crush:
-      - {if: "area_pct_max >= 1 and duration_frames >= 25", then: major, source: "Arte §3.2.3.3"}
+      - {if: "area_pct_max >= 1 and duration_s >= levels_major_min_seconds", then: major, source: "Arte §3.2.3.3 (surface) ; durée : Lumiris (rules.params.levels_major_min_seconds)"}
       - {if: "area_pct_max >= 1", then: minor, source: "DEDUIT"}
       - {else: info, source: "DEDUIT"}
     gamut:
-      - {if: "area_pct_max >= 1 and duration_frames >= 25", then: major, source: "Arte §3.2.3.3"}
+      - {if: "area_pct_max >= 1 and duration_s >= levels_major_min_seconds", then: major, source: "Arte §3.2.3.3 (surface) ; durée : Lumiris (rules.params.levels_major_min_seconds)"}
       - {if: "area_pct_max >= 1", then: minor, source: "DEDUIT"}
       - {else: info, source: "DEDUIT"}
     freeze:
@@ -307,7 +317,6 @@ sources:
   structure.credits: "Arte §6.11.1 / §6.11.2"
   structure.freeze: "pad-checker : le document ne parle pas d'images figées"
   structure.safe_areas: "Arte §3.2.6 / §3.2.7 / §13.1 (EBU R95), information"
-  rules.merge_gap_frames: "pad-checker : agrégation des images en événements (SPEC §7.1)"
   rules.min_event_frames: "pad-checker (SPEC §7.1) ; gamut : Arte §3.2.3.3"
   rules.max_major: "Lumiris : une seule anomalie majeure rend le PAD non conforme"
   rules.score_formula: "pad-checker (SPEC §7.3), informatif"

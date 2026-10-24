@@ -14,7 +14,7 @@ import yaml
 from typer.testing import CliRunner
 
 from pad_guard import workdir as wd
-from pad_guard.cli import EXIT_REFUSED, app
+from pad_guard.cli import app
 from pad_guard.profiles import resolve_profile
 
 from conftest import PROFILES, ROOT, TEST_PROFILES
@@ -208,15 +208,6 @@ def test_master_25p_against_50i_delivery(analysed, tmp_path) -> None:
     assert _json(reference, wd.EVENTS)["events"] == []  # Arte V2 accepts 25p: no conversion
     md = (out / wd.REPORT_MD).read_text(encoding="utf-8")
     assert "Conversion requise avant livraison : balayage progressif → entrelacé" in md
-
-
-def test_24fps_refused(fixtures_dir, tmp_path) -> None:
-    out = tmp_path / "o"
-    result = invoke("analyze", str(fixtures_dir / "rate24_prores.mov"), "--profile", str(CLASSIC), "--out", str(out))
-    assert result.exit_code == EXIT_REFUSED
-    message = " ".join(result.output.split())
-    assert "cadence 24/1 (24 i/s)" in message and "25/1 (25 i/s)" in message
-    assert not (out / wd.MEASUREMENTS).exists()
 
 
 def test_client_values_differing_from_norms_are_information(analysed) -> None:

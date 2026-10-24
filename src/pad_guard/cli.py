@@ -113,7 +113,7 @@ def analyze(
         None, "--thumbnails/--no-thumbnails",
         help="Vignette de chaque anomalie image (par défaut : oui ; sautées avec un avertissement si le fichier source est introuvable lors d'une relance).",
     ),
-    quick: bool = typer.Option(False, "--quick", help="Aperçu rapide (1 image sur 25), sans verdict."),
+    quick: bool = typer.Option(False, "--quick", help="Aperçu rapide sans verdict (non implémenté)."),
     benchmark: bool = typer.Option(False, "--benchmark", help="Mesure la vitesse de décodage seule."),
     workers: int = typer.Option(
         0, "--workers", min=0, help="Processus de mesure vidéo (0 = automatique). Sans effet sur les résultats.",

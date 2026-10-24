@@ -30,6 +30,14 @@ structure:
     flash_min_area_pct: 25.0
 
 rules:
+  # Regroupement des images en événements, en secondes (converties à la cadence du fichier).
+  merge_gap_seconds: 0.5                 # A VERIFIER avec Vincent : 12 images à 25 i/s, comme avant la Phase 6
+  min_event_seconds:
+    freeze: 2.0                          # A VERIFIER avec Vincent : 50 images à 25 i/s, comme avant la Phase 6
+  params:
+    # Durée à partir de laquelle un dépassement de niveaux ou de gamut devient majeur (choix de
+    # regroupement Lumiris : le document du client ne fixe que la surface).
+    levels_major_min_seconds: 1.0        # A VERIFIER avec Vincent : 25 images à 25 i/s, comme avant la Phase 6
   severity:
     pse:
       - {else: major, source: "Lumiris : contrôle interne (SPEC §6.6)"}   # à vérifier avec un analyseur Harding certifié
@@ -41,6 +49,15 @@ rules:
       - {else: major, source: "Lumiris : drapeau de balayage à corriger à l'export (master progressif)"}
 
 sources:
+  rules.merge_gap_seconds: >-
+    Lumiris : deux plages en anomalie séparées de moins de 0,5 s font un seul événement (SPEC §7.1).
+    A VERIFIER : à confirmer avec Vincent (décision de Damien, 24/10/2026 : durées en secondes).
+  rules.min_event_seconds: >-
+    Lumiris : une image figée n'est signalée qu'à partir de 2 s. A VERIFIER : à confirmer avec Vincent.
+  rules.params.levels_major_min_seconds: >-
+    Lumiris : choix de regroupement, un dépassement de niveaux ou de gamut d'au moins 1 s est majeur, plus
+    court il est mineur. Ce n'est pas une exigence des diffuseurs (Arte §3.2.3.3 ne fixe que la surface).
+    A VERIFIER : à confirmer avec Vincent (décision de Damien, 24/10/2026).
   video.scan_detection: >-
     Lumiris : paramètres de la détection de peignage (SPEC §12.5), calibrés le 23/10/2026 sur
     testsrc2 entrelacé par FFmpeg tinterlace (comb ≥ 0,99 sur toutes les images), testsrc2 progressif

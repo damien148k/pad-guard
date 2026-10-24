@@ -88,27 +88,26 @@ structure:
     min_seconds: 2.0
 
 rules:
-  merge_gap_frames: 12
+  # merge_gap_seconds (0,5 s) et min_event_seconds.freeze (2 s) : normes/lumiris_maison.yaml
   min_event_frames:
     white_clip: 1
     black_crush: 1
     gamut: 3
-    freeze: 50
   max_major: 0                            # un seul "major" = NON-CONFORME
   score_formula: "100 - 40*blocking - 10*major - 2*minor"
   severity:
     white_clip:
       - {if: "worst_value > 1004 or area_pct_max > 5", then: blocking, source: "A VERIFIER : pas de document FTV"}
-      - {if: "duration_frames >= 25", then: major, source: "A VERIFIER : pas de document FTV"}
+      - {if: "duration_s >= 1", then: major, source: "A VERIFIER : pas de document FTV"}
       - {else: minor, source: "A VERIFIER : pas de document FTV"}
     black_crush:
       - {if: "area_pct_max > 5", then: major, source: "A VERIFIER : pas de document FTV"}
       - {else: minor, source: "A VERIFIER : pas de document FTV"}
     gamut:
-      - {if: "area_pct_max > 5 and duration_frames >= 25", then: major, source: "A VERIFIER : pas de document FTV"}
+      - {if: "area_pct_max > 5 and duration_s >= 1", then: major, source: "A VERIFIER : pas de document FTV"}
       - {else: minor, source: "A VERIFIER : pas de document FTV"}
     freeze:
-      - {if: "duration_frames >= 125", then: blocking, source: "A VERIFIER : pas de document FTV"}
+      - {if: "duration_s >= 5", then: blocking, source: "A VERIFIER : pas de document FTV"}
       - {else: major, source: "A VERIFIER : pas de document FTV"}
     isolated_black_frame:
       - {else: major, source: "A VERIFIER : pas de document FTV"}

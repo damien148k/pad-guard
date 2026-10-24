@@ -14,7 +14,10 @@ import av
 
 # Frame rates the measurements support. Nothing else may assume a rate: durations and timecodes
 # always come from the rate read in probe.json.
-MEASURABLE_RATES: tuple[Fraction, ...] = (Fraction(25, 1),)
+MEASURABLE_RATES: tuple[Fraction, ...] = (
+    Fraction(24000, 1001), Fraction(24), Fraction(25), Fraction(30000, 1001), Fraction(30),
+    Fraction(50), Fraction(60000, 1001), Fraction(60),
+)
 
 # Decoded pixel formats the measurement code reads (FFmpeg names).
 MEASURABLE_PIX_FMTS: tuple[str, ...] = ("yuv422p10le",)
@@ -52,6 +55,6 @@ def capabilities() -> dict:
         "containers": list(CONTAINERS),
         "rates": rates,
         "pix_fmts": list(MEASURABLE_PIX_FMTS),
-        "summary": " · ".join([*FAMILIES, " ou ".join(rates)]),
+        "summary": " · ".join([*FAMILIES, ", ".join(rates)]),
         "extensions": [f".{c.lower()}" for c in CONTAINERS],
     }

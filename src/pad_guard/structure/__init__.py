@@ -105,7 +105,7 @@ class _Context:
 
 def _bars_candidates(ctx: _Context) -> list[tuple[int, int]]:
     """Held pictures of at least one second that are not black: bars are a still picture."""
-    one_second = max(int(round(ctx.fps)), 2)
+    one_second = max(ctx.clock.frames_in(1.0), 2)
     out = []
     for a, b in detect.runs(ctx.static):
         first, last = max(a - 1, 0), b
@@ -147,7 +147,7 @@ def _check_bars_classic(ctx: _Context, bars: list[BarsRange]) -> list[ToneMeasur
         expected = ctx.clock.frame(start_tc)
     else:  # no usable file timecode: position expected by the profile layout
         expected = ctx.clock.absolute(start_tc) - ctx.clock.absolute(p.structure.timecode.file_start)
-    min_frames = int(round(min_seconds * ctx.fps))
+    min_frames = ctx.clock.frames_in(min_seconds)
     want = f"{pattern} à {start_tc}, au moins {_fmt(min_seconds)} s"
     match = [r for r in bars if r.pattern == pattern]
     if not match:
@@ -276,7 +276,7 @@ def _sequence_findings(ctx: _Context, excluded: np.ndarray, bars_mask: np.ndarra
     p = ctx.profile.structure
     v = ctx.v
     threshold = p.freeze.threshold
-    min_frames = int(round(p.freeze.min_seconds * ctx.fps))
+    min_frames = ctx.clock.frames_in(p.freeze.min_seconds)
     for a, b in detect.frozen_ranges(ctx.static, excluded, min_frames):
         ctx.findings.append(Finding(
             type="freeze", frame_start=a, frame_end=b, worst_value=float(np.nanmax(v["d_mean"][a + 1: b + 1])),
@@ -294,7 +294,7 @@ def _sequence_findings(ctx: _Context, excluded: np.ndarray, bars_mask: np.ndarra
             threshold=float(p.black.y_max), detail="image noire isolée (hors fondu)",
         ))
     if p.pse.enabled:
-        window = int(round(ctx.fps))
+        window = ctx.clock.frames_in(1.0)  # frames in one second at the rate of the file
         for a, b, worst in detect.flash_ranges(v["d_up_pct"], v["d_down_pct"], p.pse.flash_min_area_pct,
                                                window, p.pse.max_flashes_per_second):
             ctx.findings.append(Finding(
@@ -315,7 +315,7 @@ def _letterbox(ctx: _Context, program: FrameRange, excluded: np.ndarray) -> Lett
         return None
     tolerance = require(ctx.profile, "format.letterbox.tolerance_lines", "le contrôle du format d'image")
     y_max = ctx.profile.structure.black.y_max
-    step = max(int(round(lb.SAMPLE_SECONDS * ctx.fps)), 1)
+    step = max(ctx.clock.frames_in(lb.SAMPLE_SECONDS), 1)
     wanted = [f for f in range(program.frame_start, program.frame_end + 1, step) if not excluded[f]]
     ctx.progress(f"Format d'image : {len(wanted)} image(s) échantillonnée(s)")
     samples: list[LetterboxSample] = []

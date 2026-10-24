@@ -339,6 +339,8 @@ class _Builder:
         prefilter = (f"horizontal {s.prefilter_taps} points, noyau {KERNELS[s.prefilter_taps]} (A VERIFIER : "
                      "EBU R 103 v3.0 recommande 7 coefficients horizontaux et 3 verticaux, non pris en charge)"
                      if s.prefilter_taps else "aucun")
+        # In frames at the rate of this file (the profile may give them in seconds).
+        minimums = {t: p.rules.min_frames(t, self.fps) for t in {*p.rules.min_event_frames, *p.rules.min_event_seconds}}
         out = [
             f"Vidéo : Y légal {s.y_legal[0]}–{s.y_legal[1]} ; Y toléré {number(v.y_tolerance_low_pct)} % / "
             f"{number(v.y_tolerance_high_pct)} % soit {s.y_tolerance[0]}–{s.y_tolerance[1]} ; RVB "
@@ -358,8 +360,8 @@ class _Builder:
             f"dBFS pendant plus de {number(p.audio.silence_max_seconds) if p.audio.silence_max_seconds else '?'} s ; "
             f"phase : corrélation < {number(p.audio.phase_min_correlation, 2)} pendant plus de "
             f"{number(p.audio.phase_min_seconds) if p.audio.phase_min_seconds else '?'} s.",
-            f"Événements : images fusionnées si moins de {p.rules.merge_gap_frames} image(s) les séparent ; durées "
-            f"minimales {', '.join(f'{k} {n}' for k, n in sorted(p.rules.min_event_frames.items()))} ; "
+            f"Événements : images fusionnées si moins de {p.rules.gap_frames(self.fps)} image(s) les séparent ; durées "
+            f"minimales {', '.join(f'{k} {n}' for k, n in sorted(minimums.items()))} ; "
             f"{p.rules.max_major} anomalie(s) majeure(s) tolérée(s) ; score = {p.rules.score_formula}.",
         ]
         return out

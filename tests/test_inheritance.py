@@ -41,11 +41,31 @@ def _values(path: Path) -> dict:
     return {p: v for p, v in leaves(resolve_profile(path).values) if not p.startswith("meta.")}
 
 
+# Phase 6 (Arte 1.2): durations in seconds, from normes/lumiris_maison.yaml. The levels and gamut
+# chains keep the Arte area threshold; their duration is the Lumiris value of 1 s (25 frames at 25 i/s).
+PHASE6_CHANGES = {
+    "rules.merge_gap_seconds": 0.5, "rules.merge_gap_frames": None,
+    "rules.min_event_seconds.freeze": 2.0, "rules.params.levels_major_min_seconds": 1.0,
+}
+PHASE6_REMOVED = {"rules.min_event_frames.freeze"}
+LEVEL_CHAINS = ("rules.severity.white_clip", "rules.severity.black_crush", "rules.severity.gamut")
+
+
 def test_arte_effective_profile_identical_to_v2() -> None:
     old = _values(TEST_PROFILES / "arte_hd_sdr_v1_flat.yaml")
     new = _values(PROFILES / "arte_hd_sdr.yaml")
-    assert {p: v for p, v in new.items() if p not in V3_ADDITIONS} == old
-    assert set(new) - set(old) == V3_ADDITIONS
+    changed = V3_ADDITIONS | set(PHASE6_CHANGES) | set(LEVEL_CHAINS)
+    assert {p: v for p, v in new.items() if p not in changed} == {
+        p: v for p, v in old.items() if p not in PHASE6_REMOVED | set(PHASE6_CHANGES) | set(LEVEL_CHAINS)}
+    assert set(new) - set(old) == V3_ADDITIONS | set(PHASE6_CHANGES) - {"rules.merge_gap_frames"}
+    assert {p: new[p] for p in PHASE6_CHANGES if p in new} == {p: v for p, v in PHASE6_CHANGES.items() if p in new}
+    assert old["rules.merge_gap_frames"] == 12 and old["rules.min_event_frames.freeze"] == 50
+    for chain in LEVEL_CHAINS:
+        (was, *rest_old), (now, *rest_new) = old[chain], new[chain]
+        assert was["if"] == "area_pct_max >= 1 and duration_frames >= 25" and was["source"] == "Arte §3.2.3.3"
+        assert now["if"] == "area_pct_max >= 1 and duration_s >= levels_major_min_seconds"
+        assert now["then"] == "major" and now["source"].startswith("Arte §3.2.3.3 (surface)")
+        assert rest_new == rest_old
 
 
 def test_arte_inherits_and_conflicts() -> None:

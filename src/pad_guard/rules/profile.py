@@ -10,7 +10,9 @@ engine can refuse to run a rule that depends on one (SPEC §9, CLAUDE.md princip
 from __future__ import annotations
 
 import datetime as dt
+import math
 import re
+from fractions import Fraction
 from pathlib import Path
 from typing import Any, Literal
 
@@ -54,8 +56,10 @@ EVENT_TYPES = (
 )
 EventType = Literal[EVENT_TYPES]  # type: ignore[valid-type]
 
-# Event fields usable in severity expressions (SPEC §7.1).
-EVENT_FIELDS = ("duration_frames", "worst_value", "area_pct_max", "threshold", "frame_start", "frame_end")
+# Event fields usable in severity expressions (SPEC §7.1). duration_s is the duration in seconds
+# at the frame rate of the file: a duration written in frames would mean twice less time in 50p.
+EVENT_FIELDS = ("duration_frames", "duration_s", "worst_value", "area_pct_max", "threshold", "frame_start",
+                "frame_end")
 SCORE_FIELDS = ("blocking", "major", "minor", "info")
 
 
@@ -457,15 +461,32 @@ class SeverityRule(_Model):
             raise ValueError("une règle doit être {if: ..., then: ...} ou {else: ...}")
         else:
             try:
-                expr.parse(self.if_, EVENT_FIELDS)
+                expr.parse(self.if_, EVENT_FIELDS + PARAM_NAMES)
             except expr.ExpressionError as exc:
                 raise ValueError(str(exc)) from exc
         return self
 
 
+class RuleParams(_Model):
+    """Named values used by the severity conditions (``rules.params.<name>`` in the profile, the
+    bare name in a condition), so that a value and its source live in one place."""
+
+    levels_major_min_seconds: float | None = Field(default=None, ge=0)
+
+
+PARAM_NAMES = tuple(RuleParams.model_fields)
+
+
 class Rules(_Model):
-    merge_gap_frames: int = Field(ge=0)
-    min_event_frames: dict[EventType, int]  # type: ignore[valid-type]
+    # Ranges of anomalous frames closer than this are one event. In seconds (converted at the frame
+    # rate of the file, rounded down); merge_gap_frames is the older form, in frames.
+    merge_gap_seconds: float | None = Field(default=None, ge=0)
+    merge_gap_frames: int | None = Field(default=None, ge=0)
+    # Minimum duration of an event, by type: in frames (1: a single frame counts) or in seconds
+    # (converted at the frame rate of the file, rounded up).
+    min_event_frames: dict[EventType, int] = Field(default_factory=dict)  # type: ignore[valid-type]
+    min_event_seconds: dict[EventType, float] = Field(default_factory=dict)  # type: ignore[valid-type]
+    params: RuleParams = Field(default_factory=RuleParams)
     max_major: int = Field(ge=0)
     score_formula: str
     severity: dict[EventType, list[SeverityRule]]  # type: ignore[valid-type]
@@ -478,6 +499,27 @@ class Rules(_Model):
         except expr.ExpressionError as exc:
             raise ValueError(str(exc)) from exc
         return v
+
+    @model_validator(mode="after")
+    def _one_form(self) -> Rules:
+        if (self.merge_gap_seconds is None) == (self.merge_gap_frames is None):
+            raise ValueError("rules : indiquer merge_gap_seconds (ou l'ancienne forme merge_gap_frames), pas les deux")
+        both = sorted(set(self.min_event_frames) & set(self.min_event_seconds))
+        if both:
+            raise ValueError(f"rules : durée minimale en images et en secondes pour {', '.join(both)}")
+        return self
+
+    def gap_frames(self, fps: Fraction) -> int:
+        """merge_gap in frames at ``fps`` (rounded down: 0.5 s is 12 frames at 25 frames/s)."""
+        if self.merge_gap_seconds is None:
+            return self.merge_gap_frames
+        return math.floor(Fraction(str(self.merge_gap_seconds)) * fps)
+
+    def min_frames(self, event_type: str, fps: Fraction) -> int:
+        """Minimum duration of an event of this type, in frames at ``fps`` (rounded up)."""
+        if event_type in self.min_event_seconds:
+            return max(1, math.ceil(Fraction(str(self.min_event_seconds[event_type])) * fps))
+        return self.min_event_frames.get(event_type, 1)
 
     @field_validator("severity")
     @classmethod

@@ -28,6 +28,11 @@
 #                      tc_50p.mov / tc_50p.mxf (50p, TC 10:00:00:30, base 50), tc_5994df.mov (59.94p,
 #                      10:00:59;58 drop frame), tc_2997df.mxf (29.97p, 10:00:59;28 drop frame),
 #                      tc_23976.mov (23.976p, 10:00:00:23, base 24).
+#   rate_50p.mov, rate_2997df.mov, rate_23976.mov, rate_5994df.mxf  the arte_ok program (20 s, VO pair as
+#                      2 mono tracks) at 50p, 29.97p (TC 10:00:00;00 drop frame), 23.976p and 59.94p
+#                      (DNxHR HQX, TC 10:00:00;00 drop frame).
+#   bad_levels_50p.mov  ok_prores at 50p with white at Y=975 on frames 600-649 (1 s, 10:00:02:00-10:00:02:49)
+#                      and black at Y=40 on frames 750-774 (0.5 s, 10:00:05:00-10:00:05:24).
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -207,6 +212,20 @@ if need rate24_prores.mov; then
         -vf "scale=out_color_matrix=bt709:out_range=tv,format=yuv422p10le,setparams=field_mode=prog:range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709" \
         -r 24 "${PRORES_HQ[@]}" -timecode 10:00:00:00 "$HERE/rate24_prores.mov"
     echo "  rate24_prores.mov"
+fi
+
+# Other frame rates: the same programs, the sources generated at that rate.
+if need rate_50p.mov || need rate_2997df.mov || need rate_23976.mov || need rate_5994df.mxf; then
+    audio_track "$WORK/rate_vo.wav" pink23:20:11
+fi
+need rate_50p.mov && FPS=50 make_fixture rate_50p.mov 10:00:00:00 "prog:20" "" 1 "${PRORES_HQ[@]}" -- "$WORK/rate_vo.wav"
+need rate_2997df.mov && FPS=30000/1001 make_fixture rate_2997df.mov "10:00:00;00" "prog:20" "" 1 "${PRORES_HQ[@]}" -- "$WORK/rate_vo.wav"
+need rate_23976.mov && FPS=24000/1001 make_fixture rate_23976.mov 10:00:00:00 "prog:20" "" 1 "${PRORES_HQ[@]}" -- "$WORK/rate_vo.wav"
+need rate_5994df.mxf && FPS=60000/1001 make_fixture rate_5994df.mxf "10:00:00;00" "prog:20" "" 1 "${DNXHR_HQX[@]}" -- "$WORK/rate_vo.wav"
+LEVELS50=",lutyuv=y=975:u=512:v=512:enable='between(n,600,649)',lutyuv=y=40:u=512:v=512:enable='between(n,750,774)'"
+if need bad_levels_50p.mov; then
+    [[ -s "$WORK/classic_m23.wav" ]] || audio_track "$WORK/classic_m23.wav" tone:5 silence:5 pink23:10:1
+    FPS=50 make_fixture bad_levels_50p.mov 09:59:50:00 "$CLASSIC" "$LEVELS50" 0 "${PRORES_HQ[@]}" -- "$WORK/classic_m23.wav"
 fi
 
 # Timecode fixtures: FFmpeg writes the base (tmcd number of frames, MXF rounded timecode base)

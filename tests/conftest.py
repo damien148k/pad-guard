@@ -28,6 +28,11 @@ FIXTURE_FILES = (
     "tc_5994df.mov",
     "tc_2997df.mxf",
     "tc_23976.mov",
+    "rate_50p.mov",
+    "rate_2997df.mov",
+    "rate_23976.mov",
+    "rate_5994df.mxf",
+    "bad_levels_50p.mov",
 )
 
 

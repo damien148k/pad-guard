@@ -1,6 +1,6 @@
 """Safe evaluator for the small boolean/arithmetic expressions found in profiles.
 
-Profiles contain expressions such as ``"area_pct_max >= 1 and duration_frames >= 25"``
+Profiles contain expressions such as ``"area_pct_max >= 1 and duration_s >= 1"``
 or ``"100 - 40*blocking - 10*major - 2*minor"``. They are parsed with :mod:`ast` and
 only a whitelist of node types is accepted, so no Python code can be executed.
 """

@@ -66,8 +66,8 @@ structure:
     min_seconds: 2.0
 
 rules:
-  merge_gap_frames: 12
-  min_event_frames: {white_clip: 1, black_crush: 1, gamut: 1, freeze: 50}
+  # merge_gap_seconds et min_event_seconds.freeze : normes/lumiris_maison.yaml
+  min_event_frames: {white_clip: 1, black_crush: 1, gamut: 1}
   max_major: 0
   score_formula: "100 - 40*blocking - 10*major - 2*minor"
   severity:
