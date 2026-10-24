@@ -745,3 +745,52 @@ def test_compare_profiles() -> None:
     assert result.exit_code == 0, result.output
     text = " ".join(result.output.split())
     assert "audio.true_peak_max_dbtp" in text and "différent" in text and "structure.leaders" in text
+
+
+def test_review_without_terminal(review_lab) -> None:
+    """The questions and decisions of review-profile as data (used by the web interface): same profile
+    as the terminal answers of test_review_profile_accept_correct_choose."""
+    from pad_guard.draft import review
+
+    draft_yaml, base, out = review_lab
+    rv = review.load(draft_yaml, base)
+    asked, _ = review.questions(rv)
+    by_path = {q.path: q for q in asked}
+    assert [q.path for q in asked] == ["audio.sample_rate", "audio.loudness.long.integrated_lufs",
+                                       "audio.true_peak_max_dbtp", "structure.timecode.program_start"]
+    conflict = by_path["audio.sample_rate"]
+    assert conflict.status == "CONFLIT" and conflict.candidates and "a" not in conflict.choices
+    implausible = [x for x in conflict.findings if x["status"] == "INVRAISEMBLABLE"]
+    assert implausible and implausible[0]["value"] == 48
+    with pytest.raises(review.ReviewError):
+        review.decide(rv, conflict, "a")
+    review.decide(rv, conflict, "1")
+    review.decide(rv, by_path["audio.loudness.long.integrated_lufs"], "a")
+    with pytest.raises(review.ReviewError):
+        review.corrected(rv, "audio.true_peak_max_dbtp", "pas un nombre")
+    fix = review.corrected(rv, "audio.true_peak_max_dbtp", -3, "1", "le niveau des crêtes")
+    review.decide(rv, by_path["audio.true_peak_max_dbtp"], "c", fix)
+    review.decide(rv, by_path["structure.timecode.program_start"], "v")
+    review.decide(rv, by_path["structure.timecode.program_start"], "a")  # replaces the previous decision
+    assert len(rv.decisions) == 4
+    data, comments = review.build(rv)
+    review.validate(data, "Vincent")
+    resolved, tmp = review.write(rv, out, data, comments)
+    review.finish(tmp, out)
+    r = resolve_profile(out)
+    assert r.profile.audio.sample_rate == 48000 and r.profile.audio.true_peak_max_dbtp == -3.0
+    assert r.profile.meta.validated_by == "Vincent"
+    assert "corrigé à la relecture" in r.origins["audio.true_peak_max_dbtp"].source
+
+
+def test_fill_missing_checks_the_value() -> None:
+    from pad_guard.draft import review
+
+    data = {"format": {"delivery": {"codec": "XDCAM"}}, "sources": {"format.delivery.codec": "p. 8"}}
+    comments: dict[str, str] = {}
+    with pytest.raises(review.ReviewError):
+        review.fill_missing(data, comments, "format.delivery.scan", "diagonal", "doc.pdf")
+    assert review.missing_section(data, "format.delivery.scan") == "format.delivery"
+    review.fill_missing(data, comments, "format.delivery.scan", None, "doc.pdf")
+    assert "delivery" not in data["format"] and not data["sources"]
+    assert review.missing_section(data, "format.delivery.fps") is None
