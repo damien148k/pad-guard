@@ -184,3 +184,98 @@ def test_pdf_match_by_fingerprint(lab, lab_client, tmp_path) -> None:
     other = tmp_path / "note.txt"
     other.write_text("x", encoding="utf-8")
     assert lab_client.post("/api/pdf-match", json={"path": str(other)}).status_code == 400
+
+
+# --- background analysis ------------------------------------------------------------------------
+
+import json as _json  # noqa: E402
+
+from pad_guard import workdir as wd  # noqa: E402
+from pad_guard.ui import jobs as jobs_mod  # noqa: E402
+
+
+@pytest.fixture
+def analyses(lab, lab_client, tmp_path) -> Path:
+    root = tmp_path / "analyses"
+    lab_client.put("/api/settings", json={"analyses_root": str(root)})
+    return root
+
+
+@pytest.mark.fixtures
+def test_analysis_runs_the_cli_in_the_background(lab, lab_client, analyses, fixtures_dir) -> None:
+    film = fixtures_dir / "bad_levels.mov"
+    body = {"master": str(film), "profile": "test_classic", "audio_map": None, "llm": False}
+    plan = lab_client.post("/api/jobs/analyze/preview", json=body).json()
+    assert plan["problems"] == [] and plan["command"].startswith("pad-guard analyze ")
+    assert Path(plan["workdir"]).parent == analyses and re.fullmatch(r"bad_levels_\d{8}-\d{4}", Path(plan["workdir"]).name)
+    first = lab_client.post("/api/jobs/analyze", json=body).json()
+    assert first["state"] == "running" and first["kind"] == "analyze"
+    second = lab_client.post("/api/jobs/analyze", json=body)
+    assert second.status_code == 409 and "déjà en cours" in second.json()["error"]  # one job at a time
+    job = lab.extra["jobs"].wait()
+    snap = lab_client.get("/api/jobs/current").json()
+    assert job.state == "done" and snap["state"] == "done" and snap["exit_code"] == 4
+    assert snap["result"]["status"] == "NON-CONFORME" and snap["pct"] == 100.0
+    assert [s["state"] for s in snap["stages"]] == ["done"] * 6
+    assert snap["journal"][-1]["msg"] == "terminé · verdict calculé par les règles : NON-CONFORME"
+    work = Path(snap["workdir"])
+    run = _json.loads((work / wd.RUN).read_text(encoding="utf-8"))
+    assert run["command"].startswith("pad-guard analyze") and run["finished_at"]
+    assert (work / wd.REPORT_JSON).is_file() and (work / wd.REPORT_PDF).is_file()
+    assert _json.loads((work / "ui_job.json").read_text(encoding="utf-8"))["state"] == "done"
+    # The stream sends the final state then closes.
+    with lab_client.stream("GET", "/api/jobs/current/events") as r:
+        data = [line for line in r.iter_lines() if line.startswith("data: ")]
+    assert _json.loads(data[-1][6:])["state"] == "done"
+
+
+@pytest.mark.fixtures
+def test_cancel_kills_the_whole_analysis(lab, lab_client, analyses, fixtures_dir) -> None:
+    body = {"master": str(fixtures_dir / "arte_4tracks.mov"), "profile": "arte_hd_sdr",
+            "audio_map": "VO:1-2,VF:3-4", "llm": False}
+    started = lab_client.post("/api/jobs/analyze", json=body).json()
+    pid = lab.extra["jobs"].current().pid
+    snap = lab_client.post("/api/jobs/current/cancel").json()
+    assert started["state"] == "running" and snap["state"] == "cancelled"
+    for _ in range(50):
+        if not jobs_mod.pid_alive(pid):
+            break
+        import time
+
+        time.sleep(0.1)
+    assert not jobs_mod.pid_alive(pid)
+    assert "annulé" in snap["journal"][-1]["msg"]
+    assert not (Path(snap["workdir"]) / wd.VERDICT).exists()
+
+
+def test_job_found_again_after_a_restart(tmp_path) -> None:
+    directory = tmp_path / "taches"
+    directory.mkdir()
+    progress = tmp_path / "progression.jsonl"
+    progress.write_text('{"t": 0, "stage": "probe", "msg": "Lecture"}\n', encoding="utf-8")
+    record = dict(id="j1", kind="analyze", title="film", args=[], command="pad-guard analyze film", progress_file=str(progress),
+                  log_dir=str(directory), state="running", pid=999999, started=0.0)
+    (directory / "j1.json").write_text(_json.dumps(record), encoding="utf-8")
+    job = jobs_mod.JobManager(directory).current()
+    assert job.state == "interrupted"  # its process is gone without the end line
+    snap = jobs_mod.snapshot(job)
+    assert snap["stages"][0]["state"] == "failed" and "interrompu" in snap["journal"][-1]["msg"]
+    progress.write_text(progress.read_text(encoding="utf-8") + '{"t": 9, "stage": "done", "msg": "CONFORME", '
+                        '"status": "CONFORME", "indicative": false}\n', encoding="utf-8")
+    record["id"] = "j2"
+    (directory / "j2.json").write_text(_json.dumps(record), encoding="utf-8")
+    assert jobs_mod.JobManager(directory).current().state == "done"
+
+
+def test_launch_refused_when_preflight_fails(lab, lab_client, analyses, tmp_path) -> None:
+    film = tmp_path / "film.mov"
+    film.write_bytes(b"0")
+    profile = lab.root / "profiles" / "test_classic.yaml"
+    profile.write_text(profile.read_text(encoding="utf-8").replace("silence_max_seconds:", "silence_max_seconds: null #"),
+                       encoding="utf-8")
+    body = {"master": str(film), "profile": "test_classic"}
+    plan = lab_client.post("/api/jobs/analyze/preview", json=body).json()
+    assert any("audio.silence_max_seconds" in x for x in plan["problems"])
+    r = lab_client.post("/api/jobs/analyze", json=body)
+    assert r.status_code == 400 and "profil incomplet" in r.json()["error"]
+    assert not any(analyses.glob("film_*"))

@@ -61,19 +61,18 @@ async def get_profiles(request: Request) -> Response:
     return JSONResponse({"profiles": profiles, "drafts": list_drafts(ctx, profiles)})
 
 
-async def current_job(_: Request) -> Response:
-    return JSONResponse(None)
-
-
 def routes() -> list:
-    from pad_guard.ui import prepare  # noqa: PLC0415
+    from pad_guard.ui import analysis, prepare  # noqa: PLC0415
 
     return [
         *prepare.routes(),
+        *analysis.routes(),
         Route("/api/profiles", get_profiles),
-        Route("/api/jobs/current", current_job),
     ]
 
 
 def start(ctx: Context) -> None:
-    """Services of the API (none yet)."""
+    """Services of the API: the background jobs."""
+    from pad_guard.ui import analysis  # noqa: PLC0415
+
+    analysis.start(ctx)

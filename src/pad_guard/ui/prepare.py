@@ -8,6 +8,7 @@ SHA-256 of the source (read by the analysis itself); the audio map is checked by
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from fractions import Fraction
@@ -99,7 +100,8 @@ def _ref(resolved: ResolvedProfile, path: str) -> str:
     if o is None:
         return ""
     if o.source:
-        return o.source.split(" : ")[0]
+        short = re.split(r" : | « |, « ", o.source)[0]
+        return short if len(short) <= 48 else short[:47] + "…"
     return o.file
 
 
@@ -133,7 +135,9 @@ def requirements(resolved: ResolvedProfile) -> list[dict]:
         if not present:
             rows.append({"label": label, "value": "non renseigné", "ref": "A VERIFIER", "paths": paths})
             continue
-        if paths[0] == "format.width":
+        if paths[0] == "format.codecs":
+            value = ", ".join(f"{c.get('codec_name')} {c.get('profile') or ''}".strip() for c in flat[paths[0]])
+        elif paths[0] == "format.width":
             value = f"{flat.get('format.width')} × {flat.get('format.height')} · {_show(flat.get('format.fps_allowed'))} i/s"
         elif paths[0] == "audio.loudness.long.integrated_lufs":
             value = f"{_show(flat[paths[0]])} LUFS ± {_show(flat.get(paths[1]))} LU"
@@ -192,7 +196,7 @@ def probe_preview(ctx: Context, master: str, profile: str) -> dict:
         "accepted": r.accepted, "refusal_reasons": r.refusal_reasons,
         "key_cells": [["Conteneur", r.container.kind.upper()], ["Codec", codec],
                       ["Résolution", f"{v.width} × {v.height} · {rate}"], ["Durée", duration]],
-        "rows": [["Fichier", info["name"]], ["Taille", info["size"]], ["Conteneur", r.container.format_name],
+        "rows": [["Fichier", info["name"]], ["Taille", info["size"]], ["Conteneur", f"{r.container.kind.upper()} ({r.container.format_name.split(',')[0]})"],
                  ["Codec vidéo", codec], ["Échantillonnage", v.pix_fmt or "?"], ["Résolution", f"{v.width} × {v.height}"],
                  ["Cadence", rate], ["Balayage (drapeau)", v.field_order or "absent"], ["Colorimétrie", colour],
                  ["Durée", f"{duration} ({v.nb_frames} images)" if v.nb_frames else duration],

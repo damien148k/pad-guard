@@ -367,7 +367,7 @@ def _measure(result: ProbeResult, prof: Profile, out: Path, workers: int, pf: Pr
         ) as bar:
             task = bar.add_task("images", total=total)
             pf = pf or ProgressFile(None)
-            pf.emit("measure_video", done=0, total=total)
+            pf.emit("measure_video", "Mesures image : niveaux, gamut, différences entre images", done=0, total=total)
 
             def on_frames(done: int) -> None:
                 bar.update(task, completed=done)
