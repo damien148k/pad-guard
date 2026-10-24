@@ -124,7 +124,7 @@ def _find_bars(ctx: _Context, patterns: list[str], tolerance: float) -> list[Bar
     found = []
     for frame in read_frames(ctx.need_source("la recherche de mire"), middles, ctx.probe.video.stream_index,
                              ctx.picture):
-        pattern, error = bars_mod.best_pattern(frame, patterns)
+        pattern, error = bars_mod.best_pattern(frame, patterns, ctx.profile.format.color_space)
         if error <= tolerance:
             a, b = middles[frame.index]
             found.append(BarsRange(frame_start=a, frame_end=b, pattern=pattern, tested_frame=frame.index, error=error))

@@ -22,7 +22,9 @@ Empreintes : SHA-256 du fichier tel qu'il a été rangé le 23 octobre 2026.
 | `AUDIO/Recommendation ITU-R BS.1770-5 (11_2023) Algorithms to measure audio programme loudness and true-peak audio level.pdf` | ITU-R BS.1770-5 | 11/2023 | UIT (itu.int, gratuit) | `615c01958eb5b4eda821c55da77c89376acb782b4a1fef89ccd1f3d7aaf1f857` |
 | `AUDIO/RECOMMENDATION ITU-R BS.1770-2 - Algorithms to measure audio programme loudness and true-peak audio level.pdf` | ITU-R BS.1770-2 (remplacée par -5) | 03/2011 | UIT | `9ec1e156649e1005a3129047d3d160ba86fc6f04fd242fb8327749a1d7921a8e` |
 
-## TV — utilisé par `normes/ebu_r103.yaml` (R103) ; les autres serviront aux phases 6 et 7
+## TV — utilisé par `normes/ebu_r103.yaml` (R103) et `normes/itu_bt709.yaml` (BT.709) ; BT.2100 (plage pleine) par le décodage ; les autres serviront à la phase 7
+
+**Manque : ITU-R BT.601** (SD, matrice Kr 0,299 / Kb 0,114). Les coefficients usuels sont utilisés en attendant (`formats.MATRICES`, marqués A VERIFIER) : ajouter le PDF (gratuit à l'UIT) dans `TV/` et sa ligne ici.
 
 | Fichier | Document | Version | Origine | SHA-256 |
 |---|---|---|---|---|

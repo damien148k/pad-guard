@@ -54,15 +54,19 @@ def cell_means(y: np.ndarray, cb: np.ndarray, cr: np.ndarray) -> np.ndarray:
     return out
 
 
+# FFmpeg scale out_color_matrix names of the matrices of formats.MATRICES.
+_FFMPEG_MATRIX = {"bt709": "bt709", "bt470bg": "bt470bg", "smpte170m": "smpte170m"}
+
+
 @lru_cache(maxsize=None)
-def reference(pattern: str, width: int, height: int) -> np.ndarray:
-    """Cell means of the FFmpeg bars ``pattern`` at this size, 4:2:2 10-bit BT.709 legal range."""
+def reference(pattern: str, width: int, height: int, matrix: str = "bt709") -> np.ndarray:
+    """Cell means of the FFmpeg bars ``pattern`` at this size, 4:2:2 10-bit legal range, in ``matrix``."""
     exe = shutil.which("ffmpeg")
     if exe is None:
         raise BarsError("ffmpeg introuvable : installer FFmpeg 6+ et l'ajouter au PATH.")
     proc = subprocess.run(
         [exe, "-v", "error", "-nostdin", "-f", "lavfi", "-i", f"{PATTERNS[pattern]}=s={width}x{height}:r=1:d=1",
-         "-frames:v", "1", "-vf", "scale=out_color_matrix=bt709:out_range=tv,format=yuv422p10le",
+         "-frames:v", "1", "-vf", f"scale=out_color_matrix={_FFMPEG_MATRIX[matrix]}:out_range=tv,format=yuv422p10le",
          "-f", "rawvideo", "-"],
         capture_output=True,
     )
@@ -77,16 +81,16 @@ def reference(pattern: str, width: int, height: int) -> np.ndarray:
     return cell_means(y, cb, cr)
 
 
-def bars_error(frame: VideoFrame, pattern: str) -> float:
+def bars_error(frame: VideoFrame, pattern: str, matrix: str = "bt709") -> float:
     """Median absolute cell error against ``pattern``, worst plane, in 10-bit code values."""
     frame = frame.as_422_10()
     h, w = frame.y.shape
-    diff = np.abs(cell_means(frame.y, frame.cb, frame.cr) - reference(pattern, w, h))
+    diff = np.abs(cell_means(frame.y, frame.cb, frame.cr) - reference(pattern, w, h, matrix))
     return round(float(max(np.median(diff[p]) for p in range(3))), 3)
 
 
-def best_pattern(frame: VideoFrame, patterns: list[str]) -> tuple[str, float]:
-    errors = [(bars_error(frame, p), p) for p in patterns]
+def best_pattern(frame: VideoFrame, patterns: list[str], matrix: str = "bt709") -> tuple[str, float]:
+    errors = [(bars_error(frame, p, matrix), p) for p in patterns]
     error, pattern = min(errors)
     return pattern, error
 

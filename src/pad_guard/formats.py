@@ -50,9 +50,16 @@ FAMILIES: tuple[str, ...] = ("ProRes (Proxy à 4444 XQ)", "DNxHD / DNxHR (LB à 
 
 CONTAINERS: tuple[str, ...] = ("MOV", "MP4", "MXF")
 
-# Luma coefficients (Kr, Kb) of the colour matrices: definitions, not thresholds.
+# Luma coefficients (Kr, Kb) of the colour matrices, by ffprobe color_space: definitions, not thresholds.
 # ITU-R BT.709-6, part 2, item 3.2: « E'Y = 0.2126 E'R + 0.7152 E'G + 0.0722 E'B ».
-MATRICES: dict[str, tuple[float, float]] = {"bt709": (0.2126, 0.0722)}
+# SD (bt470bg: 625 lines, smpte170m: 525 lines): ITU-R BT.601 E'Y = 0.299 E'R + 0.587 E'G + 0.114 E'B.
+# A VERIFIER : BT.601 n'est pas encore dans normes/sources/TV (source à ajouter, décision de Damien
+# du 24/10/2026 : coefficients usuels en attendant).
+MATRICES: dict[str, tuple[float, float]] = {
+    "bt709": (0.2126, 0.0722),
+    "bt470bg": (0.299, 0.114),
+    "smpte170m": (0.299, 0.114),
+}
 
 
 def rate_label(fps: Fraction) -> str:

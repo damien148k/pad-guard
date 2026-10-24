@@ -307,6 +307,21 @@ need h264_lgop.mp4 && SIZE=1280x720 make_fixture h264_lgop.mp4 10:00:00:00 "prog
     -c:v libx264 -pix_fmt yuv420p -g 25 -bf 2 -- "$WORK/flash.wav"
 need hevc_lgop.mp4 && SIZE=1280x720 make_fixture hevc_lgop.mp4 10:00:00:00 "prog:4" "" 0 \
     -c:v libx265 -pix_fmt yuv420p10le -x265-params log-level=error:keyint=25 -- "$WORK/flash.wav"
+# SD: 625 lines, 16:9 anamorphic (pixels 64:45), BT.601 matrix (bt470bg), 25i top field first, ProRes;
+# and DV PAL (4:2:0 8 bits, bottom field first).
+SD601="scale=720:576:out_color_matrix=bt470bg:out_range=tv,format=yuv422p10le,setsar=64/45"
+if need sd_pal_169.mov; then
+    "${FF[@]}" -f lavfi -i "testsrc2=s=1024x576:r=25:d=2" \
+        -vf "$SD601,setparams=field_mode=tff:range=tv:color_primaries=bt470bg:color_trc=bt709:colorspace=bt470bg" \
+        "${PRORES_HQ[@]}" -flags +ildct -timecode 10:00:00:00 "$HERE/sd_pal_169.mov"
+    echo "  sd_pal_169.mov"
+fi
+if need sd_dv.mov; then
+    "${FF[@]}" -f lavfi -i "testsrc2=s=720x576:r=25:d=2" \
+        -vf "scale=out_color_matrix=bt470bg:out_range=tv,format=yuv420p,setparams=field_mode=bff:range=tv:colorspace=bt470bg" \
+        -c:v dvvideo -timecode 10:00:00:00 "$HERE/sd_dv.mov"
+    echo "  sd_dv.mov"
+fi
 # Resolutions: UHD letterboxed to 2.39 (3840x1608 active), 4K DCI full frame (4096x2160), 10 frames each.
 if need fmt_uhd_239.mov; then
     "${FF[@]}" -f lavfi -i "testsrc2=s=3840x1608:r=25:d=0.4" \

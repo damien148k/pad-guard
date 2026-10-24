@@ -47,6 +47,8 @@ FIXTURE_FILES = (
     "xdcam_hd422.mxf",
     "h264_lgop.mp4",
     "hevc_lgop.mp4",
+    "sd_pal_169.mov",
+    "sd_dv.mov",
 )
 
 
