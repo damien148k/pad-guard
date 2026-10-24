@@ -9,7 +9,7 @@
 #   - EBU R 128 (normes/ebu_r128.yaml) : p. 7 « conformes à la norme R128 »
 #
 # Champs pour lesquels le document renvoie à une norme sans écrire la valeur (absents : hérités de la
-# norme, donc plafonnés à minor, sauf si le relecteur saisit la valeur avec la citation du renvoi) :
+# norme : exigences du client si review-profile confirme le renvoi, sinon recommandations plafonnées à minor) :
 #   - audio.loudness.method -> ebu_r128 (p. 7) « conformes à la norme R128 »
 #
 # Champs non trouvés dans le document (absents : hérités d'une norme, donc plafonnés à minor, ou à fixer) :

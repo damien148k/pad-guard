@@ -9,7 +9,7 @@ samples/
 tests/fixtures/*.mov
 tests/fixtures/*.mxf
 tests/fixtures/_work/
-recette/
+/recette/
 # source documents: large, partly under licence (see the README.md of each folder)
 normes/sources/*
 !normes/sources/README.md
