@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import math
 from collections import Counter
+from fractions import Fraction
 
 import numpy as np
 
@@ -42,6 +43,20 @@ def lines(s: LetterboxSample) -> int:
 
 def pixels(s: LetterboxSample) -> int:
     return s.right - s.left + 1
+
+
+def aspect(s: LetterboxSample, sar: Fraction = Fraction(1)) -> float:
+    """Picture aspect ratio of the active area (width / height), with the pixel aspect ratio."""
+    return round(float(pixels(s) * sar / lines(s)), 2)
+
+
+def sar_of(text: str | None) -> Fraction:
+    """'4:3' -> 4/3; absent or unreadable: square pixels."""
+    try:
+        num, den = (int(x) for x in (text or "1:1").split(":"))
+        return Fraction(num, den) if num > 0 and den > 0 else Fraction(1)
+    except ValueError:
+        return Fraction(1)
 
 
 def classify(s: LetterboxSample, spec: Letterbox, tolerance: int) -> str | None:

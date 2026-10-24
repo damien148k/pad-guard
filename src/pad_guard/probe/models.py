@@ -47,6 +47,7 @@ class VideoInfo(BaseModel):
     alpha: bool = False
     width: int
     height: int
+    sar: str | None = None  # sample (pixel) aspect ratio "num:den"; None: not given (square pixels)
     r_frame_rate: str
     avg_frame_rate: str
     fps: str | None = None  # r_frame_rate as an exact reduced fraction ("25/1", "30000/1001"); None: unreadable

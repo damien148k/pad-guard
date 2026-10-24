@@ -328,23 +328,34 @@ def _letterbox(ctx: _Context, program: FrameRange, excluded: np.ndarray) -> Lett
             samples.append(area)
     dom, share = lb.dominant(samples, tolerance)
     matched = None if dom is None else lb.classify(dom, spec, tolerance)
-    expected = ", ".join(f"{f.aspect} ({f.active_lines} lignes × {f.active_pixels} px)" for f in spec.formats)
+    sar = lb.sar_of(ctx.probe.video.sar)
+    ratio = None if dom is None else lb.aspect(dom, sar)
+    if spec.formats:
+        expected = ", ".join(f"{f.aspect} ({f.active_lines} lignes × {f.active_pixels} px)" for f in spec.formats)
+        expected = f"{expected}, ± {tolerance}"
+    else:  # no format required by the profile: the active area is recorded, nothing is compared
+        expected = "relevé seulement (aucun format imposé par le profil)"
     if dom is None:
         actual, status = "aucune image exploitable", "unknown"
     else:
         actual = (f"{lb.lines(dom)} lignes (lignes {dom.top} à {dom.bottom}) × {lb.pixels(dom)} px "
-                  f"(colonnes {dom.left} à {dom.right}), {_fmt(share, 0)} % des échantillons dans cette zone"
-                  + (f" : format {matched}" if matched else " : aucun format du profil"))
-        status = "ok" if matched else "fail"
+                  f"(colonnes {dom.left} à {dom.right}), {_fmt(share, 0)} % des échantillons dans cette zone")
+        if spec.formats:
+            actual += f" : format {matched}" if matched else " : aucun format du profil"
+            status = "ok" if matched else "fail"
+        else:
+            pixel = f", pixels {sar.numerator}:{sar.denominator}" if sar != 1 else ""
+            actual += f" : format {_fmt(ratio, 2)}{pixel}"
+            status = "ok"
     ctx.check(id="letterbox", label="Format d'image (lignes et pixels actifs)", type="letterbox",
-              expected=f"{expected}, ± {tolerance}", actual=actual, status=status,
+              expected=expected, actual=actual, status=status,
               frame_start=program.frame_start, frame_end=program.frame_end)
     changes = [
         f"{fmt or 'format hors profil'} de {ctx.clock.tc(a)} à {ctx.clock.tc(b)} ({n} échantillons)"
         for a, b, fmt, n in (lb.format_changes(samples, spec, tolerance, dom) if dom else [])
     ]
     return LetterboxSummary(sample_seconds=lb.SAMPLE_SECONDS, samples=samples, dominant=dom,
-                            dominant_share_pct=share, matched_format=matched, changes=changes)
+                            dominant_share_pct=share, dominant_aspect=ratio, matched_format=matched, changes=changes)
 
 
 # --- entry point --------------------------------------------------------------------------

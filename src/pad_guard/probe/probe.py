@@ -164,6 +164,7 @@ def _video(stream: dict[str, Any]) -> VideoInfo:
         sampling=pixel.get("sampling"),
         alpha=pixel.get("alpha", False),
         width=_int(stream.get("width")) or 0,
+        sar=None if _clean(stream.get("sample_aspect_ratio")) in (None, "0:1") else stream.get("sample_aspect_ratio"),
         height=_int(stream.get("height")) or 0,
         r_frame_rate=stream.get("r_frame_rate", "0/0"),
         avg_frame_rate=stream.get("avg_frame_rate", "0/0"),

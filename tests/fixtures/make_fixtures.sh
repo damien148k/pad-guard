@@ -280,6 +280,19 @@ if need fmt_dnxhr444_rgb.mov; then
         -c:v dnxhd -profile:v dnxhr_444 -pix_fmt gbrp10le -timecode 10:00:00:00 "$HERE/fmt_dnxhr444_rgb.mov"
     echo "  fmt_dnxhr444_rgb.mov"
 fi
+# Resolutions: UHD letterboxed to 2.39 (3840x1608 active), 4K DCI full frame (4096x2160), 10 frames each.
+if need fmt_uhd_239.mov; then
+    "${FF[@]}" -f lavfi -i "testsrc2=s=3840x1608:r=25:d=0.4" \
+        -vf "pad=3840:2160:0:276:black,format=yuv422p10le,setparams=field_mode=prog:range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709" \
+        "${PRORES_HQ[@]}" -timecode 10:00:00:00 "$HERE/fmt_uhd_239.mov"
+    echo "  fmt_uhd_239.mov"
+fi
+if need fmt_dci4k.mov; then
+    "${FF[@]}" -f lavfi -i "testsrc2=s=4096x2160:r=24:d=0.42" \
+        -vf "format=yuv422p10le,setparams=field_mode=prog:range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709" \
+        "${PRORES_HQ[@]}" -timecode 10:00:00:00 "$HERE/fmt_dci4k.mov"
+    echo "  fmt_dci4k.mov"
+fi
 
 # Timecode fixtures: FFmpeg writes the base (tmcd number of frames, MXF rounded timecode base)
 # and the drop frame flag from the rate and the separator of -timecode.

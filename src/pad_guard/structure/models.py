@@ -75,6 +75,7 @@ class LetterboxSummary(BaseModel):
     samples: list[LetterboxSample]
     dominant: LetterboxSample | None
     dominant_share_pct: float
+    dominant_aspect: float | None = None  # width / height of the dominant area, pixel aspect ratio included
     matched_format: str | None
     changes: list[str]  # French, information only (SPEC §6.5)
 

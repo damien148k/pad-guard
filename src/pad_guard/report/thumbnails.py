@@ -20,7 +20,11 @@ from pad_guard.measure.models import VideoSettings
 from pad_guard.measure.video import CHROMA_ZERO, VideoLimits, out_of_range_masks
 from pad_guard.rules.models import Event
 
-SCALE = 3  # 1920x1080 -> 640x360
+WIDTH = 640  # thumbnails about 640 pixels wide: 1920 / 3, 3840 / 6, 720 / 1
+
+
+def scale_for(width: int) -> int:
+    return max(1, round(width / WIDTH))
 PAINT = {"y_above": (255, 32, 32), "y_below": (40, 110, 255), "rgb_out": (255, 0, 255)}
 MASKS_BY_TYPE = {"white_clip": ("y_above",), "black_crush": ("y_below",), "gamut": ("rgb_out",)}
 
@@ -44,26 +48,27 @@ def to_rgb8(frame: VideoFrame, limits: VideoLimits) -> np.ndarray:
     return np.clip(np.rint(rgb), 0, 255).astype(np.uint8)
 
 
-def _shrink(rgb: np.ndarray) -> np.ndarray:
-    h, w = rgb.shape[0] // SCALE * SCALE, rgb.shape[1] // SCALE * SCALE
-    blocks = rgb[:h, :w].reshape(h // SCALE, SCALE, w // SCALE, SCALE, 3).astype(np.uint32)
-    return ((blocks.sum(axis=(1, 3)) + SCALE * SCALE // 2) // (SCALE * SCALE)).astype(np.uint8)
+def _shrink(rgb: np.ndarray, k: int) -> np.ndarray:
+    h, w = rgb.shape[0] // k * k, rgb.shape[1] // k * k
+    blocks = rgb[:h, :w].reshape(h // k, k, w // k, k, 3).astype(np.uint32)
+    return ((blocks.sum(axis=(1, 3)) + k * k // 2) // (k * k)).astype(np.uint8)
 
 
-def _shrink_mask(mask: np.ndarray) -> np.ndarray:
-    h, w = mask.shape[0] // SCALE * SCALE, mask.shape[1] // SCALE * SCALE
-    return mask[:h, :w].reshape(h // SCALE, SCALE, w // SCALE, SCALE).any(axis=(1, 3))
+def _shrink_mask(mask: np.ndarray, k: int) -> np.ndarray:
+    h, w = mask.shape[0] // k * k, mask.shape[1] // k * k
+    return mask[:h, :w].reshape(h // k, k, w // k, k).any(axis=(1, 3))
 
 
 def render(frame: VideoFrame, limits: VideoLimits, event_type: str) -> np.ndarray:
-    picture = _shrink(to_rgb8(frame.as_422_10(), limits))  # the masks below use the frame as measured
+    k = scale_for(frame.y.shape[1])
+    picture = _shrink(to_rgb8(frame.as_422_10(), limits), k)  # the masks below use the frame as measured
     names = MASKS_BY_TYPE.get(event_type)
     if not names:
         return picture
     masks = out_of_range_masks(frame, limits)
     painted = (picture // 2).astype(np.uint8)  # dimmed, so that the paint stands out
     for name in names:
-        painted[_shrink_mask(masks[name])] = PAINT[name]
+        painted[_shrink_mask(masks[name], k)] = PAINT[name]
     gap = np.full((picture.shape[0], 8, 3), 255, np.uint8)
     return np.concatenate([picture, gap, painted], axis=1)
 
