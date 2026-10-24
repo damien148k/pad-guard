@@ -168,7 +168,7 @@ def depends_on(d: Draft, loudness_set: str) -> tuple[str, ...]:
         "scan_interlaced": ("format.field_order", "video.scan_detection"),
     }
     paths = by_type.get(d.type, ())
-    if d.type == "format" and d.check_id:
+    if d.type.startswith("format") and d.check_id:
         paths = _CHECK_VALUES.get(d.check_id) or next(
             (v for prefix, v in _CHECK_PREFIX_VALUES if d.check_id.startswith(prefix)), ())
     return (f"rules.severity.{d.type}", *paths)
@@ -179,6 +179,8 @@ _CHECK_VALUES: dict[str, tuple[str, ...]] = {
     "container": ("format.containers",),
     "codec": ("format.codecs",),
     "pix_fmt": ("format.pix_fmt",),
+    "bit_depth": ("format.bit_depth_allowed",),
+    "chroma": ("format.chroma_allowed",),
     "resolution": ("format.width", "format.height"),
     "frame_rate": ("format.fps_allowed",),
     "field_order": ("format.field_order",),
@@ -557,7 +559,7 @@ class Engine:
         assert set(env) == set(EVENT_FIELDS)
         params = self.p.rules.params.model_dump()
         defined = {k: v for k, v in {**env, **params}.items() if v is not None}
-        for rule in self.p.rules.severity[d.type]:
+        for rule in self.p.rules.chain(d.type):
             if rule.else_ is not None:
                 return rule.else_, rule.source
             try:
@@ -579,7 +581,7 @@ class Engine:
         kind = self.loudness_rules()[0] if self.m.audio is not None else "long"
         # Named values of rules.params used by the severity chain count like the other values.
         params = tuple(f"rules.params.{name}" for name in PARAM_NAMES
-                       if any(r.if_ and re.search(rf"\b{name}\b", r.if_) for r in self.p.rules.severity[d.type]))
+                       if any(r.if_ and re.search(rf"\b{name}\b", r.if_) for r in self.p.rules.chain(d.type)))
         files = sorted({f for p, f in self.norm_values.items()
                         for dep in depends_on(d, kind) + params if p == dep or p.startswith(dep + ".")})
         if not files:
@@ -591,7 +593,7 @@ class Engine:
         return severity, f"NORME ({names}) : valeur absente du document du client (règle : {source})"
 
     def run(self) -> tuple[list[Event], Verdict]:
-        missing = sorted(t for t in self.possible_types() if t not in self.p.rules.severity)
+        missing = sorted(t for t in self.possible_types() if self.p.rules.chain(t) is None)
         if missing:
             raise RulesError(
                 "le profil n'a pas de gravité pour : " + ", ".join(f"rules.severity.{t}" for t in missing)

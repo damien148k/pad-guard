@@ -30,8 +30,10 @@ class ProfileRef(BaseModel):
 
 class ContainerInfo(BaseModel):
     format_name: str
-    kind: Literal["mov", "mxf", "other"]
+    kind: Literal["mov", "mp4", "mxf", "other"]
     duration_s: float | None
+    # MXF operational pattern (SMPTE ST 377-1), from the operational_pattern_ul tag; None: not MXF.
+    mxf_pattern: Literal["op1a", "opatom", "other"] | None = None
 
 
 class VideoInfo(BaseModel):
@@ -39,6 +41,10 @@ class VideoInfo(BaseModel):
     codec_name: str
     profile: str | None
     pix_fmt: str | None
+    # Described from pix_fmt (formats.pixel_info); None: unknown layout.
+    bit_depth: int | None = None
+    sampling: Literal["4:2:0", "4:2:2", "4:4:4", "rgb"] | None = None
+    alpha: bool = False
     width: int
     height: int
     r_frame_rate: str

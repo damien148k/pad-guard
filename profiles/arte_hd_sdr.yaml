@@ -11,6 +11,13 @@
 #                      est un choix de regroupement Lumiris de normes/lumiris_maison.yaml, pas une
 #                      exigence d'Arte : le §3.2.3.3 ne fixe que la surface (1 %). Le seuil de
 #                      surface reste cité d'Arte.
+#                    - Codecs acceptés : la liste du §3.2.2.2 (« Formats pour les éléments de
+#                      productions »), chacun cité, au lieu des codecs du master Lumiris (le client
+#                      fait foi, décision de Damien du 24/10/2026). La mention « DNX HR/HQ … 10bit »
+#                      du §3.2.2.2 est contradictoire (DNxHR HQ est un codec 8 bits) : gardée telle
+#                      que citée, A VERIFIER (question à poser à Arte). Le débit (184 Mbps, 112 Mbps)
+#                      n'est pas contrôlé.
+#                    - pix_fmt remplacé par bit_depth_allowed et chroma_allowed (§3.1, même citation).
 #                    - merge_gap et la durée minimale des images figées viennent de
 #                      normes/lumiris_maison.yaml, en secondes (0,5 s et 2 s : les mêmes 12 et 50
 #                      images qu'avant en 25 i/s).
@@ -51,8 +58,9 @@ meta:
   source_document: "Consignes Techniques Globales ARTE G.E.I.E. V2-01-03 (septembre 2026)"
   notes: >
     Le PAD final Arte est un MXF OP1a XAVC HD Intra Class 100 (§3.2.2.1), fabriqué par le
-    prestataire à partir du master ProRes 422 HQ livré par Lumiris. Ce profil contrôle ce master
-    avec les règles du PAD (niveaux, structure, timecode, audio) ; seul le codec attendu diffère.
+    prestataire à partir du master livré par Lumiris. Ce profil contrôle ce master avec les règles
+    du PAD (niveaux, structure, timecode, audio) ; les codecs acceptés sont ceux que le §3.2.2.2
+    préconise pour les éléments de production.
     Les paragraphes cités sont ceux de la V2-01-03 (septembre 2026), le PDF rangé dans
     diffuseurs/ ; le profil a été construit sur la V2-01-00, dont la V2-01-03 garde la
     numérotation et le texte des paragraphes cités (voir l'historique en tête de fichier).
@@ -64,11 +72,15 @@ meta:
   source_pdf_sha256: 2939fd0b530040a42e0305f2c80ea3d9f28c451020bfaf6662cd1c06e935abf0
 
 format:
-  codecs:
-    - {codec_name: prores, profile: "HQ"}            # master interne, voir notes
-    - {codec_name: dnxhd, profile: "DNXHR HQX"}      # master interne, voir notes
+  codecs:                                            # §3.2.2.2, ordre préférentiel d'Arte (HD)
+    - {codec_name: h264, profile: "High 4:2:2 Intra", label: "XAVC HD Intra Class 100 CBG"}
+    - {codec_name: dnxhd, profile: "DNXHD", label: "DNX HD 185"}
+    - {codec_name: prores, profile: "HQ", label: "ProRes HQ"}
+    - {codec_name: h264, profile: "High 4:2:2 Intra", label: "AVC-Intra 100"}
+    - {codec_name: dnxhd, profile: "DNXHR HQ", label: "DNX HR/HQ"}   # A VERIFIER : « DNX HR/HQ … 10bit », DNxHR HQ est en 8 bits
   containers: [mov, mxf]
-  pix_fmt: yuv422p10le
+  bit_depth_allowed: [10]
+  chroma_allowed: ["4:2:2"]
   width: 1920                                        # UHD 3840x2160 hors périmètre (Phase 6)
   height: 1080
   fps_allowed: ["25/1", "50/1"]
@@ -247,9 +259,16 @@ llm:                                                 # couche IA locale, désact
 # Paragraphes des consignes Arte V2-01-03 (numérotation identique à la V2-01-00 pour ces paragraphes),
 # affichés par explain-profile.
 sources:
-  format.codecs: "Lumiris : master interne ProRes 422 HQ ou DNxHR HQX (le PAD Arte est en XAVC, §3.2.2.1)"
+  format.codecs: >-
+    Arte V2-01-03 §3.2.2.2 « Formats pour les éléments de productions » : « XAVC HD Intra Class 100 CBG
+    (1920 x 1080, 4.2.2, 10-bit) ITU-R BT.709 » ; « DNX HD 185, (1920 x 1080, 4.2.2, 10bit) » ; « ProRes HQ,
+    à 184 Mbps (1920 x 1080, 4.2.2, 10-bit) » ; « AVC-Intra 100, à 112 Mbps (1920 x 1080, 4.2.2, 10-bit) ».
+    A VERIFIER : « DNX HR/HQ, (3840 x 2160, 4.2.2, 10bit) » (liste UHD) est contradictoire, DNxHR HQ étant
+    un codec 8 bits ; repris tel que cité, question à poser à Arte. XAVC Intra et AVC-Intra : ffprobe les
+    nomme tous deux h264 « High 4:2:2 Intra » (classe et débit non contrôlés).
   format.containers: "Lumiris : master interne en MOV ou MXF"
-  format.pix_fmt: "Arte §3.1 : 4:2:2 10 bits"
+  format.bit_depth_allowed: "Arte §3.1 : « 4:2:2 10 bits »"
+  format.chroma_allowed: "Arte §3.1 : « 4:2:2 10 bits »"
   format.width: "Arte §3.2.2.1 : 1920 x 1080"
   format.height: "Arte §3.2.2.1 : 1920 x 1080"
   format.fps_allowed: "Arte §3.2.2.1 : 50p, ou 25p si tournage 24p/25p"

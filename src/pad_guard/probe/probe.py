@@ -93,15 +93,57 @@ def _scan_flag(field_order: str | None) -> str:
 rate_text = formats.rate_text
 
 
+# Operational pattern items of the MXF operational_pattern_ul (SMPTE ST 377-1, ST 378, ST 390).
+_OP1A = "0d010201.0101"
+_OPATOM = "0d010201.10"
+
+
 def _container(fmt: dict[str, Any], path: Path) -> ContainerInfo:
     names = fmt.get("format_name", "").split(",")
+    tags = fmt.get("tags", {})
+    pattern = None
     if "mxf" in names:
         kind = "mxf"
-    elif "mov" in names and path.suffix.lower() == ".mov":
-        kind = "mov"
+        ul = str(tags.get("operational_pattern_ul", "")).lower()
+        pattern = "op1a" if _OP1A in ul else "opatom" if _OPATOM in ul else "other"
+    elif "mov" in names:
+        # ffprobe gives one name to the QuickTime family: the extension, else the brand, tells MP4 from MOV.
+        suffix = path.suffix.lower()
+        brand = str(tags.get("major_brand", "")).strip()
+        if suffix in (".mov", ".mp4", ".m4v"):
+            kind = "mov" if suffix == ".mov" else "mp4"
+        else:
+            kind = "mov" if brand in ("", "qt") else "mp4"
     else:
         kind = "other"
-    return ContainerInfo(format_name=fmt.get("format_name", ""), kind=kind, duration_s=_float(fmt.get("duration")))
+    return ContainerInfo(format_name=fmt.get("format_name", ""), kind=kind, duration_s=_float(fmt.get("duration")),
+                         mxf_pattern=pattern)
+
+
+_CONTAINER_LABELS = {"mov": "MOV", "mp4": "MP4", "mxf": "MXF"}
+_PATTERN_LABELS = {"op1a": "OP1a", "opatom": "OP-Atom", "other": "autre motif"}
+
+
+def container_label(container: ContainerInfo) -> str:
+    """'MOV', 'MXF OP1a', 'MXF OP-Atom'."""
+    if container.kind == "other":
+        return container.format_name
+    label = _CONTAINER_LABELS[container.kind]
+    return f"{label} {_PATTERN_LABELS[container.mxf_pattern]}" if container.mxf_pattern else label
+
+
+def _container_ok(container: ContainerInfo, allowed: list[str]) -> bool:
+    if container.kind == "mxf":
+        return "mxf" in allowed or f"mxf_{container.mxf_pattern}" in allowed
+    return container.kind in allowed
+
+
+def picture_label(v: VideoInfo) -> str:
+    """'4:2:2 · 10 bits', 'RVB · 10 bits', with the alpha channel if any."""
+    if v.sampling is None:
+        return v.pix_fmt or "inconnu"
+    text = f"{'RVB' if v.sampling == 'rgb' else v.sampling} · {v.bit_depth} bits"
+    return text + " · canal alpha" if v.alpha else text
 
 
 def _video(stream: dict[str, Any]) -> VideoInfo:
@@ -109,6 +151,7 @@ def _video(stream: dict[str, Any]) -> VideoInfo:
     nb_frames = _int(stream.get("nb_frames"))
     source = "stream" if nb_frames is not None else None
     fps = _fps(stream.get("r_frame_rate", ""))
+    pixel = formats.pixel_info(_clean(stream.get("pix_fmt"))) or {}
     if nb_frames is None and duration is not None and fps is not None:
         nb_frames = round(duration * fps)
         source = "duration"
@@ -117,6 +160,9 @@ def _video(stream: dict[str, Any]) -> VideoInfo:
         codec_name=stream.get("codec_name", "inconnu"),
         profile=_clean(stream.get("profile")),
         pix_fmt=_clean(stream.get("pix_fmt")),
+        bit_depth=pixel.get("bit_depth"),
+        sampling=pixel.get("sampling"),
+        alpha=pixel.get("alpha", False),
         width=_int(stream.get("width")) or 0,
         height=_int(stream.get("height")) or 0,
         r_frame_rate=stream.get("r_frame_rate", "0/0"),
@@ -212,21 +258,29 @@ def _check_measurable(c: _Checks, v: VideoInfo) -> None:
 
 def _check_format(c: _Checks, p: Profile, container: ContainerInfo, v: VideoInfo) -> None:
     f = p.format
-    c.add("container", "Conteneur", "format", " ou ".join(f.containers), container.kind if container.kind != "other"
-          else container.format_name, container.kind in f.containers)
+    c.add("container", "Conteneur", "format_container", " ou ".join(f.containers), container_label(container),
+          _container_ok(container, f.containers))
 
     accepted = [(spec.codec_name, spec.profile) for spec in f.codecs]
-    expected_codecs = ", ".join(f"{name} {prof}" for name, prof in accepted)
+    labels = list(dict.fromkeys(spec.label or f"{spec.codec_name} {spec.profile}" for spec in f.codecs))
     found_codec = f"{v.codec_name} {v.profile or '(profil inconnu)'}"
-    c.add("codec", "Codec et profil", "format", expected_codecs, found_codec, (v.codec_name, v.profile) in accepted)
-    c.add("pix_fmt", "Format de pixel", "format", f.pix_fmt, v.pix_fmt or "inconnu", v.pix_fmt == f.pix_fmt)
-    c.add("resolution", "Résolution", "format", f"{f.width}x{f.height}", f"{v.width}x{v.height}",
+    c.add("codec", "Codec et profil", "format_codec", ", ".join(labels), found_codec,
+          (v.codec_name, v.profile) in accepted)
+    if f.pix_fmt is not None:  # older form of the profile
+        c.add("pix_fmt", "Format de pixel", "format_picture", f.pix_fmt, v.pix_fmt or "inconnu", v.pix_fmt == f.pix_fmt)
+    else:
+        c.add("bit_depth", "Profondeur", "format_picture", " ou ".join(f"{b} bits" for b in f.bit_depth_allowed),
+              f"{v.bit_depth} bits" if v.bit_depth else v.pix_fmt or "inconnue", v.bit_depth in f.bit_depth_allowed)
+        c.add("chroma", "Échantillonnage de la chrominance", "format_picture",
+              " ou ".join("RVB" if x == "rgb" else x for x in f.chroma_allowed),
+              ("RVB" if v.sampling == "rgb" else v.sampling) or v.pix_fmt or "inconnu", v.sampling in f.chroma_allowed)
+    c.add("resolution", "Résolution", "format_resolution", f"{f.width}x{f.height}", f"{v.width}x{v.height}",
           (v.width, v.height) == (f.width, f.height))
 
     allowed = {_fps(r) for r in f.fps_allowed}
     r, avg = _fps(v.r_frame_rate), _fps(v.avg_frame_rate)
-    c.add("frame_rate", "Cadence", "format", " ou ".join(f.fps_allowed), v.r_frame_rate, r in allowed)
-    c.add("frame_rate_constant", "Cadence constante", "format", "r_frame_rate = avg_frame_rate",
+    c.add("frame_rate", "Cadence", "format_frame_rate", " ou ".join(f.fps_allowed), v.r_frame_rate, r in allowed)
+    c.add("frame_rate_constant", "Cadence constante", "format_frame_rate", "r_frame_rate = avg_frame_rate",
           f"{v.r_frame_rate} / {v.avg_frame_rate}", r is not None and r == avg)
     c.add("field_order", "Balayage", "format", f.field_order, v.field_order or "absent", v.field_order == f.field_order)
 

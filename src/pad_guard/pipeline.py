@@ -106,7 +106,7 @@ def preflight(profile: Profile, groups: list[AudioGroup]) -> list[str]:
                 problems.append(f"rules.params.{param} : valeur absente du profil effectif, nécessaire pour "
                                 f"rules.severity.{name} (« {rule.if_} »)")
     problems += [f"le profil n'a pas de gravité pour « rules.severity.{t} »"
-                 for t in sorted(engine.severity_types(profile, groups)) if t not in profile.rules.severity]
+                 for t in sorted(engine.severity_types(profile, groups)) if profile.rules.chain(t) is None]
     return problems
 
 

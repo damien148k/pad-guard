@@ -64,11 +64,12 @@ def _profile_variant(tmp_path: Path, base: Path, name: str, mutate) -> Path:
 
 VOLATILE = ("| Chemin |", "| SHA-256 |", "| Taille |", "| Date d'analyse |", "| Commande |", "| Relance")
 CHANGED = ("| Profil |", "- Préfiltre avant mesure des niveaux :", "| Balayage |",  # rewritten lines
-           "| Document de référence |")
+           "| Document de référence |",
+           "| Format de pixel |", "| Codec et profil |", "| Conteneur |")  # Phase 6: bit depth and sampling
 NORM_GAPS = "### Écarts entre le profil et les normes (information)"
 ADDED = ("| Statut du profil |", "| Empreinte du profil effectif |", "| Cadence prise en charge par PAD Guard |",
          "| Décodeur disponible |", "| Format de pixel mesurable par PAD Guard |", "| Cadence fixe |",
-         "| Format du timecode |")
+         "| Format du timecode |", "| Profondeur |", "| Échantillonnage de la chrominance |")
 
 
 def _lines(md: str) -> list[str]:

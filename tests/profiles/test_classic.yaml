@@ -17,7 +17,8 @@ format:
     - {codec_name: prores, profile: "HQ"}          # ProRes 422 HQ
     - {codec_name: dnxhd, profile: "DNXHR HQX"}    # DNxHR HQX (ffprobe l'annonce sous codec dnxhd)
   containers: [mov, mxf]
-  pix_fmt: yuv422p10le
+  bit_depth_allowed: [10]
+  chroma_allowed: ["4:2:2"]
   width: 1920
   height: 1080
   fps_allowed: ["25/1"]

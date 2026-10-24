@@ -33,6 +33,8 @@ FIXTURE_FILES = (
     "rate_23976.mov",
     "rate_5994df.mxf",
     "bad_levels_50p.mov",
+    "fmt_opatom.mxf",
+    "fmt_h264_intra.mp4",
 )
 
 

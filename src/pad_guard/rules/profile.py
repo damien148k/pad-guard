@@ -49,6 +49,12 @@ EVENT_TYPES = (
     "structure_bars_present",
     "structure_black_too_long",
     "format",
+    # One type per kind of format check; without its own chain, the chain of "format" applies.
+    "format_container",
+    "format_codec",
+    "format_picture",
+    "format_resolution",
+    "format_frame_rate",
     "integrity",
     "delivery_conversion_required",
     "scan_flag_mismatch",
@@ -151,6 +157,7 @@ class NormMeta(_Model):
 class CodecSpec(_Model):
     codec_name: str
     profile: str
+    label: str | None = None  # name in the client's document ("XAVC HD Intra Class 100"), shown in the report
 
 
 class LetterboxFormat(_Model):
@@ -179,8 +186,13 @@ class Delivery(_Model):
 
 class Format(_Model):
     codecs: list[CodecSpec] = Field(min_length=1)
-    containers: list[Literal["mov", "mxf"]] = Field(min_length=1)
-    pix_fmt: str
+    # mxf: any operational pattern; mxf_op1a / mxf_opatom: that pattern only.
+    containers: list[Literal["mov", "mp4", "mxf", "mxf_op1a", "mxf_opatom"]] = Field(min_length=1)
+    # The decoded picture: bit depth and chroma sampling ("rgb" for an RGB file), or the older
+    # form, one FFmpeg pixel format (pix_fmt). One of the two forms, not both.
+    bit_depth_allowed: list[int] | None = Field(default=None, min_length=1)
+    chroma_allowed: list[Literal["4:2:0", "4:2:2", "4:4:4", "rgb"]] | None = Field(default=None, min_length=1)
+    pix_fmt: str | None = None
     width: int
     height: int
     fps_allowed: list[str] = Field(min_length=1)
@@ -194,6 +206,15 @@ class Format(_Model):
     delivery: Delivery | None = None
 
     _rates = field_validator("fps_allowed")(_check_rates)
+
+    @model_validator(mode="after")
+    def _picture(self) -> Format:
+        sampled = self.bit_depth_allowed is not None or self.chroma_allowed is not None
+        if self.pix_fmt is not None and sampled:
+            raise ValueError("format : pix_fmt ou bit_depth_allowed + chroma_allowed, pas les deux")
+        if self.pix_fmt is None and (self.bit_depth_allowed is None or self.chroma_allowed is None):
+            raise ValueError("format : indiquer bit_depth_allowed et chroma_allowed (ou l'ancienne forme pix_fmt)")
+        return self
 
 
 # --- video --------------------------------------------------------------------------------
@@ -509,6 +530,14 @@ class Rules(_Model):
             raise ValueError(f"rules : durée minimale en images et en secondes pour {', '.join(both)}")
         return self
 
+    def chain(self, event_type: str) -> list[SeverityRule] | None:
+        """Severity chain of a type; the format checks without their own fall back on « format »."""
+        if event_type in self.severity:
+            return self.severity[event_type]
+        if event_type.startswith("format_"):
+            return self.severity.get("format")
+        return None
+
     def gap_frames(self, fps: Fraction) -> int:
         """merge_gap in frames at ``fps`` (rounded down: 0.5 s is 12 frames at 25 frames/s)."""
         if self.merge_gap_seconds is None:
@@ -566,8 +595,10 @@ class Profile(_Model):
 _DESCRIPTIONS: dict[type[BaseModel], dict[str, str]] = {
     Format: {
         "codecs": "Codecs et profils de codec acceptés pour le fichier (ex. ProRes 422 HQ, DNxHR HQX, XAVC Intra Class 100)",
-        "containers": "Conteneurs de fichier acceptés : mov ou mxf",
-        "pix_fmt": "Format de pixel FFmpeg attendu (ex. yuv422p10le pour 4:2:2 10 bits)",
+        "containers": "Conteneurs de fichier acceptés : mov, mp4, mxf (tout motif), mxf_op1a ou mxf_opatom",
+        "bit_depth_allowed": "Profondeurs d'image acceptées en bits par composante (ex. 10)",
+        "chroma_allowed": "Sous-échantillonnage de la chrominance accepté : 4:2:0, 4:2:2, 4:4:4, ou rgb (fichier RVB)",
+        "pix_fmt": "Format de pixel FFmpeg attendu (ancienne forme, ex. yuv422p10le pour 4:2:2 10 bits)",
         "width": "Largeur de l'image en pixels (ex. 1920)",
         "height": "Hauteur de l'image en lignes (ex. 1080)",
         "fps_allowed": "Cadences d'images acceptées, en fractions 'num/den' (ex. '25/1', '50/1')",
@@ -581,7 +612,8 @@ _DESCRIPTIONS: dict[type[BaseModel], dict[str, str]] = {
         "delivery": "Format attendu par le diffuseur pour le fichier livré (balayage, cadences, codec de livraison)",
     },
     CodecSpec: {"codec_name": "Nom du codec selon ffprobe (ex. prores, dnxhd)",
-                "profile": "Profil du codec selon ffprobe (ex. HQ, DNXHR HQX)"},
+                "profile": "Profil du codec selon ffprobe (ex. HQ, DNXHR HQX)",
+                "label": "Nom du codec dans le document du client (ex. XAVC HD Intra Class 100)"},
     Letterbox: {"check": "Contrôler le format d'image et les bandes noires",
                 "formats": "Formats d'image admis avec leurs lignes et pixels actifs",
                 "tolerance_lines": "Tolérance en lignes sur le nombre de lignes actives"},

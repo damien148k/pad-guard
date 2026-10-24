@@ -47,17 +47,25 @@ PHASE6_CHANGES = {
     "rules.merge_gap_seconds": 0.5, "rules.merge_gap_frames": None,
     "rules.min_event_seconds.freeze": 2.0, "rules.params.levels_major_min_seconds": 1.0,
 }
-PHASE6_REMOVED = {"rules.min_event_frames.freeze"}
+PHASE6_REMOVED = {"rules.min_event_frames.freeze", "format.codecs", "format.pix_fmt"}
+# Phase 6 (Arte 1.2): codecs of §3.2.2.2 (the client's document) instead of the Lumiris master codecs,
+# pix_fmt written as bit depth and chroma sampling.
+PHASE6_FORMAT = {"format.codecs", "format.bit_depth_allowed", "format.chroma_allowed", "format.pix_fmt"}
 LEVEL_CHAINS = ("rules.severity.white_clip", "rules.severity.black_crush", "rules.severity.gamut")
 
 
 def test_arte_effective_profile_identical_to_v2() -> None:
     old = _values(TEST_PROFILES / "arte_hd_sdr_v1_flat.yaml")
     new = _values(PROFILES / "arte_hd_sdr.yaml")
-    changed = V3_ADDITIONS | set(PHASE6_CHANGES) | set(LEVEL_CHAINS)
+    changed = V3_ADDITIONS | set(PHASE6_CHANGES) | set(LEVEL_CHAINS) | PHASE6_FORMAT
     assert {p: v for p, v in new.items() if p not in changed} == {
         p: v for p, v in old.items() if p not in PHASE6_REMOVED | set(PHASE6_CHANGES) | set(LEVEL_CHAINS)}
-    assert set(new) - set(old) == V3_ADDITIONS | set(PHASE6_CHANGES) - {"rules.merge_gap_frames"}
+    assert set(new) - set(old) == V3_ADDITIONS | set(PHASE6_CHANGES) - {"rules.merge_gap_frames"} | {
+        "format.bit_depth_allowed", "format.chroma_allowed"}
+    assert old["format.pix_fmt"] == "yuv422p10le" and new.get("format.pix_fmt") is None
+    assert (new["format.bit_depth_allowed"], new["format.chroma_allowed"]) == ([10], ["4:2:2"])
+    assert [c.get("label") for c in new["format.codecs"]] == [
+        "XAVC HD Intra Class 100 CBG", "DNX HD 185", "ProRes HQ", "AVC-Intra 100", "DNX HR/HQ"]
     assert {p: new[p] for p in PHASE6_CHANGES if p in new} == {p: v for p, v in PHASE6_CHANGES.items() if p in new}
     assert old["rules.merge_gap_frames"] == 12 and old["rules.min_event_frames.freeze"] == 50
     for chain in LEVEL_CHAINS:

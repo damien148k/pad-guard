@@ -26,6 +26,7 @@ from pad_guard.draft import pdf as pdf_mod
 from pad_guard.draft.write import scalar
 from pad_guard.labels import number
 from pad_guard.probe import ProbeError, probe_file
+from pad_guard.probe.probe import container_label, picture_label
 from pad_guard.profiles import ResolvedProfile, resolve_profile
 from pad_guard.profiles.resolve import leaves
 from pad_guard.rules.profile import ProfileError
@@ -107,8 +108,9 @@ def _ref(resolved: ResolvedProfile, path: str) -> str:
 
 
 REQUIREMENTS = [  # (label, paths shown together) - a choice of display, the values are the profile's
-    ("Codecs du master", ["format.codecs"]),
+    ("Codecs acceptés", ["format.codecs"]),
     ("Image", ["format.width", "format.height", "format.fps_allowed"]),
+    ("Profondeur et échantillonnage", ["format.bit_depth_allowed", "format.chroma_allowed", "format.pix_fmt"]),
     ("Livraison", ["format.delivery.scan", "format.delivery.fps", "format.delivery.codec"]),
     ("Timecode du programme", ["structure.timecode.program_start"]),
     ("Amorces", ["structure.leaders"]),
@@ -137,9 +139,13 @@ def requirements(resolved: ResolvedProfile) -> list[dict]:
             rows.append({"label": label, "value": "non renseigné", "ref": "A VERIFIER", "paths": paths})
             continue
         if paths[0] == "format.codecs":
-            value = ", ".join(f"{c.get('codec_name')} {c.get('profile') or ''}".strip() for c in flat[paths[0]])
+            value = ", ".join(dict.fromkeys(c.get("label") or f"{c.get('codec_name')} {c.get('profile') or ''}".strip()
+                                            for c in flat[paths[0]]))
         elif paths[0] == "format.width":
             value = f"{flat.get('format.width')} × {flat.get('format.height')} · {_show(flat.get('format.fps_allowed'))} i/s"
+        elif paths[0] == "format.bit_depth_allowed" and flat.get("format.bit_depth_allowed") is not None:
+            depths = " ou ".join(f"{b} bits" for b in flat["format.bit_depth_allowed"])
+            value = f"{_show(flat.get('format.chroma_allowed')).replace('rgb', 'RVB')} · {depths}"
         elif paths[0] == "audio.loudness.long.integrated_lufs":
             value = f"{_show(flat[paths[0]])} LUFS ± {_show(flat.get(paths[1]))} LU"
         elif paths[0] == "audio.true_peak_max_dbtp":
@@ -196,10 +202,11 @@ def probe_preview(ctx: Context, master: str, profile: str) -> dict:
     return {
         "master": info,
         "accepted": r.accepted, "refusal_reasons": r.refusal_reasons,
-        "key_cells": [["Conteneur", r.container.kind.upper()], ["Codec", codec],
+        "key_cells": [["Conteneur", container_label(r.container)], ["Codec", codec],
                       ["Résolution", f"{v.width} × {v.height} · {rate}"], ["Durée", duration]],
-        "rows": [["Fichier", info["name"]], ["Taille", info["size"]], ["Conteneur", f"{r.container.kind.upper()} ({r.container.format_name.split(',')[0]})"],
-                 ["Codec vidéo", codec], ["Échantillonnage", v.pix_fmt or "?"], ["Résolution", f"{v.width} × {v.height}"],
+        "rows": [["Fichier", info["name"]], ["Taille", info["size"]], ["Conteneur", container_label(r.container)],
+                 ["Codec vidéo", codec], ["Échantillonnage", f"{picture_label(v)} ({v.pix_fmt or '?'})"],
+                 ["Résolution", f"{v.width} × {v.height}"],
                  ["Cadence", rate], ["Balayage (drapeau)", v.field_order or "absent"], ["Colorimétrie", colour],
                  ["Durée", f"{duration} ({v.nb_frames} images)" if v.nb_frames else duration],
                  ["Timecode de départ", f"{r.timecode} ({r.timecode_source})" if r.timecode else "absent"],

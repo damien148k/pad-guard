@@ -58,3 +58,30 @@ def capabilities() -> dict:
         "summary": " · ".join([*FAMILIES, ", ".join(rates)]),
         "extensions": [f".{c.lower()}" for c in CONTAINERS],
     }
+
+
+SAMPLINGS = ("4:2:0", "4:2:2", "4:4:4", "rgb")
+
+
+def pixel_info(pix_fmt: str | None) -> dict | None:
+    """Bit depth, chroma sampling ('4:2:2'… or 'rgb') and alpha of an FFmpeg pixel format.
+
+    None: unknown name, or a layout PAD Guard does not describe (Bayer, palette, 4:1:1…).
+    """
+    if not pix_fmt:
+        return None
+    try:
+        fmt = av.VideoFormat(pix_fmt)
+    except (ValueError, TypeError):
+        return None
+    if fmt.is_bayer or fmt.has_palette or not fmt.components:
+        return None
+    if fmt.is_rgb:
+        sampling = "rgb"
+    else:
+        sampling = {(16, 16): "4:4:4", (8, 16): "4:2:2", (8, 8): "4:2:0"}.get(
+            (fmt.chroma_width(16), fmt.chroma_height(16)))
+        if sampling is None or len(fmt.components) < 3:
+            return None
+    return {"bit_depth": fmt.components[0].bits, "sampling": sampling,
+            "alpha": any(c.is_alpha for c in fmt.components)}

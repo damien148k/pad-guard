@@ -20,7 +20,8 @@ format:
     - {codec_name: prores, profile: "HQ"}            # master Lumiris
     - {codec_name: dnxhd, profile: "DNXHR HQX"}      # master Lumiris
   containers: [mov, mxf]
-  pix_fmt: yuv422p10le
+  bit_depth_allowed: [10]
+  chroma_allowed: ["4:2:2"]
   width: 1920
   height: 1080
   fps_allowed: ["25/1"]

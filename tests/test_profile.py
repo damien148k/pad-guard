@@ -144,11 +144,11 @@ def test_cli_validate_lists_null_fields(tmp_path: Path) -> None:
 
 def test_cli_validate_typo(tmp_path: Path) -> None:
     def typo(raw):
-        raw["format"]["pix_fmtt"] = raw["format"].pop("pix_fmt")
+        raw["format"]["chroma_alowed"] = raw["format"].pop("chroma_allowed")
 
     result = runner.invoke(app, ["validate-profile", str(_mutated(tmp_path, typo))])
     assert result.exit_code == 1
-    assert "format.pix_fmtt" in result.output
+    assert "format.chroma_alowed" in result.output
 
 
 def test_cli_validate_missing_file(tmp_path: Path) -> None:

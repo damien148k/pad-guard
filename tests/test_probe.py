@@ -80,7 +80,7 @@ def test_wrong_codec_is_a_format_anomaly(fixtures_dir) -> None:
     assert failed(r) == {"codec": "fail"}
     codec = next(c for c in r.checks if c.id == "codec")
     assert (codec.type, codec.actual, codec.expected, codec.refusal) == (
-        "format", "prores LT", "prores HQ, dnxhd DNXHR HQX", False)
+        "format_codec", "prores LT", "prores HQ, dnxhd DNXHR HQX", False)
 
 
 def test_wrong_codec_cli(fixtures_dir, tmp_path) -> None:
@@ -89,7 +89,8 @@ def test_wrong_codec_cli(fixtures_dir, tmp_path) -> None:
     )
     assert result.exit_code == EXIT_NON_CONFORME, result.output
     events = json.loads((tmp_path / "events.json").read_text(encoding="utf-8"))["events"]
-    codec = [e for e in events if e["type"] == "format"]
+    codec = [e for e in events if e["type"] == "format_codec"]
+    # No chain of its own in the test profile: the chain of « format » applies.
     assert [(e["severity"], e["value_text"]) for e in codec] == [("blocking", "prores LT")]
 
 

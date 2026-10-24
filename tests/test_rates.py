@@ -68,9 +68,14 @@ def test_other_rates_are_analysed_with_a_format_anomaly(analysed, name, rate, fr
     code, out = analysed(name)
     assert code == EXIT_NON_CONFORME
     events = _json(out, wd.EVENTS)["events"]
-    fmt = [e for e in events if e["type"] == "format"]
+    fmt = [e for e in events if e["type"] == "format_frame_rate"]
     assert [(e["value_text"], e["threshold_text"], e["severity"]) for e in fmt] == [(rate, "25/1 ou 50/1", "blocking")]
-    assert {e["type"] for e in events} <= {"format", "structure_timecode", "delivery_conversion_required"}
+    allowed = {"format_frame_rate", "structure_timecode", "delivery_conversion_required"}
+    if name.endswith(".mxf"):  # DNxHR HQX is not in the codecs of Arte §3.2.2.2
+        codec = [e["value_text"] for e in events if e["type"] == "format_codec"]
+        assert codec == ["dnxhd DNXHR HQX"]
+        allowed.add("format_codec")
+    assert {e["type"] for e in events} <= allowed
     m = _json(out, wd.MEASUREMENTS)
     assert m["video"]["frames"] == frames and m["integrity"]["frames_decoded"] == frames
     assert m["audio"]["program"]["tc_end"] == tc_end
@@ -104,7 +109,7 @@ def test_levels_durations_are_seconds_in_50p(analysed) -> None:
 def test_24fps_is_analysed(analysed) -> None:
     code, out = analysed("rate24_prores.mov", CLASSIC)
     assert code == EXIT_NON_CONFORME
-    fmt = [e for e in _json(out, wd.EVENTS)["events"] if e["type"] == "format" and e["title"] == "Cadence"]
+    fmt = [e for e in _json(out, wd.EVENTS)["events"] if e["type"] == "format_frame_rate"]
     assert [(e["value_text"], e["threshold_text"]) for e in fmt] == [("24/1", "25/1")]
 
 

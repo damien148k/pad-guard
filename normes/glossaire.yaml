@@ -64,6 +64,16 @@ champs:
     fr: ["4:2:2 10 bits", "4.2.2 10 bits", "sous-échantillonnage de la chrominance", "échantillonnage 4:2:2", "structure d'échantillonnage"]
     en: ["4:2:2 10-bit", "chroma subsampling", "pixel format", "sampling structure"]
     contextes: ["PAD / proxy ou fichier web", "HD / UHD"]
+  format.bit_depth_allowed:
+    fr: ["quantification", "profondeur", "10 bits", "bits par composante"]
+    en: ["bit depth", "quantization", "10-bit"]
+    unites: ["bits", "bit"]
+    contextes: ["PAD / proxy ou fichier web", "HD / UHD"]
+    plage: [8, 16]
+  format.chroma_allowed:
+    fr: ["échantillonnage chrominance", "sous-échantillonnage de la chrominance", "4:2:2", "4:4:4"]
+    en: ["chroma subsampling", "sampling structure", "4:2:2", "4:4:4"]
+    contextes: ["PAD / proxy ou fichier web", "HD / UHD"]
   format.width:
     fr: ["résolution", "définition", "pixels par ligne", "pixels actifs"]
     en: ["resolution", "active pixels", "frame size", "picture size"]

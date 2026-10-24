@@ -33,6 +33,8 @@ _TAIL = r"queue|fin\b|tail|apres"
 # Every pattern of the tuple must match the normalised quote.
 KEYWORDS: dict[str, tuple[str, ...]] = {
     "format.pix_fmt": (r"4[:.]2[:.]2|10.?bits?",),
+    "format.bit_depth_allowed": (r"bits?|quantif",),
+    "format.chroma_allowed": (r"4[:.][24][:.][024]|chromin|echantillonnage|sampling|rvb|rgb",),
     "format.width": (r"\d{3,4} ?x ?\d{3,4}|resolution|definition|pixels",),
     "format.height": (r"\d{3,4} ?x ?\d{3,4}|resolution|definition|lignes",),
     "format.fps_allowed": (_FPS,),
