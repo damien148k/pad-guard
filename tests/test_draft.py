@@ -243,6 +243,110 @@ def test_bad_answer_writes_nothing(doc_pdf, tmp_path, client, message) -> None:
     assert list(tmp_path.iterdir()) == []
 
 
+# --- context size (num_ctx) ------------------------------------------------------------------
+
+
+def test_context_is_computed_for_the_whole_run(doc_pdf, tmp_path) -> None:
+    from pad_guard.draft.extract import ANSWER_TOKENS, estimate_tokens
+
+    client = FakeClient()
+    x, files = draft(doc_pdf, tmp_path, client)
+    biggest = max(estimate_tokens(r.system, r.prompt, len(r.images)) for r in client.requests)
+    assert client.num_ctx % 1024 == 0 and biggest + ANSWER_TOKENS <= client.num_ctx < biggest + ANSWER_TOKENS + 1024
+    assert x.num_ctx == client.num_ctx
+    log = [json.loads(line) for line in files["log"].read_text(encoding="utf-8").splitlines()]
+    assert {entry["num_ctx"] for entry in log} == {client.num_ctx}  # one context for every batch
+    assert f"contexte {client.num_ctx} jetons" in files["yaml"].read_text(encoding="utf-8")
+
+
+def test_context_too_small_is_refused_before_any_request(doc_pdf, tmp_path) -> None:
+    client = FakeClient()
+    client.num_ctx = 4096  # the Ollama default
+    with pytest.raises(DraftError) as exc:
+        draft(doc_pdf, tmp_path, client)
+    assert "contexte de 4096 jetons trop petit" in str(exc.value) and "--num-ctx" in str(exc.value)
+    assert client.requests == [] and list(tmp_path.iterdir()) == []
+
+
+class _FakeOllama:
+    """Stands for ollama.Client: records the calls, answers as told."""
+
+    calls: list[tuple[str, dict]] = []
+    answer: object = None
+
+    def __init__(self, host=None, timeout=None):
+        pass
+
+    def chat(self, **kwargs):
+        _FakeOllama.calls.append(("chat", kwargs))
+        if isinstance(_FakeOllama.answer, Exception):
+            raise _FakeOllama.answer
+        return _FakeOllama.answer
+
+    def generate(self, **kwargs):
+        _FakeOllama.calls.append(("generate", kwargs))
+
+
+def _response(done_reason: str = "stop"):
+    from ollama import ChatResponse, Message
+
+    return ChatResponse(message=Message(role="assistant", content='{"findings": []}'), done_reason=done_reason,
+                        prompt_eval_count=9195, eval_count=812)
+
+
+def test_ollama_client_context_errors(monkeypatch) -> None:
+    import ollama
+
+    from pad_guard.llm import OllamaClient
+
+    monkeypatch.setattr(ollama, "Client", _FakeOllama)
+    _FakeOllama.calls = []
+    request = LLMRequest(prompt="p", schema={"type": "object"})
+    with pytest.raises(LLMError, match="num_ctx"):
+        OllamaClient(model="m").generate(request)  # never sent without a context size
+    client = OllamaClient(model="m", num_ctx=16384)
+    _FakeOllama.answer = _response()
+    assert client.generate(request) == '{"findings": []}'
+    assert _FakeOllama.calls[-1][1]["options"] == {"temperature": 0, "seed": 1234, "num_ctx": 16384}
+    assert (client.usage().prompt_tokens, client.usage().output_tokens) == (9195, 812)
+    cases = [
+        (ollama.ResponseError("request (9195 tokens) exceeds the available context size (4096 tokens), try "
+                              "increasing it", 400), "demande de 9195 jetons, plus que le contexte de 4096"),
+        (ollama.ResponseError("prediction aborted, token repeat limit reached", 500), "en boucle"),
+        (_response("length"), "réponse coupée à la fin du contexte"),
+    ]
+    for answer, message in cases:
+        _FakeOllama.answer = answer
+        with pytest.raises(LLMError) as exc:
+            client.generate(request)
+        assert message in str(exc.value)
+        if "jetons" in message:
+            assert "--num-ctx 19456" in str(exc.value)  # 9195 + 10240 for the answer, rounded up
+    client.release()
+    assert _FakeOllama.calls[-1] == ("generate", {"model": "m", "prompt": "", "keep_alive": 0})
+
+
+class _ReleasingClient(FakeClient):
+    released = 0
+
+    def release(self) -> None:
+        _ReleasingClient.released += 1
+
+
+@pytest.mark.parametrize("extra, code", [([], 0), (["--num-ctx", "4096"], 1)])
+def test_cli_releases_the_model(doc_pdf, tmp_path, monkeypatch, extra, code) -> None:
+    import pad_guard.cli as cli
+
+    _ReleasingClient.released = 0
+    monkeypatch.setattr(cli, "_ollama_or_exit", lambda model: _ReleasingClient())
+    result = CliRunner().invoke(app, ["draft-profile", str(doc_pdf), "--name", "chaine_test",
+                                      "--out-dir", str(tmp_path), *extra], env={"COLUMNS": "200"})
+    assert result.exit_code == code, result.output
+    assert _ReleasingClient.released == 1  # freed after success and after failure
+    text = " ".join(result.output.split())
+    assert ("Contexte :" in text) if code == 0 else ("trop petit" in text)
+
+
 def test_quote_normalisation() -> None:
     page = "Le niveau ne doit pas dé-\npasser −1 dB TP en PCM. L’amorce est interdite."
     assert verify.quote_in("ne doit pas dépasser -1 dB TP", page)

@@ -3,17 +3,27 @@
 :class:`LLMClient` is what the rest of the tool uses: one prompt in, one JSON document out,
 constrained by a JSON schema, with optional page images. :class:`OllamaClient` is the only
 implementation. Tests use a fake client; nothing in the test suite talks to Ollama.
+
+Context size: Ollama loads a model with 4096 tokens of context unless ``num_ctx`` is given, and a
+draft-profile request is 4000 to 9200 tokens, plus the answer (up to 8000 tokens measured). The
+caller sets ``num_ctx`` once for a whole run (changing it reloads the model, and changes the
+output). Ollama 0.40 refuses a prompt longer than the context instead of truncating it; that
+refusal, an answer cut at the end of the context and a generation stopped for repetition all
+become a clear :class:`LLMError`.
 """
 
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 DEFAULT_MODEL = "qwen3-vl:32b-instruct"
 FALLBACK_MODEL = "qwen3-vl:8b-instruct"
-SEED = 1234  # fixed: same pages, same model, same answer
+SEED = 1234  # fixed: same pages, same model, same context, same answer
 DEFAULT_TIMEOUT = 600.0  # seconds per request
+
+_TOO_LONG = re.compile(r"request \((\d+) tokens\) exceeds the available context size \((\d+) tokens\)")
 
 
 class LLMError(Exception):
@@ -29,28 +39,48 @@ class LLMRequest:
     timeout: float = DEFAULT_TIMEOUT
 
 
+@dataclass(frozen=True)
+class Usage:
+    """Tokens of the last answer, as counted by the engine."""
+
+    prompt_tokens: int | None
+    output_tokens: int | None
+    num_ctx: int | None
+
+
 class LLMClient(ABC):
     """A local model that answers with JSON text matching ``request.schema``."""
 
     model: str
+    num_ctx: int | None = None  # context size in tokens; None: the caller chooses it before the first request
 
     @abstractmethod
     def generate(self, request: LLMRequest) -> str:
-        """Raw JSON text of the answer. Raises LLMError (unreachable, unknown model, timeout)."""
+        """Raw JSON text of the answer. Raises LLMError (unreachable, unknown model, context, timeout)."""
+
+    def usage(self) -> Usage | None:
+        """Tokens of the last answer, when the engine gives them."""
+        return None
+
+    def release(self) -> None:
+        """Free the model from memory (GPU) when the work is done. Never raises."""
 
 
 class OllamaClient(LLMClient):
-    def __init__(self, model: str = DEFAULT_MODEL, host: str | None = None, num_ctx: int = 16384,
+    def __init__(self, model: str = DEFAULT_MODEL, host: str | None = None, num_ctx: int | None = None,
                  seed: int = SEED):
         self.model = model
         self.host = host
         self.num_ctx = num_ctx
         self.seed = seed
+        self._usage: Usage | None = None
 
     def generate(self, request: LLMRequest) -> str:
         import httpx
         import ollama
 
+        if self.num_ctx is None:
+            raise LLMError("taille de contexte (num_ctx) non fixée : sans elle, Ollama tronquerait à 4096 jetons")
         messages = []
         if request.system:
             messages.append({"role": "system", "content": request.system})
@@ -63,14 +93,40 @@ class OllamaClient(LLMClient):
             response = client.chat(model=self.model, messages=messages, format=request.schema,
                                    options={"temperature": 0, "seed": self.seed, "num_ctx": self.num_ctx})
         except ollama.ResponseError as exc:
-            if exc.status_code == 404:
-                raise LLMError(f"modèle « {self.model} » absent d'Ollama : lancer « ollama pull {self.model} »") from None
-            raise LLMError(f"Ollama a refusé la requête ({exc.status_code}) : {exc.error}") from None
+            raise LLMError(self._refusal(exc.status_code, str(exc.error))) from None
         except httpx.TimeoutException:
             raise LLMError(f"Ollama n'a pas répondu en {request.timeout:g} s (modèle {self.model})") from None
         except (httpx.HTTPError, ConnectionError) as exc:
             raise LLMError(f"Ollama injoignable ({exc.__class__.__name__}) : lancer l'application Ollama") from None
+        self._usage = Usage(response.prompt_eval_count, response.eval_count, self.num_ctx)
+        if response.done_reason == "length":
+            raise LLMError(f"réponse coupée à la fin du contexte ({response.prompt_eval_count} jetons de demande + "
+                           f"{response.eval_count} de réponse = {self.num_ctx}) : relancer avec "
+                           f"--num-ctx {_round_up(self.num_ctx * 3 // 2)}")
         return response.message.content or ""
+
+    def _refusal(self, status: int, error: str) -> str:
+        if status == 404:
+            return f"modèle « {self.model} » absent d'Ollama : lancer « ollama pull {self.model} »"
+        m = _TOO_LONG.search(error)
+        if m:
+            return (f"demande de {m[1]} jetons, plus que le contexte de {m[2]} jetons : Ollama la refuse plutôt que "
+                    f"de la tronquer. Relancer avec --num-ctx {_round_up(int(m[1]) + 10240)}")
+        if "repeat limit" in error:
+            return (f"le modèle {self.model} répète la même sortie en boucle : Ollama a interrompu la génération "
+                    f"({error})")
+        return f"Ollama a refusé la requête ({status}) : {error}"
+
+    def usage(self) -> Usage | None:
+        return self._usage
+
+    def release(self) -> None:
+        import ollama
+
+        try:
+            ollama.Client(host=self.host, timeout=30).generate(model=self.model, prompt="", keep_alive=0)
+        except Exception:  # noqa: BLE001 - freeing memory is best effort, the work is done
+            pass
 
     def installed(self) -> list[str]:
         """Names of the models installed in Ollama."""
@@ -80,3 +136,7 @@ class OllamaClient(LLMClient):
             return sorted(m.model for m in ollama.Client(host=self.host, timeout=10).list().models)
         except Exception as exc:  # noqa: BLE001 - any failure means Ollama cannot be used
             raise LLMError(f"Ollama injoignable ({exc.__class__.__name__}) : lancer l'application Ollama") from None
+
+
+def _round_up(tokens: int, step: int = 1024) -> int:
+    return -(-tokens // step) * step

@@ -125,7 +125,7 @@ def draft_text(x: Extraction, meta: dict[str, Any], norms: Norms | None = None) 
     header = [
         f"BROUILLON de profil « {meta['name']} » produit par pad-guard draft-profile : NE PAS UTILISER EN L'ÉTAT.",
         f"Source : {meta['source_pdf']} (SHA-256 {x.pdf_sha256}), {x.pages} pages.",
-        f"Modèle local : {x.model}, consigne {x.prompt_version}, {x.batches} lots de pages.",
+        f"Modèle local : {x.model}, consigne {x.prompt_version}, {x.batches} lots de pages, contexte {x.num_ctx} jetons.",
         "Chaque valeur est à vérifier (A VERIFIER) : la citation a été retrouvée dans la page et contient le nombre,",
         "mais seul un humain peut confirmer le sens. À relire avec : pad-guard review-profile <ce fichier>.",
         "Statuts : " + ", ".join(f"{n} {s}" for s, n in counts.items()) + f", {len(x.not_found)} champ(s) non trouvé(s).",
@@ -152,7 +152,8 @@ def findings_json(x: Extraction, meta: dict[str, Any], norms: Norms | None = Non
     cited = [{"norm": k, "title": t, "available": a, "page": f.page, "quote": f.quote, "field": f.field}
              for k, (t, a, f) in (norms or {}).items()]
     data = {"meta": meta, "model": x.model, "prompt_version": x.prompt_version, "pdf_sha256": x.pdf_sha256,
-            "pages": x.pages, "batches": x.batches, "cited_norms": cited, "fields": [r.to_json() for r in x.fields],
+            "pages": x.pages, "batches": x.batches, "num_ctx": x.num_ctx, "cited_norms": cited,
+            "fields": [r.to_json() for r in x.fields],
             "not_found": x.not_found}
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 

@@ -13,6 +13,7 @@ la R128 ») gives no value: the field is RENVOI_NORME and the norm is proposed i
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -30,6 +31,14 @@ PROMPT_FILE = Path(__file__).resolve().parents[1] / "llm" / "prompts" / f"{PROMP
 PAGES_PER_BATCH = 2
 MAX_IMAGES_PER_BATCH = 2
 MAX_QUOTE_CHARS = 300  # a quote is a sentence or a table row, not a paragraph
+
+# Context size of a run (num_ctx), from an upper estimate of the largest request. Measured on qwen3-vl
+# (Arte V2-01-03, France TV 2023): 0.20 to 0.29 token per character, about 1300 tokens per rendered page,
+# largest request 9195 tokens, longest answer 7960 tokens (Arte p. 87-88, 116 proposals).
+TOKENS_PER_CHAR = 0.33
+TOKENS_PER_IMAGE = 2000
+ANSWER_TOKENS = 10240
+CONTEXT_STEP = 1024
 
 # Status of one finding, then of one field.
 OK = "A_VERIFIER"  # quote found in its page, number in the quote: still to be reviewed by a human
@@ -94,6 +103,7 @@ class Extraction:
     fields: list[FieldResult]  # fields with at least one finding, catalogue order
     not_found: list[str]  # catalogue paths with no finding at all
     log: list[dict]  # raw model answers, one per batch
+    num_ctx: int | None = None  # context size of the run, in tokens
 
     def cited_norms(self) -> dict[str, Finding]:
         """Norms the document refers to (glossary key or name as written), with their first citation."""
@@ -324,19 +334,25 @@ def extract(doc: Document, client: LLMClient, progress: Progress | None = None,
     schema = response_schema(fields)
     system = system_prompt()
     plan = batches(doc, pages_per_batch)
+    prompts = [build_prompt(doc, pages, fields, context) for pages in plan]
+    fit_context(client, doc, plan, prompts, system)
+    if progress:
+        progress(0, len(plan))  # context fixed, first request next
     findings: list[Finding] = []
     log: list[dict] = []
-    for i, pages in enumerate(plan, start=1):
+    for i, (pages, prompt) in enumerate(zip(plan, prompts), start=1):
         images = tuple(render(doc.path, n) for n in pages if doc.page(n).needs_image)[:MAX_IMAGES_PER_BATCH]
-        request = LLMRequest(prompt=build_prompt(doc, pages, fields, context), schema=schema, system=system,
-                             images=images, timeout=timeout)
+        request = LLMRequest(prompt=prompt, schema=schema, system=system, images=images, timeout=timeout)
         where = f"pages {pages[0]}-{pages[-1]}"
         try:
             raw = client.generate(request)
         except LLMError as exc:
             raise DraftError(f"{where} : {exc}") from None
+        usage = client.usage()
         log.append({"batch": i, "pages": pages, "model": client.model, "prompt_version": PROMPT_VERSION,
-                    "images": len(images), "response": raw})
+                    "images": len(images), "num_ctx": client.num_ctx,
+                    "prompt_tokens": usage.prompt_tokens if usage else None,
+                    "output_tokens": usage.output_tokens if usage else None, "response": raw})
         try:
             data = json.loads(raw)
             items = data["findings"]
@@ -352,4 +368,32 @@ def extract(doc: Document, client: LLMClient, progress: Progress | None = None,
             progress(i, len(plan))
     results, missing = merge(findings, fields)
     return Extraction(model=client.model, prompt_version=PROMPT_VERSION, pdf_sha256=doc.sha256,
-                      pages=len(doc.pages), batches=len(plan), fields=results, not_found=missing, log=log)
+                      pages=len(doc.pages), batches=len(plan), fields=results, not_found=missing, log=log,
+                      num_ctx=client.num_ctx)
+
+
+def estimate_tokens(system: str, prompt: str, images: int) -> int:
+    """Upper estimate of the prompt tokens of one request (measured on qwen3-vl, 52 requests of the
+    Arte and France TV documents: at most 97 % of this estimate)."""
+    return math.ceil(TOKENS_PER_CHAR * (len(system) + len(prompt)) + TOKENS_PER_IMAGE * images)
+
+
+def needed_context(doc: Document, plan: list[list[int]], prompts: list[str], system: str) -> tuple[int, int, list[int]]:
+    """(context size for the whole run, estimate of the largest request, its pages)."""
+    sizes = [(estimate_tokens(system, prompt, min(sum(doc.page(n).needs_image for n in pages), MAX_IMAGES_PER_BATCH)),
+              pages) for pages, prompt in zip(plan, prompts)]
+    biggest, pages = max(sizes, key=lambda s: s[0]) if sizes else (0, [])
+    return -(-(biggest + ANSWER_TOKENS) // CONTEXT_STEP) * CONTEXT_STEP, biggest, pages
+
+
+def fit_context(client: LLMClient, doc: Document, plan: list[list[int]], prompts: list[str], system: str) -> None:
+    """Set the context of the run when the caller did not, or refuse before the first request when
+    the context it set is too small: never a request cut by the engine, never an answer cut short."""
+    needed, biggest, pages = needed_context(doc, plan, prompts, system)
+    if client.num_ctx is None:
+        client.num_ctx = needed
+    elif client.num_ctx < needed:
+        raise DraftError(f"contexte de {client.num_ctx} jetons trop petit : la plus grosse demande (pages {pages[0]}-"
+                         f"{pages[-1]}) est estimée à {biggest} jetons, plus {ANSWER_TOKENS} réservés à la réponse. "
+                         f"Relancer avec --num-ctx {needed}, ou sans --num-ctx (calcul automatique). "
+                         "Aucun brouillon n'a été écrit.")

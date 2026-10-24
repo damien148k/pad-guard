@@ -463,9 +463,13 @@ def draft_profile(
         None, "--model", help=f"Modèle Ollama (défaut : {llm.DEFAULT_MODEL}, sinon {llm.FALLBACK_MODEL})."),
     broadcaster: str | None = typer.Option(None, "--broadcaster", help="Nom du diffuseur (défaut : le nom du profil)."),
     out_dir: Path = typer.Option(draft.DRAFTS, "--out-dir", help="Dossier des brouillons."),
+    num_ctx: int | None = typer.Option(
+        None, "--num-ctx", min=2048,
+        help="Taille du contexte en jetons (défaut : calculée sur la plus grosse demande, plus la réponse)."),
 ) -> None:
     """Propose un profil brouillon à partir du PDF d'un diffuseur, avec le modèle local (Ollama)."""
     client = _ollama_or_exit(model)
+    client.num_ctx = num_ctx
     console.print(f"Modèle local : [bold]{client.model}[/bold] (Ollama, rien ne sort de la machine)")
     start = time.perf_counter()
     with Progress(TextColumn("{task.description}"), BarColumn(), MofNCompleteColumn(), TimeRemainingColumn(),
@@ -478,13 +482,19 @@ def draft_profile(
                           f"SHA-256 {doc.sha256}")
             bar.update(task, description="Extraction (lots de pages)")
 
+        def on_progress(done: int, total: int) -> None:
+            if done == 0:
+                console.print(f"Contexte : {client.num_ctx} jetons" + ("" if num_ctx else " (calculé)"))
+            bar.update(task, completed=done, total=total)
+
         try:
-            x, files = draft.make_draft(pdf_file, name, client, out_dir, broadcaster,
-                                        progress=lambda done, total: bar.update(task, completed=done, total=total),
+            x, files = draft.make_draft(pdf_file, name, client, out_dir, broadcaster, progress=on_progress,
                                         on_read=on_read)
         except draft.DraftError as exc:
             err_console.print(f"[red]Brouillon impossible : {exc}[/red]")
             raise typer.Exit(EXIT_USAGE) from None
+        finally:
+            client.release()  # keep_alive 0: the model leaves the GPU memory
     elapsed = time.perf_counter() - start
     counts: dict[str, int] = {}
     for r in x.fields:
