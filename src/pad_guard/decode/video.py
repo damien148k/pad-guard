@@ -46,6 +46,9 @@ class IntegrityReport(BaseModel):
     errors: list[DecodeError]
     # Frames whose timestamp does not follow the previous one (dropped or duplicated frames in the file).
     pts_discontinuities: list[int]
+    # Key frames of a long-GOP stream (an error spoils the frames up to the next one); None: every
+    # frame is a key frame (intra codec).
+    keyframes: list[int] | None = None
 
     @property
     def ok(self) -> bool:
@@ -185,10 +188,12 @@ class VideoDecoder:
     _errors: list[DecodeError] = field(default_factory=list, init=False)
     _pts_gaps: list[int] = field(default_factory=list, init=False)
     _decoded: int = field(default=0, init=False)
+    _keys: list[int] = field(default_factory=list, init=False)
 
     def frames(self) -> Iterator[VideoFrame]:
         self._errors.clear()
         self._pts_gaps.clear()
+        self._keys.clear()
         self._decoded = 0
         # Concealed errors (e.g. a corrupt ProRes slice) are only logged by FFmpeg: capture them.
         av.logging.set_level(av.logging.ERROR)
@@ -231,6 +236,8 @@ class VideoDecoder:
                         if last_pts is not None and step and frame.pts - last_pts != step:
                             self._pts_gaps.append(self._decoded)
                         last_pts = frame.pts
+                    if frame.key_frame:
+                        self._keys.append(self._decoded)
                     yield to_frame(frame, self._decoded, self.picture)
                     self._decoded += 1
 
@@ -241,6 +248,7 @@ class VideoDecoder:
             frames_decoded=self._decoded,
             errors=list(self._errors),
             pts_discontinuities=list(self._pts_gaps),
+            keyframes=None if len(self._keys) == self._decoded else list(self._keys),
         )
 
 

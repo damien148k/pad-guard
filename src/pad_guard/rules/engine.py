@@ -170,6 +170,7 @@ def depends_on(d: Draft, loudness_set: str) -> tuple[str, ...]:
         "delivery_conversion_required": ("format.delivery",),
         "scan_flag_mismatch": ("format.field_order", "video.scan_detection"),
         "range_content_mismatch": ("video.range_detection",),
+        "audio_not_analysed": (),
         "range_tag_suspect": ("video.range_detection",),
         "scan_interlaced": ("format.field_order", "video.scan_detection"),
     }
@@ -299,9 +300,16 @@ class Engine:
         for key, frames in sorted(keys.items(), key=lambda kv: (min(kv[1]), kv[0])):
             ordered = sorted(frames)
             a, b = min(ordered[0], self.last), min(ordered[-1], self.last)
+            detail = f"image(s) {_frames_list(ordered)}"
+            if integ.keyframes is not None:  # long GOP: the following frames are predicted from the damaged one
+                nxt = next((k for k in integ.keyframes if k > b), None)
+                b = self.last if nxt is None else max(b, nxt - 1)
+                detail += (f" ; GOP long : images suivantes touchées jusqu'à l'image clé "
+                           f"{'suivante' if nxt is None else nxt} (exclue)" if nxt is not None else
+                           " ; GOP long : images suivantes touchées jusqu'à la fin du fichier")
             self.add(type="integrity", title=f"Erreur de décodage : {key}", source="integrity", scope="range",
                      frame_start=a, frame_end=b, value_text=f"{len(ordered)} image(s)", threshold_text="aucune erreur",
-                     occurrences=len(ordered), detail=f"image(s) {_frames_list(ordered)}")
+                     occurrences=len(ordered), detail=detail)
         for a, b in merge(((f, f) for f in integ.pts_discontinuities), self.p.rules.gap_frames(self.fps)):
             inside = [f for f in integ.pts_discontinuities if a <= f <= b]
             self.add(type="integrity", title="Discontinuité de timestamp (image manquante ou dupliquée)",

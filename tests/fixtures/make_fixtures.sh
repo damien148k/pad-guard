@@ -295,6 +295,18 @@ if need psf_prores.mov; then
     FIELD_MODE=tff make_fixture psf_prores.mov 10:00:00:00 "prog:4" "" 1 "${PRORES_HQ[@]}" -flags +ildct \
         -- "$WORK/flash.wav"
 fi
+# Long GOP: XDCAM HD422 (MPEG-2 4:2:2 Profile, 50 Mbit/s, GOP 12 with B frames, 1080i50 tff, MXF,
+# mono tracks), H.264 4:2:0 8 bits and HEVC 4:2:0 10 bits (GOP 25, MP4).
+if need xdcam_hd422.mxf || need h264_lgop.mp4 || need hevc_lgop.mp4; then
+    [[ -s "$WORK/flash.wav" ]] || audio_track "$WORK/flash.wav" pink23:4:11
+fi
+need xdcam_hd422.mxf && FIELD_MODE=tff make_fixture xdcam_hd422.mxf 10:00:00:00 "prog:4" "" 1 \
+    -c:v mpeg2video -pix_fmt yuv422p -profile:v 0 -level:v 2 -b:v 50M -maxrate 50M -minrate 50M \
+    -bufsize 17825792 -g 12 -bf 2 -flags +ildct+ilme -- "$WORK/flash.wav"
+need h264_lgop.mp4 && SIZE=1280x720 make_fixture h264_lgop.mp4 10:00:00:00 "prog:4" "" 0 \
+    -c:v libx264 -pix_fmt yuv420p -g 25 -bf 2 -- "$WORK/flash.wav"
+need hevc_lgop.mp4 && SIZE=1280x720 make_fixture hevc_lgop.mp4 10:00:00:00 "prog:4" "" 0 \
+    -c:v libx265 -pix_fmt yuv420p10le -x265-params log-level=error:keyint=25 -- "$WORK/flash.wav"
 # Resolutions: UHD letterboxed to 2.39 (3840x1608 active), 4K DCI full frame (4096x2160), 10 frames each.
 if need fmt_uhd_239.mov; then
     "${FF[@]}" -f lavfi -i "testsrc2=s=3840x1608:r=25:d=0.4" \

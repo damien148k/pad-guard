@@ -329,10 +329,17 @@ def _check_timecode(c: _Checks, p: Profile, tc: str | None, fmt: TimecodeFormat 
 
 
 def _check_audio(
-    c: _Checks, p: Profile, mapping: AudioMap, streams: list[AudioStreamInfo], tracks: list[AudioTrack]
+    c: _Checks, p: Profile, mapping: AudioMap, streams: list[AudioStreamInfo], tracks: list[AudioTrack],
+    container: ContainerInfo,
 ) -> None:
     a = p.audio
     available = {t.track for t in tracks}
+    if container.mxf_pattern == "opatom" and not streams:
+        # MXF OP-Atom holds one essence per file: the audio is in other files, not analysed (decision
+        # of Damien, 24 October 2026). Information, not a missing track.
+        c.add("audio_external", "Audio (MXF OP-Atom)", "audio_not_analysed", "audio dans le fichier",
+              "fichiers audio séparés (OP-Atom) : audio non analysé", False)
+        return
     for group in mapping.groups:
         missing = [t for t in group.tracks if t not in available]
         label = f"Groupe audio {group.name} (pistes {_track_list(group.tracks)})"
@@ -420,7 +427,7 @@ def probe_file(
     _check_format(c, profile, container, video)
     _check_duration(c, video)
     _check_timecode(c, profile, tc, tc_format)
-    _check_audio(c, profile, mapping, audio, tracks)
+    _check_audio(c, profile, mapping, audio, tracks, container)
 
     refusals = [ch for ch in c.items if ch.refusal and ch.status != "ok"]
     profile_path = Path(profile_path)

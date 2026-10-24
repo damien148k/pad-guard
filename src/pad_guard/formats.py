@@ -45,7 +45,8 @@ LAYOUTS: dict[str, Layout] = {
 MEASURABLE_PIX_FMTS: tuple[str, ...] = tuple(LAYOUTS)
 
 # Codec families known to decode to a measurable pixel format (shown by the interface).
-FAMILIES: tuple[str, ...] = ("ProRes (Proxy à 4444 XQ)", "DNxHD / DNxHR (LB à 444)", "H.264 / AVC-Intra / XAVC")
+FAMILIES: tuple[str, ...] = ("ProRes (Proxy à 4444 XQ)", "DNxHD / DNxHR (LB à 444)", "XAVC / AVC-Intra / H.264",
+                             "XDCAM HD422 (MPEG-2)", "HEVC", "non compressé (v210, r210)")
 
 CONTAINERS: tuple[str, ...] = ("MOV", "MP4", "MXF")
 

@@ -51,6 +51,8 @@ rules:
       - {else: major, source: "Lumiris : bornes de la plage numérique atteintes, contenu en plage pleine probable (décision de Damien, 24/10/2026) ; A VERIFIER"}
     range_tag_suspect:                     # balise plage pleine, contenu en plage légale
       - {else: info, source: "Lumiris : balise de plage probablement fausse, information"}
+    audio_not_analysed:                    # MXF OP-Atom : l'audio est dans d'autres fichiers
+      - {else: info, source: "Lumiris : audio d'un MXF OP-Atom non analysé, vidéo seule (décision de Damien, 24/10/2026)"}
     alpha_channel:                         # plan alpha (ProRes 4444, DNxHR 444) : ignoré par les mesures
       - {else: info, source: "Lumiris : canal alpha ignoré par les mesures, signalé (décision de Damien, 24/10/2026)"}
     scan_flag_mismatch:                    # images progressives, drapeau entrelacé : l'étiquette est fausse, pas les images

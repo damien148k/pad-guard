@@ -57,6 +57,7 @@ EVENT_TYPES = (
     "format_frame_rate",
     "integrity",
     "alpha_channel",
+    "audio_not_analysed",
     "range_content_mismatch",
     "range_tag_suspect",
     "delivery_conversion_required",

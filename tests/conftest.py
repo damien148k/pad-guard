@@ -44,6 +44,9 @@ FIXTURE_FILES = (
     "fmt_dci4k.mov",
     "interlaced_flash.mov",
     "psf_prores.mov",
+    "xdcam_hd422.mxf",
+    "h264_lgop.mp4",
+    "hevc_lgop.mp4",
 )
 
 
