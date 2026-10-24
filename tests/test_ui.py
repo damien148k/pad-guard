@@ -344,3 +344,102 @@ def test_rerun_from_the_report(lab, lab_client, analyses, fixtures_dir) -> None:
     run = json.loads((work / wd.RUN).read_text(encoding="utf-8"))
     assert run["reruns"][-1]["from_step"] == "rules"
     assert lab_client.post("/api/runs/relance/rerun", json={"from": "probe"}).status_code == 400
+
+
+# --- Profils: draft from a PDF and its review ---------------------------------------------------
+
+import yaml  # noqa: E402
+
+from test_draft import LOUD_QUOTE, R128_QUOTE, TP_QUOTE, FakeClient, finding  # noqa: E402
+
+from pad_guard.draft import make_draft  # noqa: E402
+from pad_guard.profiles import resolve_profile  # noqa: E402
+
+
+@pytest.fixture
+def draft_lab(lab, tmp_path):
+    """profiles/chaine_test.yaml (base, extends the norms) + profiles/drafts/chaine_test.yaml, PDF in diffuseurs/."""
+    raw = yaml.safe_load((TEST_PROFILES / "test_classic.yaml").read_text(encoding="utf-8"))
+    raw["meta"].update(name="chaine_test", extends=["ebu_r103", "ebu_r128", "lumiris_maison"])
+    (lab.root / "profiles" / "chaine_test.yaml").write_text(yaml.safe_dump(raw, allow_unicode=True, sort_keys=False),
+                                                            encoding="utf-8")
+    (lab.root / "diffuseurs").mkdir()
+    doc = pdf_fixture.make(lab.root / "diffuseurs" / "chaine_test.pdf")
+    client = FakeClient({1: [
+        finding("audio.true_peak_max_dbtp", -1, 1, TP_QUOTE),
+        finding("audio.loudness.long.integrated_lufs", None, 1, R128_QUOTE, source_type="client_refers_to_norm",
+                norm="EBU R128"),
+        finding("audio.sample_rate", 48000, 2, "Audio | 48 kHz, 24 bits"),
+        finding("audio.sample_rate", 48, 2, "Audio 48 kHz, 24 bits"),
+    ]})
+    make_draft(doc, "chaine_test", client, lab.root / "profiles" / "drafts", broadcaster="Chaîne de test")
+    return lab
+
+
+def test_review_needs_an_explicit_decision_per_field(draft_lab, lab_client) -> None:
+    data = lab_client.get("/api/drafts/chaine_test/review").json()
+    by = {q["path"]: q for q in data["questions"]}
+    assert set(by) == {"audio.sample_rate", "audio.loudness.long.integrated_lufs", "audio.true_peak_max_dbtp"}
+    conflict = by["audio.sample_rate"]
+    assert conflict["status"] == "CONFLIT" and any(f["implausible"] for f in conflict["findings"])  # shown in red
+    assert by["audio.loudness.long.integrated_lufs"]["reference"]["norm"] == "ebu_r128"
+    assert [r["norm"] for r in data["references"]] == ["ebu_r128"] and data["pdf_available"]
+    state = lab_client.get("/api/drafts/chaine_test/check").json()
+    assert not state["ready"] and len(state["pending"]) == 3 and state["pending_references"] == ["ebu_r128"]
+    refused = lab_client.post("/api/drafts/chaine_test/validate", json={"who": "Vincent"})
+    assert refused.status_code == 400 and "incomplète" in refused.json()["error"]
+
+    assert lab_client.put("/api/drafts/chaine_test/decision", json={"path": "audio.sample_rate", "answer": "a"}).status_code == 400
+    good = next(c["n"] for c in conflict["candidates"] if c["value"] == "48000")
+    lab_client.put("/api/drafts/chaine_test/decision", json={"path": "audio.sample_rate", "answer": str(good)})
+    bad = lab_client.put("/api/drafts/chaine_test/decision", json={"path": "audio.true_peak_max_dbtp", "answer": "c", "value": "fort"})
+    assert bad.status_code == 400
+    fixed = lab_client.put("/api/drafts/chaine_test/decision", json={"path": "audio.true_peak_max_dbtp", "answer": "c",
+                                                                     "value": "-3", "page": "1", "quote": "le niveau des crêtes"}).json()
+    assert fixed["answer"] == "c" and "corrigé à la relecture" in fixed["decision"]["source"]
+    lab_client.put("/api/drafts/chaine_test/decision", json={"path": "audio.loudness.long.integrated_lufs", "answer": "v"})
+    # Reference refused: audio_loudness (blocking) would rest on EBU R 128 only, capped at minor.
+    lab_client.post("/api/drafts/chaine_test/reference", json={"norm": "ebu_r128", "confirmed": False})
+    state = lab_client.get("/api/drafts/chaine_test/check").json()
+    assert state["ready"] and any("rules.severity.audio_loudness (blocking)" in r for r in state["risks"])
+    r = lab_client.post("/api/drafts/chaine_test/validate", json={"who": "Vincent"})
+    assert r.status_code == 400 and "confirmation" in r.json()["error"]
+    # Decisions survive a restart of the server (saved next to the draft).
+    lab_client.get("/api/drafts/chaine_test/review?fresh=1")
+    lab_client.post("/api/drafts/chaine_test/reference", json={"norm": "ebu_r128", "confirmed": True})
+    state = lab_client.get("/api/drafts/chaine_test/check").json()
+    assert state["ready"] and not state["risks"]
+    exists = lab_client.post("/api/drafts/chaine_test/validate", json={"who": "Vincent"})
+    assert exists.status_code == 409  # profiles/chaine_test.yaml is there: replacing it is asked for
+    done = lab_client.post("/api/drafts/chaine_test/validate", json={"who": "Vincent", "overwrite": True}).json()
+    assert done["validated_by"] == "Vincent" and done["file"] == "profiles/chaine_test.yaml"
+    prof = resolve_profile(draft_lab.root / "profiles" / "chaine_test.yaml")
+    assert prof.profile.meta.status == "validated" and prof.profile.audio.true_peak_max_dbtp == -3.0
+    assert prof.profile.audio.sample_rate == 48000 and [x.norm for x in prof.profile.meta.refers_to] == ["ebu_r128"]
+    drafts = lab_client.get("/api/profiles").json()["drafts"]
+    assert next(d for d in drafts if d["name"] == "chaine_test")["validated"]  # badge cleared
+
+
+def test_draft_job_copies_the_pdf_and_runs_the_cli(lab, lab_client, tmp_path, monkeypatch) -> None:
+    started = []
+    monkeypatch.setattr(lab.extra["jobs"], "start", lambda kind, title, args, progress, *a, **k: started.append(args)
+                        or jobs_mod.Job(id="x", kind=kind, title=title, args=args, command="", progress_file=str(progress),
+                                        log_dir=str(tmp_path)))
+    doc = pdf_fixture.make(tmp_path / "Cahier FTV.pdf")
+    assert lab_client.post("/api/jobs/draft", json={"pdf": str(doc), "name": "Pas Bon"}).status_code == 400
+    lab_client.post("/api/jobs/draft", json={"pdf": str(doc), "name": "ftv_hd", "broadcaster": "France Télévisions"})
+    copy = lab.root / "diffuseurs" / "Cahier FTV.pdf"
+    assert copy.read_bytes() == doc.read_bytes()
+    assert started[-1] == ["draft-profile", str(copy), "--name", "ftv_hd", "--out-dir", str(lab.root / "profiles" / "drafts"),
+                           "--broadcaster", "France Télévisions"]
+    other = tmp_path / "autre" / "Cahier FTV.pdf"
+    other.parent.mkdir()
+    pdf_fixture.make(other)
+    other.write_bytes(other.read_bytes() + b"%")
+    clash = lab_client.post("/api/jobs/draft", json={"pdf": str(other), "name": "ftv_hd"})
+    assert clash.status_code == 400 and "porte déjà ce nom" in clash.json()["error"]
+
+
+def test_page_preview_of_the_draft(draft_lab, lab_client) -> None:
+    r = lab_client.get("/api/drafts/chaine_test/page/1")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/png" and r.content[:4] == b"\x89PNG"

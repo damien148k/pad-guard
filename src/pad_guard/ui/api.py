@@ -62,12 +62,13 @@ async def get_profiles(request: Request) -> Response:
 
 
 def routes() -> list:
-    from pad_guard.ui import analysis, prepare, runs  # noqa: PLC0415
+    from pad_guard.ui import analysis, prepare, review, runs  # noqa: PLC0415
 
     return [
         *prepare.routes(),
         *analysis.routes(),
         *runs.routes(),
+        *review.routes(),
         Route("/api/profiles", get_profiles),
     ]
 
