@@ -3,9 +3,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from pad_checker.rules.engine import error_key, merge
-from pad_checker.rules.profile import LetterboxFormat, Letterbox, ProfileValueError, load_profile, require
-from pad_checker.structure import detect, letterbox as lb
+from pad_guard.rules.engine import error_key, merge
+from pad_guard.rules.profile import LetterboxFormat, Letterbox, ProfileValueError, load_profile, require
+from pad_guard.structure import detect, letterbox as lb
 
 from conftest import PROFILES, TEST_PROFILES
 

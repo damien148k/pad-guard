@@ -1,0 +1,164 @@
+# Rapport de contrôle PAD Guard — {{ h.file_name | cell }}
+{% if h.indicative %}
+> **PROFIL NON VALIDÉ — résultat indicatif**
+{% endif %}
+## 1. En-tête
+
+| | |
+|---|---|
+| Fichier | {{ h.file_name | cell }} |
+| Chemin | {{ h.path | cell }} |
+| SHA-256 | `{{ h.sha256 }}` |
+| Taille | {{ h.size }} |
+| Durée | {{ h.duration }} |
+| Timecode | {{ h.timecode }} |
+| Vidéo | {{ h.video | cell }} |
+| Profil | {{ h.profile | cell }} |
+| Statut du profil | {{ h.profile_status | cell }} |
+| Empreinte du profil effectif | `{{ h.fingerprint }}` |
+| Document de référence | {{ h.source_document | cell }} |
+| Version de PAD Guard | {{ h.tool_version }} |
+| Date d'analyse | {{ h.analyzed_at }} |
+| Commande | `{{ h.command | cell }}` |
+{%- for r in h.reruns %}
+| Relance ({{ r.from_step }}) | {{ r.at }} : `{{ r.command | cell }}` |
+{%- endfor %}
+
+## 2. Statut
+
+**{{ status }}** — score {{ score }}/100
+
+| Bloquant | Majeur | Mineur | Info |
+|---|---|---|---|
+| {{ v.counts.blocking }} | {{ v.counts.major }} | {{ v.counts.minor }} | {{ v.counts.info }} |
+
+{% if v.reasons -%}
+Motifs : {{ v.reasons | join(" ; ") }} (règle : NON-CONFORME dès une anomalie bloquante ou plus de {{ v.max_major }} anomalie(s) majeure(s)).
+{%- else -%}
+Aucune anomalie bloquante, et pas plus de {{ v.max_major }} anomalie(s) majeure(s).
+{%- endif %}
+
+## 3. Synthèse
+
+{{ synthesis }}
+
+*Synthèse générée par gabarit à partir des compteurs (couche IA désactivée).*
+
+## 4. Contrôles de format et de structure
+
+| Contrôle | Attendu | Mesuré | Statut |
+|---|---|---|---|
+{%- for c in checks %}
+| {{ c.label | cell }} | {{ c.expected | cell }} | {{ c.actual | cell }} | {{ c.status }} |
+{%- endfor %}
+{% if integrity_errors %}
+### Erreurs de décodage (dédoublonnées)
+
+| Erreur | Occurrences | Images |
+|---|---|---|
+{%- for e in integrity_errors %}
+| {{ e.key | cell }} | {{ e.count }} | {{ e.frames | cell }} |
+{%- endfor %}
+
+Une même erreur signalée plusieurs fois pour un paquet (message du décodeur et exception) n'est comptée qu'une fois par image. Les numéros d'image sont approximatifs : le décodage multi-thread signale une erreur quelques images après le paquet en cause. Après une image perdue, les timecodes de ce rapport sont décalés d'autant : le fichier doit être réexporté.
+{% endif %}
+{%- if letterbox_changes %}
+### Changements de format d'image (information)
+{% for c in letterbox_changes %}
+- {{ c }}
+{%- endfor %}
+{% endif %}
+### Livraison
+
+| | |
+|---|---|
+| Master analysé | {{ delivery.master | cell }} |
+| Livraison attendue | {{ delivery.expected | cell }} |
+
+{{ delivery.conclusion }}
+{%- if delivery.warning %}
+
+{{ delivery.warning }}
+{%- endif %}
+
+## 5. Audio
+
+{{ audio.program }}
+
+{% if audio.groups -%}
+| Groupe | Pistes | Loudness intégré | True peak | LRA | Short term max | Corrélation | Silences | Phase |
+|---|---|---|---|---|---|---|---|---|
+{%- for g in audio.groups %}
+| {{ g.name | cell }} | {{ g.tracks }} | {{ g.integrated }} | {{ g.true_peak }} | {{ g.lra }} | {{ g.short_term }} | {{ g.correlation }} | {{ g.silences }} | {{ g.phase }} |
+{%- endfor %}
+
+Règles appliquées : {{ audio.rules }}
+
+| Piste | Groupe | Crête | True peak | RMS | Échantillons à pleine échelle |
+|---|---|---|---|---|---|
+{%- for t in audio.tracks %}
+| {{ t.track }} | {{ t.group | cell }} | {{ t.peak }} | {{ t.true_peak }} | {{ t.rms }} | {{ t.full_scale }} |
+{%- endfor %}
+{%- else -%}
+Aucun groupe audio mesuré.
+{%- endif %}
+
+## 6. Anomalies (ordre chronologique)
+{% for table in event_tables %}
+### {{ table.title }}
+
+{{ table.intro }}
+
+{% if table.events -%}
+| N° | TC début | TC fin | Durée | Type | Valeur max | Seuil | Surface | Gravité | Qualif. suggérée | Vignette |
+|---|---|---|---|---|---|---|---|---|---|---|
+{%- for e in table.events %}
+| {{ e.id }} | {{ e.tc_start }} | {{ e.tc_end }} | {{ e.duration }} | {{ e.type | cell }} | {{ e.value | cell }} | {{ e.threshold | cell }} | {{ e.area }} | {{ e.severity }} | | {{ e.thumbnail }} |
+{%- endfor %}
+
+Détail :
+{% for e in table.events %}
+- **{{ e.id }}. {{ e.title }}**{% if e.group %} — {{ e.group }}{% endif %} — images {{ e.frames }}{% if e.detail %} — {{ e.detail }}{% endif %} — gravité {{ e.severity }} (règle : {{ e.severity_source }})
+{%- endfor %}
+{%- else -%}
+Aucune.
+{%- endif %}
+{% endfor %}
+{% if thumbnails %}
+### Vignettes
+
+{{ thumbnails_legend }}
+{% for t in thumbnails %}
+**Anomalie {{ t.id }}** — {{ t.caption }}
+
+![Anomalie {{ t.id }}]({{ t.path }})
+{% endfor %}
+{%- endif %}
+
+## 7. Annexe
+
+### Niveaux de luminance dans le temps
+
+![Luminance]({{ charts.luma }})
+{% if charts.loudness %}
+### Loudness momentané dans le temps
+
+![Loudness]({{ charts.loudness }})
+{% endif %}
+### Paramètres du profil appliqués
+{% for p in parameters %}
+- {{ p }}
+{%- endfor %}
+
+{% if norm_gaps %}
+### Écarts entre le profil et les normes (information)
+
+Le cahier des charges du client fait foi : ces valeurs sont appliquées telles qu'il les fixe, l'écart avec la norme est donné pour information et n'a pas d'effet sur le verdict.
+{% for g in norm_gaps %}
+- {{ g }}
+{%- endfor %}
+{% endif %}
+### Méthodes et limites
+{% for n in notes %}
+- {{ n }}
+{%- endfor %}

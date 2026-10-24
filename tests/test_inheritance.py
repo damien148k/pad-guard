@@ -11,13 +11,13 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from pad_checker import pipeline
-from pad_checker.cli import EXIT_USAGE, app
-from pad_checker.measure.scan import detect
-from pad_checker.probe.models import VideoInfo
-from pad_checker.profiles import from_json, load_norm, resolve_profile
-from pad_checker.profiles.resolve import REPO_NORMS, leaves
-from pad_checker.rules.profile import ProfileError, ScanDetection, null_fields
+from pad_guard import pipeline
+from pad_guard.cli import EXIT_USAGE, app
+from pad_guard.measure.scan import detect
+from pad_guard.probe.models import VideoInfo
+from pad_guard.profiles import from_json, load_norm, resolve_profile
+from pad_guard.profiles.resolve import REPO_NORMS, leaves
+from pad_guard.rules.profile import ProfileError, ScanDetection, null_fields
 
 from conftest import PROFILES, ROOT, TEST_PROFILES
 

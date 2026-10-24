@@ -15,13 +15,13 @@ from pydantic import BaseModel
 from typer.testing import CliRunner
 
 import pdf_fixture
-from pad_checker.cli import app
-from pad_checker.draft import DraftError, make_draft, pdf, verify, vocabulary
-from pad_checker.draft.extract import BAD_VALUE, CONFLICT, INVALID, OK, UNVERIFIABLE
-from pad_checker.draft.schema import SECTIONS, catalogue, response_schema
-from pad_checker.llm import LLMClient, LLMError, LLMRequest
-from pad_checker.profiles import resolve_profile
-from pad_checker.rules.profile import Profile
+from pad_guard.cli import app
+from pad_guard.draft import DraftError, make_draft, pdf, verify, vocabulary
+from pad_guard.draft.extract import BAD_VALUE, CONFLICT, INVALID, OK, UNVERIFIABLE
+from pad_guard.draft.schema import SECTIONS, catalogue, response_schema
+from pad_guard.llm import LLMClient, LLMError, LLMRequest
+from pad_guard.profiles import resolve_profile
+from pad_guard.rules.profile import Profile
 
 from conftest import ROOT, TEST_PROFILES
 
@@ -72,7 +72,7 @@ def statuses(x) -> dict[str, str]:
 
 
 def _model_leaves(model: type[BaseModel], prefix: str) -> set[str]:
-    from pad_checker.draft.schema import _sub_model
+    from pad_guard.draft.schema import _sub_model
 
     out = set()
     for name, f in model.model_fields.items():
@@ -92,7 +92,7 @@ def test_schema_covers_every_field_of_the_model() -> None:
 
 
 def _sub(section: str) -> type[BaseModel]:
-    from pad_checker.draft.schema import _sub_model
+    from pad_guard.draft.schema import _sub_model
 
     return _sub_model(Profile.model_fields[section].annotation)
 
@@ -258,7 +258,7 @@ def test_table_rows_and_columns() -> None:
 
 
 def test_lists_compared_as_sets(doc_pdf, tmp_path) -> None:
-    from pad_checker.draft.extract import canonical
+    from pad_guard.draft.extract import canonical
 
     assert canonical(["50/1", "25/1"]) == canonical(["25/1", "50/1"])
     quote = "Fréquence image | 25 images par seconde"
@@ -339,7 +339,7 @@ def test_review_refuses_incomplete_profile(review_lab, tmp_path) -> None:
 
 
 def test_review_completes_or_removes_partial_sections() -> None:
-    from pad_checker.draft import review
+    from pad_guard.draft import review
 
     data = {"format": {"width": 1920, "delivery": {"codec": "XDCAM"}},
             "audio": {"loudness": {"short": {"short_term_max_lufs": -20.0}}},

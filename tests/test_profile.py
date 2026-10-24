@@ -6,8 +6,8 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from pad_checker.cli import app
-from pad_checker.rules.profile import ProfileError, load_profile, null_fields
+from pad_guard.cli import app
+from pad_guard.rules.profile import ProfileError, load_profile, null_fields
 
 from conftest import PROFILES, TEST_PROFILES
 

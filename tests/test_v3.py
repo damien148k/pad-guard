@@ -13,9 +13,9 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from pad_checker import workdir as wd
-from pad_checker.cli import EXIT_REFUSED, app
-from pad_checker.profiles import resolve_profile
+from pad_guard import workdir as wd
+from pad_guard.cli import EXIT_REFUSED, app
+from pad_guard.profiles import resolve_profile
 
 from conftest import PROFILES, ROOT, TEST_PROFILES
 
@@ -63,7 +63,7 @@ def _profile_variant(tmp_path: Path, base: Path, name: str, mutate) -> Path:
 VOLATILE = ("| Chemin |", "| SHA-256 |", "| Taille |", "| Date d'analyse |", "| Commande |", "| Relance")
 CHANGED = ("| Profil |", "- Préfiltre avant mesure des niveaux :")  # rewritten lines
 NORM_GAPS = "### Écarts entre le profil et les normes (information)"
-ADDED = ("| Statut du profil |", "| Empreinte du profil effectif |", "| Cadence prise en charge par pad-checker |")
+ADDED = ("| Statut du profil |", "| Empreinte du profil effectif |", "| Cadence prise en charge par PAD Guard |")
 
 
 def _lines(md: str) -> list[str]:

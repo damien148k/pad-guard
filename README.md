@@ -1,4 +1,4 @@
-# pad-checker
+# PAD Guard
 
 Contrôle qualité automatisé de fichiers Prêt à Diffuser (ProRes 422 HQ / DNxHR HQX) pour Lumiris Production.
 
@@ -12,19 +12,21 @@ uv sync
 
 FFmpeg 6+ et `ffprobe` doivent être dans le PATH.
 
+La commande s'appelle `pad-guard` ; l'ancien nom `pad-checker` reste disponible comme alias.
+
 ## Utilisation
 
 ```bash
-uv run pad-checker validate-profile profiles/arte_hd_sdr.yaml   # schéma, normes héritées, cycles
-uv run pad-checker explain-profile profiles/arte_hd_sdr.yaml    # profil effectif : origine de chaque valeur, conflits
-uv run pad-checker draft-profile "diffuseurs/doc.pdf" --name nom   # profil brouillon tiré du PDF (Ollama local, SPEC §13)
-uv run pad-checker review-profile profiles/drafts/nom.yaml      # relecture champ par champ, écrit profiles/nom.yaml validé
-uv run pad-checker compare-profiles profiles/a.yaml profiles/b.yaml
-uv run pad-checker analyze film.mov --profile profiles/arte_hd_sdr.yaml --out ./out/
-uv run pad-checker analyze film.mov --profile profiles/arte_hd_sdr.yaml --out ./out/ --audio-map "VO:1-2,VF:3-4" --thumbnails
-uv run pad-checker rerun ./out/                          # structure + règles + rapport, sans refaire les mesures
-uv run pad-checker rerun ./out/ --from rules --profile autre.yaml   # autres règles sur les mêmes mesures
-uv run pad-checker report ./out/ --thumbnails            # rapport seul (+ vignettes)
+uv run pad-guard validate-profile profiles/arte_hd_sdr.yaml   # schéma, normes héritées, cycles
+uv run pad-guard explain-profile profiles/arte_hd_sdr.yaml    # profil effectif : origine de chaque valeur, conflits
+uv run pad-guard draft-profile "diffuseurs/doc.pdf" --name nom   # profil brouillon tiré du PDF (Ollama local, SPEC §13)
+uv run pad-guard review-profile profiles/drafts/nom.yaml      # relecture champ par champ, écrit profiles/nom.yaml validé
+uv run pad-guard compare-profiles profiles/a.yaml profiles/b.yaml
+uv run pad-guard analyze film.mov --profile profiles/arte_hd_sdr.yaml --out ./out/
+uv run pad-guard analyze film.mov --profile profiles/arte_hd_sdr.yaml --out ./out/ --audio-map "VO:1-2,VF:3-4" --thumbnails
+uv run pad-guard rerun ./out/                          # structure + règles + rapport, sans refaire les mesures
+uv run pad-guard rerun ./out/ --from rules --profile autre.yaml   # autres règles sur les mêmes mesures
+uv run pad-guard report ./out/ --thumbnails            # rapport seul (+ vignettes)
 ```
 
 `analyze` enchaîne probe, mesures, structure, règles et rapport. Le code de retour vaut 0 pour CONFORME, 4 pour NON-CONFORME, 1 pour une erreur d'usage ou un profil incomplet (détecté avant les mesures), 2 pour un fichier refusé.

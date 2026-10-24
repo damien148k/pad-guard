@@ -1,4 +1,4 @@
-# Ce que les consignes Arte V2 changent pour pad-checker
+# Ce que les consignes Arte V2 changent pour PAD Guard
 
 Source : « Consignes Techniques Globales ARTE G.E.I.E. » V2-01-00, applicable au 1er janvier 2026 (V1-07-3 encore acceptée jusqu'au 31 décembre 2026). Le profil `profiles/arte_hd_sdr.yaml` reprend toutes les valeurs ci-dessous avec le paragraphe source.
 

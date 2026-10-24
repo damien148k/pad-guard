@@ -8,13 +8,13 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from pad_checker import measure
-from pad_checker.decode.video import VideoFrame
-from pad_checker.measure import audio as am
-from pad_checker.measure.video import FrameMeter, VideoLimits, hfilter, measure_frames, pct_to_code
-from pad_checker.probe import probe_file
-from pad_checker.probe.models import AudioTrack
-from pad_checker.rules.profile import load_profile
+from pad_guard import measure
+from pad_guard.decode.video import VideoFrame
+from pad_guard.measure import audio as am
+from pad_guard.measure.video import FrameMeter, VideoLimits, hfilter, measure_frames, pct_to_code
+from pad_guard.probe import probe_file
+from pad_guard.probe.models import AudioTrack
+from pad_guard.rules.profile import load_profile
 
 from conftest import PROFILES, TEST_PROFILES
 from test_fixtures import loudness
@@ -374,7 +374,7 @@ def test_arte_dual_mono_tracks_identical(measured) -> None:
 
 
 def test_audio_map_drives_measured_groups(fixtures_dir, tmp_path) -> None:
-    from pad_checker import audio_map
+    from pad_guard import audio_map
 
     profile = load_profile(ARTE)
     mapping = audio_map.parse("VF:1-2,VO:3-4", profile)
@@ -401,7 +401,7 @@ def test_measurements_reproducible(fixtures_dir, tmp_path) -> None:
 def test_no_measurable_group(fixtures_dir, tmp_path) -> None:
     # Every mapped track is missing: per-track levels are still measured, no group loudness.
     profile = load_profile(ARTE)
-    from pad_checker import audio_map
+    from pad_guard import audio_map
 
     result = probe_file(fixtures_dir / "ok_prores.mov", profile, ARTE, audio_map.parse("VO:5-6", profile))
     m = measure.run(result, profile, tmp_path, workers=2)

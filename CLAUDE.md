@@ -1,4 +1,4 @@
-# pad-checker
+# PAD Guard
 
 Outil de contrôle qualité automatisé de fichiers Prêt à Diffuser (PAD) pour **Lumiris Production** (restauration d'images). Il analyse un master **ProRes 422 HQ** ou **DNxHR HQX**, mesure les niveaux vidéo et audio, vérifie la structure du fichier (mire, noirs, timecode), compare le tout au profil de la chaîne cliente et produit un rapport.
 
@@ -39,7 +39,7 @@ profiles/             profils des diffuseurs (YAML) ; meta.extends cite les norm
 normes/               normes lisibles par l'outil (YAML partiels, une source par valeur)
 normes/sources/       PDF des normes (non versionné, inventaire dans README.md)
 diffuseurs/           PDF des cahiers des charges des diffuseurs (non versionné, inventaire dans README.md)
-src/pad_checker/
+src/pad_guard/
   profiles/   résolution de l'héritage -> profil effectif, origine de chaque valeur, conflits
   probe/      lecture des métadonnées (ffprobe) et de l'en-tête du conteneur
   decode/     décodage image par image (PyAV) et audio
@@ -49,7 +49,7 @@ src/pad_checker/
   report/     génération Markdown / PDF
   llm/        LLMClient et OllamaClient (seule implémentation), consignes versionnées dans llm/prompts/
   draft/      draft-profile (lecture du PDF, schéma d'extraction, contrôle des citations), review-profile, compare-profiles
-  cli.py      point d'entrée `pad-checker`
+  cli.py      point d'entrée `pad-guard`
 ```
 
 Le flux est strictement linéaire : `profil effectif -> probe -> decode+measure -> structure -> rules -> report`, avec un fichier JSON écrit entre chaque étape dans le dossier de travail (`effective_profile.json`, `probe.json`, `measurements.json`…). Chaque étape doit pouvoir être relancée seule à partir du JSON précédent.
@@ -74,14 +74,14 @@ Avant tout commit, lancer `uv run pytest` sans pipe ni tail, et ne committer que
 
 ```bash
 uv sync                                     # installer
-uv run pad-checker analyze film.mov --profile profiles/france_tv_hd.yaml --out ./out/
-uv run pad-checker rerun ./out/ [--from structure|rules|report] [--profile p.yaml]   # relancer sans refaire les mesures
-uv run pad-checker report ./out/            # régénérer le rapport sans refaire les mesures
-uv run pad-checker validate-profile profiles/arte_hd_sdr.yaml   # schéma, normes héritées, cycles
-uv run pad-checker explain-profile profiles/arte_hd_sdr.yaml    # chaque valeur, son origine, les conflits
-uv run pad-checker draft-profile diffuseurs/doc.pdf --name nom  # brouillon dans profiles/drafts/ (Ollama local)
-uv run pad-checker review-profile profiles/drafts/nom.yaml      # relecture champ par champ -> profiles/nom.yaml validé
-uv run pad-checker compare-profiles a.yaml b.yaml               # différences entre deux profils effectifs
+uv run pad-guard analyze film.mov --profile profiles/france_tv_hd.yaml --out ./out/
+uv run pad-guard rerun ./out/ [--from structure|rules|report] [--profile p.yaml]   # relancer sans refaire les mesures
+uv run pad-guard report ./out/            # régénérer le rapport sans refaire les mesures
+uv run pad-guard validate-profile profiles/arte_hd_sdr.yaml   # schéma, normes héritées, cycles
+uv run pad-guard explain-profile profiles/arte_hd_sdr.yaml    # chaque valeur, son origine, les conflits
+uv run pad-guard draft-profile diffuseurs/doc.pdf --name nom  # brouillon dans profiles/drafts/ (Ollama local)
+uv run pad-guard review-profile profiles/drafts/nom.yaml      # relecture champ par champ -> profiles/nom.yaml validé
+uv run pad-guard compare-profiles a.yaml b.yaml               # différences entre deux profils effectifs
 uv run pytest
 ```
 

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from pad_checker import audio_map
-from pad_checker.audio_map import AudioMapError
-from pad_checker.rules.profile import load_profile
+from pad_guard import audio_map
+from pad_guard.audio_map import AudioMapError
+from pad_guard.rules.profile import load_profile
 
 from conftest import PROFILES
 

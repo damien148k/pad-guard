@@ -1,4 +1,4 @@
-# Rapport de contrôle PAD — arte_4tracks.mov
+# Rapport de contrôle PAD Guard — arte_4tracks.mov
 
 ## 1. En-tête
 
@@ -10,7 +10,7 @@
 | Vidéo | prores HQ, 1920x1080, yuv422p10le, balayage progressive |
 | Profil | arte_hd_sdr v1.0 (ARTE G.E.I.E.), SHA-256 17333c0d7973cbfa… |
 | Document de référence | Consignes Techniques Globales ARTE G.E.I.E. V2-01-00 (application 01/01/2026) |
-| Version de pad-checker | 0.1.0 |
+| Version de PAD Guard | 0.1.0 |
 
 ## 2. Statut
 

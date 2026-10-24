@@ -1,4 +1,4 @@
-# Rapport de contrôle PAD — ok_prores.mov
+# Rapport de contrôle PAD Guard — ok_prores.mov
 
 ## 1. En-tête
 
@@ -10,7 +10,7 @@
 | Vidéo | prores HQ, 1920x1080, yuv422p10le, balayage progressive |
 | Profil | test_classic v0.1 (Tests pad-checker), SHA-256 178e44c1515a2efd… |
 | Document de référence | tests/fixtures/make_fixtures.sh |
-| Version de pad-checker | 0.1.0 |
+| Version de PAD Guard | 0.1.0 |
 
 ## 2. Statut
 

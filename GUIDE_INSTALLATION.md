@@ -1,4 +1,4 @@
-# Guide pas à pas : préparer Claude Code et coder pad-checker
+# Guide pas à pas : préparer Claude Code et coder PAD Guard
 
 Ce guide suppose une station Windows 11 ou Linux (Ubuntu) avec la RTX 4090. Les commandes Windows se tapent dans **PowerShell**, les commandes Linux dans un **terminal**.
 
@@ -77,7 +77,7 @@ Pendant que le 32B tourne, `nvidia-smi` doit montrer environ 20 Go de VRAM utili
 
 ## Étape 4 : initialiser le dépôt Git
 
-Dans le dossier `pad-checker` :
+Dans le dossier `pad-guard` :
 
 ```bash
 git init
@@ -115,7 +115,7 @@ Claude va proposer des modifications et des commandes. Au début, lis ce qu'il p
 
 ```bash
 uv run pytest
-uv run pad-checker validate-profile profiles/arte_hd_sdr.yaml
+uv run pad-guard validate-profile profiles/arte_hd_sdr.yaml
 ```
 
 Si tout passe :

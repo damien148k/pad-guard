@@ -1,4 +1,4 @@
-# Spécification fonctionnelle et technique — pad-checker (v2)
+# Spécification fonctionnelle et technique — PAD Guard (v2)
 
 Système d'analyse automatisée et de contrôle qualité PAD, Lumiris Production.
 Version 2 du 7 octobre 2026. Remplace le cahier des charges v1 (sources DPX/CRI abandonnées).
@@ -45,18 +45,18 @@ Un fichier YAML (voir `profiles/france_tv_hd.yaml`) décrivant toutes les règle
 ### 2.4 Options de ligne de commande
 
 ```
-pad-checker analyze <fichier> --profile <yaml> --out <dossier>
+pad-guard analyze <fichier> --profile <yaml> --out <dossier>
     [--audio-map "VO:1-2,VF:3-4"]   groupes de pistes pour cette analyse (remplace audio.groups du profil)
     [--workers N]                   processus de mesure vidéo (défaut : automatique, sans effet sur les résultats)
     [--llm none|ollama]             défaut : none
     [--thumbnails]                  extraire une vignette par événement
     [--quick]                       aperçu rapide sans verdict (1 image sur 25)
-pad-checker rerun <dossier>         relance structure, règles et rapport à partir des JSON, sans refaire les mesures
+pad-guard rerun <dossier>         relance structure, règles et rapport à partir des JSON, sans refaire les mesures
     [--from structure|rules|report] première étape relancée (défaut : structure)
     [--profile <yaml>]              autre profil ; refusé s'il change un paramètre de mesure
     [--thumbnails]
-pad-checker report <dossier>        régénère le rapport à partir des JSON (= rerun --from report)
-pad-checker validate-profile <yaml>
+pad-guard report <dossier>        régénère le rapport à partir des JSON (= rerun --from report)
+pad-guard validate-profile <yaml>
 ```
 
 Codes de retour : 0 CONFORME, 4 NON-CONFORME (analyse menée à son terme), 1 usage ou profil incomplet, 2 fichier refusé.
@@ -360,7 +360,7 @@ llm:            {backend: ollama, model, fallback_model, num_ctx, temperature, l
 
 Chaque élément d'une chaîne de gravité porte sa `source` : un paragraphe du document du diffuseur (« Arte §3.2.3.3 »), une décision interne (« Lumiris : … ») ou « DEDUIT » quand aucun texte ne fixe la gravité. Une règle « DEDUIT » ne peut pas dépasser `minor` : le chargement du profil le refuse. `validate-profile` signale en avertissement les gravités bloquantes ou majeures dont la source est « A VERIFIER ».
 
-`pad-checker validate-profile` vérifie le schéma avec pydantic et refuse tout champ inconnu (pour attraper les fautes de frappe). Les champs documentés comme « information » (ex. `av_sync_ms`, `credits`, `safe_areas`) sont acceptés et recopiés dans le rapport, mais ne produisent pas de règle tant que le moteur ne sait pas les mesurer.
+`pad-guard validate-profile` vérifie le schéma avec pydantic et refuse tout champ inconnu (pour attraper les fautes de frappe). Les champs documentés comme « information » (ex. `av_sync_ms`, `credits`, `safe_areas`) sont acceptés et recopiés dans le rapport, mais ne produisent pas de règle tant que le moteur ne sait pas les mesurer.
 
 Deux profils sont fournis : `profiles/arte_hd_sdr.yaml`, construit à partir des consignes officielles Arte V2 avec le paragraphe source cité pour chaque valeur (profil de référence), et `profiles/france_tv_hd.yaml`, un exemple à valider.
 
@@ -368,7 +368,7 @@ Deux profils sont fournis : `profiles/arte_hd_sdr.yaml`, construit à partir des
 
 ## 10. Exigences non fonctionnelles
 
-- **Performance :** ≥ 2× temps réel en 1080p25 sur 16 cœurs. Mesurer avec `pad-checker analyze --benchmark`.
+- **Performance :** ≥ 2× temps réel en 1080p25 sur 16 cœurs. Mesurer avec `pad-guard analyze --benchmark`.
 - **Mémoire :** < 4 Go quelle que soit la durée du film (traitement en flux).
 - **Reproductibilité :** test automatisé qui analyse deux fois la même fixture et compare les JSON.
 - **Robustesse :** fichier tronqué, piste audio manquante, TC absent → erreur claire, code de retour non nul, rapport partiel si possible.
@@ -435,7 +435,7 @@ Résolution déterministe, sans IA :
 
 `analyze` et `rerun` écrivent `effective_profile.json` dans le dossier de travail : couches appliquées (fichier, document, SHA-256 du fichier, fins de ligne normalisées), valeurs du profil effectif, origine de chaque valeur (fichier + source), conflits et empreinte. Clés triées, aucune date : même profil + mêmes normes = même fichier, à l'octet. L'**empreinte** est le SHA-256 des valeurs du profil effectif sérialisées de façon canonique ; elle est affichée dans le rapport avec le nom et le statut du profil, et `rerun` sans `--profile` réutilise ce profil effectif tel quel.
 
-`pad-checker explain-profile <profil.yaml>` affiche chaque valeur, son origine et sa source, les couches et les conflits. `validate-profile` vérifie le schéma de chaque couche, l'existence des normes citées, l'absence de cycle et les sources des normes.
+`pad-guard explain-profile <profil.yaml>` affiche chaque valeur, son origine et sa source, les couches et les conflits. `validate-profile` vérifie le schéma de chaque couche, l'existence des normes citées, l'absence de cycle et les sources des normes.
 
 ### 12.3 bis Le cahier des charges du client fait foi (décision du 23 octobre 2026)
 
@@ -460,7 +460,7 @@ Un profil `draft` peut servir, mais le rapport porte en tête « PROFIL NON VALI
 
 ## 13. `draft-profile`, `review-profile`, `compare-profiles` (v3, Phase 4b)
 
-### 13.1 Extraction (`pad-checker draft-profile <pdf> --name <nom> [--model …]`)
+### 13.1 Extraction (`pad-guard draft-profile <pdf> --name <nom> [--model …]`)
 
 - **Lecture du PDF** (`draft/pdf.py`) : texte de chaque page et tableaux (`pdfplumber`, lignes « cellule | cellule ») ; les pages qui contiennent un tableau ou moins de 200 caractères sont rendues en image (`pypdfium2`, environ 90 dpi) pour le modèle de vision. Le PDF n'est jamais modifié ; son SHA-256 est enregistré.
 - **Modèle** (`llm/`) : interface `LLMClient` (une consigne, un schéma JSON imposé, des images facultatives, un délai) et sa seule implémentation `OllamaClient` (bibliothèque `ollama`, `format` = schéma, température 0, graine fixe). Modèle par défaut `qwen3-vl:32b-instruct`, repli automatique sur `qwen3-vl:8b-instruct` s'il est seul installé. Consigne système versionnée : `llm/prompts/draft_profile_v1.md`.
@@ -472,7 +472,7 @@ Un profil `draft` peut servir, mais le rapport porte en tête « PROFIL NON VALI
 Une valeur n'est retenue (statut `A_VERIFIER`, à confirmer par un humain) que si :
 
 1. elle est du type du champ (sinon `VALEUR_INVALIDE`) ;
-2. le champ n'est pas un paramètre interne de pad-checker ou du master Lumiris (`draft/vocabulary.py`, `INTERNAL` : seuils de détection, codecs du master…) ;
+2. le champ n'est pas un paramètre interne de PAD Guard ou du master Lumiris (`draft/vocabulary.py`, `INTERNAL` : seuils de détection, codecs du master…) ;
 3. la page citée fait partie du lot et a une couche texte (sinon `CITATION_NON_VERIFIABLE`) ;
 4. la citation fait au plus 300 caractères et se retrouve dans le texte de la page citée, après normalisation (formes de compatibilité Unicode donc ligatures et espaces insécables, apostrophes et guillemets typographiques, tirets et signe moins, césures en fin de ligne, espaces, casse) ; à défaut, pour une page à tableau, tous les mots de la citation se suivent dans l'ordre à l'intérieur d'une même ligne du tableau (le modèle peut omettre une cellule) ;
 5. la citation contient le vocabulaire du champ (accents et casse ignorés : `KEYWORDS`, par exemple « silence » pour `audio.silence_dbfs`) ;
@@ -488,7 +488,7 @@ Sinon `CITATION_INVALIDE`, avec la raison. Un champ dont toutes les propositions
 
 Dans `profiles/drafts/` : `<nom>.yaml` (meta `status: draft`, `source_pdf`, `source_pdf_sha256`, `extends` proposé = toutes les normes, `lumiris_maison` en dernier ; chaque valeur suivie de `# A VERIFIER (p. N) « citation »` ; champs en conflit ou invalides à `null` avec les propositions en commentaire ; liste des champs non trouvés en tête), `<nom>.findings.json` (toutes les propositions et leur statut) et `<nom>.llm.jsonl` (réponses brutes du modèle, une ligne par lot). Les trois fichiers sont écrits ensemble à la fin : une réponse mal formée ou un délai dépassé arrête tout, sans fichier à moitié écrit. Le brouillon est partiel : il n'est pas analysable tel quel.
 
-### 13.4 Relecture (`pad-checker review-profile <brouillon.yaml> [--base …] [--out …]`)
+### 13.4 Relecture (`pad-guard review-profile <brouillon.yaml> [--base …] [--out …]`)
 
 Par défaut, seuls les champs à vérifier (`A_VERIFIER`) et en conflit sont présentés (`--tous` : aussi ceux dont toutes les propositions ont été rejetées, qui sinon gardent la valeur du profil de base) ; Entrée choisit la réponse par défaut (accepter, sinon garder la valeur de base, sinon laisser vide). Pour chaque champ : description, valeur proposée (ou propositions en conflit), page et citation, valeur du profil de base et valeur des normes (information). L'humain accepte, choisit une proposition, corrige (valeur, page et citation facultatives), garde la valeur de base ou laisse vide (le champ est alors hérité d'une norme, donc plafonné à mineur). Les réponses sont gardées dans `<nom>.review.json`.
 
@@ -496,7 +496,7 @@ Les valeurs que le PDF n'a pas données viennent du **profil de base** : `profil
 
 Avant d'écrire, le profil est résolu : pour chaque champ obligatoire encore manquant (une section acceptée en partie, comme `format.delivery` réduit au codec), la valeur est demandée, ou la section entière est retirée ; tant que le profil est invalide, rien n'est écrit. Puis la liste, en rouge, des **règles bloquantes ou majeures dont une valeur ne viendrait que d'une norme** (elles seraient plafonnées à mineur) ; il faut confirmer pour continuer. Enfin le nom du validateur : le profil est écrit dans `profiles/<nom>.yaml` avec `status: validated`, `validated_by`, `validated_at`.
 
-### 13.5 Comparaison (`pad-checker compare-profiles <a.yaml> <b.yaml> [--all]`)
+### 13.5 Comparaison (`pad-guard compare-profiles <a.yaml> <b.yaml> [--all]`)
 
 Deux profils fusionnés avec leurs normes (un brouillon incomplet est accepté), comparés valeur par valeur : identique, différent, seulement dans A, seulement dans B, avec l'origine de chaque valeur et, pour un brouillon, son statut d'extraction.
 

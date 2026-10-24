@@ -7,11 +7,11 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from pad_checker.cli import EXIT_NON_CONFORME, EXIT_REFUSED, EXIT_USAGE, app
-from pad_checker.probe import ProbeError, probe_file
-from pad_checker.probe.models import AudioStreamInfo
-from pad_checker.probe.probe import audio_tracks
-from pad_checker.rules.profile import load_profile
+from pad_guard.cli import EXIT_NON_CONFORME, EXIT_REFUSED, EXIT_USAGE, app
+from pad_guard.probe import ProbeError, probe_file
+from pad_guard.probe.models import AudioStreamInfo
+from pad_guard.probe.probe import audio_tracks
+from pad_guard.rules.profile import load_profile
 
 from conftest import PROFILES, TEST_PROFILES
 

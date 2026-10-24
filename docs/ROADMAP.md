@@ -1,4 +1,4 @@
-# Feuille de route — pad-checker
+# Feuille de route — PAD Guard
 
 Orientation v3 du 23 octobre 2026 : multi-diffuseurs, profils hérités de normes. Chaque phase se termine par des tests qui passent et une démonstration sur une fixture. Ne pas commencer la phase suivante sans validation de Damien ou Vincent.
 
@@ -7,7 +7,7 @@ Orientation v3 du 23 octobre 2026 : multi-diffuseurs, profils hérités de norme
 ## Phase 0 : squelette du projet (une session) — terminée
 
 **Livrables**
-- `pyproject.toml`, structure `src/pad_checker/`, CLI `typer` avec les trois commandes (`analyze`, `report`, `validate-profile`) qui affichent « non implémenté ».
+- `pyproject.toml`, structure `src/pad_guard/`, CLI `typer` avec les trois commandes (`analyze`, `report`, `validate-profile`) qui affichent « non implémenté ».
 - Modèles pydantic du profil (§9 de SPEC) ; `validate-profile` fonctionne et refuse les champs inconnus.
 - `tests/fixtures/make_fixtures.sh` qui génère avec FFmpeg :
   - `ok_prores.mov` : 20 s, 1080p25, ProRes 422 HQ, 10 bits, avec 5 s de mire EBU + 1 kHz à -18 dBFS, 5 s de noir, 10 s de `testsrc2` en plage légale, TC de départ 09:59:50:00, audio stéréo -23 LUFS.
@@ -21,7 +21,7 @@ Orientation v3 du 23 octobre 2026 : multi-diffuseurs, profils hérités de norme
 - CI locale : `uv run pytest` passe.
 
 **Acceptation**
-- `pad-checker validate-profile profiles/france_tv_hd.yaml` → OK ; une faute de frappe dans un champ → erreur nommant le champ.
+- `pad-guard validate-profile profiles/france_tv_hd.yaml` → OK ; une faute de frappe dans un champ → erreur nommant le champ.
 
 ---
 
@@ -80,9 +80,9 @@ Orientation v3 du 23 octobre 2026 : multi-diffuseurs, profils hérités de norme
 **Livrables**
 - Dossier `normes/` : fichiers YAML de même schéma que les profils, mais partiels, avec `meta.kind: norm`, `meta.document` (titre et version exacte) et une source (document + paragraphe) pour chaque valeur. Pour commencer : `ebu_r128.yaml`, `ebu_r103.yaml` et `lumiris_maison.yaml` (règles internes Lumiris). Les PDF sources sont dans `normes/sources/` (non versionné, inventaire dans son `README.md`). BT.709, BT.2100 et BT.2408 viendront aux phases 6 et 7.
 - Profils : `meta.extends` (normes héritées), `meta.status` (`draft` | `validated`, `draft` par défaut), `meta.validated_by`, `meta.validated_at`, `meta.source_pdf`, `meta.source_pdf_sha256`. `validate-profile` vérifie que chaque norme citée existe et refuse les cycles.
-- Résolution déterministe (`src/pad_checker/profiles/`) : fusion champ par champ, le dernier niveau gagne (normes dans l'ordre de `extends`, puis `lumiris_maison`, puis le profil). Profil effectif complet, chaque valeur avec son origine (fichier + source) ; conflits listés. Un `null` du profil effectif fait refuser l'analyse.
+- Résolution déterministe (`src/pad_guard/profiles/`) : fusion champ par champ, le dernier niveau gagne (normes dans l'ordre de `extends`, puis `lumiris_maison`, puis le profil). Profil effectif complet, chaque valeur avec son origine (fichier + source) ; conflits listés. Un `null` du profil effectif fait refuser l'analyse.
 - `analyze` et `rerun` écrivent `effective_profile.json` (sans date, clés triées) et utilisent le profil effectif ; le rapport donne le nom du profil, son statut et l'empreinte SHA-256 du profil effectif.
-- Commande `pad-checker explain-profile <profil.yaml>` : chaque valeur, son origine, les conflits.
+- Commande `pad-guard explain-profile <profil.yaml>` : chaque valeur, son origine, les conflits.
 - `profiles/arte_hd_sdr.yaml` réécrit avec `extends: [ebu_r128, ebu_r103, lumiris_maison]` (statut `validated`) ; `profiles/france_tv_hd.yaml` de même (statut `draft`).
 - Profil `draft` : le rapport porte « PROFIL NON VALIDÉ — résultat indicatif » et n'affiche jamais CONFORME.
 - Cadence et balayage : cadence (fraction exacte) et `field_order` lus par `probe`, indicateur de peignage par image pendant la passe de mesure, `scan_detected` (`progressive` | `interlaced` | `undetermined`) et avertissement si le drapeau et la détection ne concordent pas. Toute cadence autre que 25 i/s est refusée (jusqu'à la Phase 6). Section « Livraison » du rapport et événement `delivery_conversion_required` (info) quand le master diffère de `format.delivery`.
@@ -103,7 +103,7 @@ Orientation v3 du 23 octobre 2026 : multi-diffuseurs, profils hérités de norme
 - Qwen3-VL via Ollama (local) avec sortie JSON contrainte par un schéma généré depuis le modèle pydantic du profil. Chaque valeur proposée porte `value`, `page`, `quote` et `status: A_VERIFIER`.
 - Contrôle déterministe de chaque proposition : la citation doit exister dans le texte du PDF (normalisation des espaces, césures et ligatures) et contenir la valeur numérique ; sinon `value: null` et signalement. PDF sans couche texte : « citation non vérifiable » partout. Aucun champ deviné.
 - Le profil brouillon est écrit en `meta.status: draft`, avec `meta.source_pdf` (dans `diffuseurs/`) et `meta.source_pdf_sha256`.
-- Commande `pad-checker review-profile` qui fait passer `meta.status` de `draft` à `validated`, avec `validated_by` et `validated_at`.
+- Commande `pad-guard review-profile` qui fait passer `meta.status` de `draft` à `validated`, avec `validated_by` et `validated_at`.
 
 **Acceptation**
 - Sur le PDF Arte V2, toute valeur proposée a une citation vérifiée, et la comparaison automatique avec `profiles/arte_hd_sdr.yaml` ne montre aucune valeur fausse non signalée.
@@ -113,7 +113,7 @@ Orientation v3 du 23 octobre 2026 : multi-diffuseurs, profils hérités de norme
 ## Phase 4c : synthèse IA du rapport (§8.1)
 
 **Livrables**
-- `llm/` : interface `LLMClient` et implémentation `OllamaClient` (bibliothèque `ollama`, sortie forcée au schéma JSON, images jointes). Modèle par défaut `qwen3-vl:32b-instruct`, repli `qwen3-vl:8b-instruct`. Commande `pad-checker llm-check` qui vérifie qu'Ollama répond, que le modèle est installé et qu'il tient en VRAM. Aucun autre moteur, aucune API externe.
+- `llm/` : interface `LLMClient` et implémentation `OllamaClient` (bibliothèque `ollama`, sortie forcée au schéma JSON, images jointes). Modèle par défaut `qwen3-vl:32b-instruct`, repli `qwen3-vl:8b-instruct`. Commande `pad-guard llm-check` qui vérifie qu'Ollama répond, que le modèle est installé et qu'il tient en VRAM. Aucun autre moteur, aucune API externe.
 - Prompt système versionné dans `llm/prompts/`, qui interdit explicitement toute modification du verdict.
 - Synthèse rédigée insérée en section 3 du rapport ; colonne « qualification suggérée » remplie à partir des vignettes.
 

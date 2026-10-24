@@ -13,12 +13,12 @@ import pytest
 from PIL import Image
 from typer.testing import CliRunner
 
-from pad_checker import workdir as wd
-from pad_checker.cli import EXIT_NON_CONFORME, EXIT_USAGE, app
-from pad_checker.decode.video import read_frames
-from pad_checker.measure.models import Measurements
-from pad_checker.measure.video import out_of_range_masks
-from pad_checker.report.thumbnails import limits_from
+from pad_guard import workdir as wd
+from pad_guard.cli import EXIT_NON_CONFORME, EXIT_USAGE, app
+from pad_guard.decode.video import read_frames
+from pad_guard.measure.models import Measurements
+from pad_guard.measure.video import out_of_range_masks
+from pad_guard.report.thumbnails import limits_from
 
 from conftest import PROFILES, TEST_PROFILES
 

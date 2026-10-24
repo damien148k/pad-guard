@@ -2,7 +2,7 @@
 
 Documents techniques des diffuseurs (ce ne sont pas des normes). Ils servent de source aux profils
 `profiles/*.yaml` (le champ `meta.source_pdf` pointe dans ce dossier) et, en Phase 4b, à
-`pad-checker draft-profile`.
+`pad-guard draft-profile`.
 
 Ce dossier n'est **pas** versionné (`.gitignore`) : documents volumineux, diffusés par les chaînes à
 leurs prestataires. Ce fichier liste ce qui est attendu, pour savoir ce qui manque sur une autre machine.
