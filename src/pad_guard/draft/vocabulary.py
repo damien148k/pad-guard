@@ -93,7 +93,9 @@ KEYWORDS: dict[str, tuple[str, ...]] = {
     "structure.leaders": (r"amorces?|leaders?|clap|decompte|mire",),
     "structure.timecode.file_start": (r"timecode|time code|\btc\b",),
     "structure.timecode.program_start": (r"timecode|time code|\btc\b",),
-    "structure.timecode.tolerance_frames": (r"timecode|time code|\btc\b", r"images?|frames?"),
+    # A tolerance must be said: « affichage d'au moins 5 images » (subtitle timecodes) is not one.
+    "structure.timecode.tolerance_frames": (r"timecode|time code|\btc\b", r"images?|frames?",
+                                            r"toleran|\bpres\b|precision|precis|ecart|accura"),
     "structure.timecode.drop_frame_allowed": (r"drop",),
     "structure.timecode.must_be_continuous": (r"continu|saut|recouvrement|discontinu",),
     "structure.bars.required": (r"mire|barres|bars",),
@@ -137,6 +139,8 @@ UNITS: tuple[tuple[str, str], ...] = (
 NEGATION = (r"\bne\b.{0,60}\b(pas|jamais|aucun)|\bn'.{0,60}\b(pas|jamais|aucun)|interdit|proscrit|\baucune?\b|"
             r"\bsans\b|\bjamais\b|\bpas d(e|')|\bpas de\b|\bno\b|\bnot\b|forbidden")
 _INTERLACED = r"entrelac|interlac|\d\s*i\b"
+_UPPER_FIRST = r"(upper|top|superieure?|haute) field first|\b(tff|uff)\b|trame (superieure|haute) en premier"
+_LOWER_FIRST = r"(lower|bottom|inferieure?|basse) field first|\b(bff|lff)\b|trame (inferieure|basse) en premier"
 
 # For choices and yes/no values, what the quote must say (and must not say) for that value:
 # {path: {value as JSON: (required pattern or None, forbidden pattern or None)}}.
@@ -147,8 +151,12 @@ EVIDENCE: dict[str, dict[str, tuple[str | None, str | None]]] = {
     },
     "structure.bars.required": {"true": (r"mire|barres", NEGATION), "false": (NEGATION, None)},
     "structure.bars.forbidden": {"true": (NEGATION, None), "false": (None, NEGATION)},
-    "format.field_order": {'"progressive"': (r"progressi", None), **{f'"{v}"': (_INTERLACED, None)
-                                                                     for v in ("tt", "bb", "tb", "bt")}},
+    # « Upper / top field first » is tt, « lower / bottom field first » is bb; tb and bt (coded in one
+    # order, shown in the other) are never what such a sentence means.
+    "format.field_order": {'"progressive"': (r"progressi", None),
+                           '"tt"': (_INTERLACED, _LOWER_FIRST), '"bb"': (_INTERLACED, _UPPER_FIRST),
+                           '"tb"': (_INTERLACED, _UPPER_FIRST + "|" + _LOWER_FIRST),
+                           '"bt"': (_INTERLACED, _UPPER_FIRST + "|" + _LOWER_FIRST)},
     "format.delivery.scan": {'"progressive"': (r"progressi", None), '"interlaced_tff"': (_INTERLACED, None),
                              '"interlaced_bff"': (_INTERLACED, None), '"psf"': (r"psf|segment", None)},
     "format.color_range": {'"tv"': (r"limit|narrow|legal|nominal|64|16", r"full|pleine"),

@@ -4,7 +4,7 @@
     "version": "0.1",
     "broadcaster": "France Télévisions",
     "source_document": "Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf",
-    "notes": "Brouillon extrait par qwen3-vl:8b-instruct (draft_profile_v1) : chaque valeur est à vérifier.",
+    "notes": "Brouillon extrait par qwen3-vl:8b-instruct (draft_profile_v2) : chaque valeur est à vérifier.",
     "extends": [
       "ebu_r103",
       "ebu_r128",
@@ -15,10 +15,20 @@
     "source_pdf_sha256": "3cdd935056d18335ddd561c0e61b60c138af317829db42cc44ac39a886481e28"
   },
   "model": "qwen3-vl:8b-instruct",
-  "prompt_version": "draft_profile_v1",
+  "prompt_version": "draft_profile_v2",
   "pdf_sha256": "3cdd935056d18335ddd561c0e61b60c138af317829db42cc44ac39a886481e28",
   "pages": 9,
   "batches": 5,
+  "cited_norms": [
+    {
+      "norm": "ebu_r128",
+      "title": "EBU R 128",
+      "available": true,
+      "page": 7,
+      "quote": "conformes à la norme R128",
+      "field": "audio.loudness.method"
+    }
+  ],
   "fields": [
     {
       "path": "format.width",
@@ -31,20 +41,24 @@
           "value": 1920,
           "page": 5,
           "quote": "1920 x 1080 pixels carrés",
-          "unit": null,
+          "unit": "pixels",
           "status": "A_VERIFIER",
           "reason": "",
-          "batch": 3
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
         },
         {
           "field": "format.width",
           "value": 1920,
           "page": 8,
           "quote": "Format: 1920x1080",
-          "unit": null,
+          "unit": "pixels",
           "status": "A_VERIFIER",
           "reason": "",
-          "batch": 4
+          "batch": 4,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
@@ -59,40 +73,44 @@
           "value": 1080,
           "page": 5,
           "quote": "1920 x 1080 pixels carrés",
-          "unit": null,
+          "unit": "lignes",
           "status": "A_VERIFIER",
           "reason": "",
-          "batch": 3
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
         },
         {
           "field": "format.height",
           "value": 1080,
           "page": 8,
           "quote": "Format: 1920x1080",
-          "unit": null,
+          "unit": "lines",
           "status": "A_VERIFIER",
           "reason": "",
-          "batch": 4
+          "batch": 4,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
     {
       "path": "format.fps_allowed",
       "description": "Cadences d'images acceptées, en fractions 'num/den' (ex. '25/1', '50/1')",
-      "status": "CITATION_INVALIDE",
+      "status": "VALEUR_INVALIDE",
       "value": null,
       "findings": [
         {
           "field": "format.fps_allowed",
-          "value": [
-            "25/1"
-          ],
+          "value": "50/1",
           "page": 5,
           "quote": "Fréquence trame : 50 Hz",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : images? par seconde|images?/s|i/s|fps|frequence image|cadence|frame rate|ds*p|ds*i|psf)",
-          "batch": 3
+          "unit": "Hz",
+          "status": "VALEUR_INVALIDE",
+          "reason": "valeur '50/1' incompatible avec le champ (Input should be a valid list)",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
         },
         {
           "field": "format.fps_allowed",
@@ -102,155 +120,61 @@
           "unit": null,
           "status": "VALEUR_INVALIDE",
           "reason": "valeur '25/1' incompatible avec le champ (Input should be a valid list)",
-          "batch": 4
+          "batch": 4,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
     {
       "path": "format.field_order",
       "description": "Balayage attendu : progressive, tt, bb, tb ou bt (entrelacé)",
-      "status": "A_VERIFIER",
-      "value": "tt",
+      "status": "CITATION_INVALIDE",
+      "value": null,
       "findings": [
         {
           "field": "format.field_order",
-          "value": "tt",
+          "value": "tb",
+          "page": 8,
+          "quote": "Entrelacement: Entrelacé / Upper Field First",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "la citation contredit la valeur \"tb\" (négation ou terme contraire)",
+          "batch": 4,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "format.delivery.scan",
+      "description": "Balayage du fichier livré : progressive, interlaced_tff, interlaced_bff ou psf",
+      "status": "A_VERIFIER",
+      "value": "interlaced_tff",
+      "findings": [
+        {
+          "field": "format.delivery.scan",
+          "value": "progressive",
+          "page": 3,
+          "quote": "Le début de programme (première image et premier son utile) doit commencer obligatoirement au Time Code 00:00:00:00, sans présence d’amorce en début de fichier (SOM et TC IN).",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : balayage|progressi|entrelac|interlac|scan|psf)",
+          "batch": 2,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "format.delivery.scan",
+          "value": "interlaced_tff",
           "page": 8,
           "quote": "Entrelacement: Entrelacé / Upper Field First",
           "unit": null,
           "status": "A_VERIFIER",
           "reason": "",
-          "batch": 4
-        }
-      ]
-    },
-    {
-      "path": "format.color_primaries",
-      "description": "Primaires colorimétriques attendues (ex. bt709)",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "format.color_primaries",
-          "value": "bt709",
-          "page": 5,
-          "quote": "Le signal vidéo, conforme à la Recommandation Technique PAD fichier Diffuseurs, sera encodé avec les caractéristiques suivantes :",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : 709|2020|colorim|primaires|gamma|espace)",
-          "batch": 3
-        },
-        {
-          "field": "format.color_primaries",
-          "value": "bt709",
-          "page": 8,
-          "quote": "Profil: 4:2:2@High",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : 709|2020|colorim|primaires|gamma|espace)",
-          "batch": 4
-        }
-      ]
-    },
-    {
-      "path": "format.color_transfer",
-      "description": "Fonction de transfert attendue (ex. bt709)",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "format.color_transfer",
-          "value": "bt709",
-          "page": 5,
-          "quote": "Le signal vidéo, conforme à la Recommandation Technique PAD fichier Diffuseurs, sera encodé avec les caractéristiques suivantes :",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : 709|2020|colorim|primaires|gamma|espace)",
-          "batch": 3
-        },
-        {
-          "field": "format.color_transfer",
-          "value": "bt709",
-          "page": 8,
-          "quote": "Profil: 4:2:2@High",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : 709|2020|colorim|primaires|gamma|espace)",
-          "batch": 4
-        }
-      ]
-    },
-    {
-      "path": "format.color_space",
-      "description": "Matrice de couleur attendue (ex. bt709)",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "format.color_space",
-          "value": "bt709",
-          "page": 5,
-          "quote": "Le signal vidéo, conforme à la Recommandation Technique PAD fichier Diffuseurs, sera encodé avec les caractéristiques suivantes :",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : 709|2020|colorim|primaires|gamma|espace)",
-          "batch": 3
-        },
-        {
-          "field": "format.color_space",
-          "value": "bt709",
-          "page": 8,
-          "quote": "Profil: 4:2:2@High",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : 709|2020|colorim|primaires|gamma|espace)",
-          "batch": 4
-        }
-      ]
-    },
-    {
-      "path": "format.color_range",
-      "description": "Plage de codage : tv (légale, 64-940 en 10 bits) ou pc (pleine)",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "format.color_range",
-          "value": "tv",
-          "page": 5,
-          "quote": "Le signal vidéo, conforme à la Recommandation Technique PAD fichier Diffuseurs, sera encodé avec les caractéristiques suivantes :",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : 64|940|16|235|plage|range|legal)",
-          "batch": 3
-        },
-        {
-          "field": "format.color_range",
-          "value": "tv",
-          "page": 8,
-          "quote": "Profil: 4:2:2@High",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : 64|940|16|235|plage|range|legal)",
-          "batch": 4
-        }
-      ]
-    },
-    {
-      "path": "format.delivery.fps",
-      "description": "Cadences d'images du fichier livré, en fractions 'num/den' (50i = '25/1' entrelacé)",
-      "status": "VALEUR_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "format.delivery.fps",
-          "value": "25/1",
-          "page": 8,
-          "quote": "Framerate: 25fps",
-          "unit": null,
-          "status": "VALEUR_INVALIDE",
-          "reason": "valeur '25/1' incompatible avec le champ (Input should be a valid list)",
-          "batch": 4
+          "batch": 4,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
@@ -262,85 +186,39 @@
       "findings": [
         {
           "field": "format.delivery.codec",
+          "value": "MXF OP1a (SMPTE ST 377-1:2019, SMPTE RDD 32:2017)",
+          "page": 3,
+          "quote": "Le début de programme (première image et premier son utile) doit commencer obligatoirement au Time Code 00:00:00:00, sans présence d’amorce en début de fichier (SOM et TC IN).",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : codec|xavc|prores|dnx|avc|h.?264|mxf|class)",
+          "batch": 2,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "format.delivery.codec",
+          "value": "MXF OP1a Normé RDD9",
+          "page": 4,
+          "quote": "Format du conteneur MXF : MXF Operational Patern: OP1a Normé RDD9",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "la citation ne contient pas le texte « MXF OP1a Normé RDD9 »",
+          "batch": 2,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "format.delivery.codec",
           "value": "Sony XDCAM HD422",
           "page": 8,
           "quote": "Codec Video: Sony XDCAM HD422",
           "unit": null,
           "status": "A_VERIFIER",
           "reason": "",
-          "batch": 4
-        }
-      ]
-    },
-    {
-      "path": "video.y_min_legal",
-      "description": "Niveau du noir de la luminance Y en valeur de code 10 bits (ex. 64)",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "video.y_min_legal",
-          "value": 64,
-          "page": 5,
-          "quote": "Le signal vidéo, conforme à la Recommandation Technique PAD fichier Diffuseurs, sera encodé avec les caractéristiques suivantes :",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : 64|noir|black)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "video.y_max_legal",
-      "description": "Niveau du blanc nominal de la luminance Y en valeur de code 10 bits (ex. 940)",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "video.y_max_legal",
-          "value": 940,
-          "page": 5,
-          "quote": "Le signal vidéo, conforme à la Recommandation Technique PAD fichier Diffuseurs, sera encodé avec les caractéristiques suivantes :",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : 940|blanc|white)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "video.y_tolerance_low_pct",
-      "description": "Tolérance basse de la luminance Y en pourcentage de la plage nominale (ex. -1)",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "video.y_tolerance_low_pct",
-          "value": -1,
-          "page": 5,
-          "quote": "Le signal vidéo, conforme à la Recommandation Technique PAD fichier Diffuseurs, sera encodé avec les caractéristiques suivantes :",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : luminance|y)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "video.y_tolerance_high_pct",
-      "description": "Tolérance haute de la luminance Y en pourcentage de la plage nominale (ex. 103)",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "video.y_tolerance_high_pct",
-          "value": 103,
-          "page": 5,
-          "quote": "Le signal vidéo, conforme à la Recommandation Technique PAD fichier Diffuseurs, sera encodé avec les caractéristiques suivantes :",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : luminance|y)",
-          "batch": 3
+          "batch": 4,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
@@ -353,12 +231,14 @@
         {
           "field": "audio.sample_rate",
           "value": 48000,
-          "page": 5,
-          "quote": "fréquence d’échantillonnage : 48 kHz",
+          "page": 6,
+          "quote": "fréquence d’échantillonnage... à 48 kHz",
           "unit": "Hz",
           "status": "CITATION_INVALIDE",
           "reason": "citation introuvable dans la page",
-          "batch": 3
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
         },
         {
           "field": "audio.sample_rate",
@@ -368,7 +248,9 @@
           "unit": "Hz",
           "status": "A_VERIFIER",
           "reason": "",
-          "batch": 4
+          "batch": 4,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
@@ -381,61 +263,26 @@
         {
           "field": "audio.bit_depth",
           "value": 24,
-          "page": 5,
-          "quote": "résolution 24 bits",
-          "unit": null,
-          "status": "A_VERIFIER",
-          "reason": "",
-          "batch": 3
+          "page": 6,
+          "quote": "canal monophonique PCM, de résolution 24 bits",
+          "unit": "bits",
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page (trouvée p. 5)",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
         },
         {
           "field": "audio.bit_depth",
           "value": 24,
           "page": 8,
           "quote": "Codec Audio: PCM Little Endian 24bit @ 48 kHz",
-          "unit": null,
+          "unit": "bits",
           "status": "A_VERIFIER",
           "reason": "",
-          "batch": 4
-        }
-      ]
-    },
-    {
-      "path": "audio.bit_depth_allowed",
-      "description": "Quantifications audio acceptées en bits (ex. [24, 16])",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "audio.bit_depth_allowed",
-          "value": [
-            24,
-            16
-          ],
-          "page": 5,
-          "quote": "les fichiers MXF Prêts à Diffuser ne pourront comporter que 4, 8 ou 16 pistes (tracks) audio selon le type et le nombre de versions audio incluses. Chaque piste audio du fichier MXF transportera un canal monophonique PCM, de résolution 24 bits, à 48 kHz de fréquence d’échantillonnage.",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "le nombre 16 n'est pas suivi de l'unité attendue dans la citation",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "audio.same_bit_depth_all_tracks",
-      "description": "Toutes les pistes doivent avoir la même quantification",
-      "status": "A_VERIFIER",
-      "value": true,
-      "findings": [
-        {
-          "field": "audio.same_bit_depth_all_tracks",
-          "value": true,
-          "page": 5,
-          "quote": "Chaque piste audio du fichier MXF transportera un canal monophonique PCM, de résolution 24 bits, à 48 kHz de fréquence d’échantillonnage.",
-          "unit": null,
-          "status": "A_VERIFIER",
-          "reason": "",
-          "batch": 3
+          "batch": 4,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
@@ -448,22 +295,14 @@
         {
           "field": "audio.channel_layout",
           "value": "stereo_pairs",
-          "page": 5,
-          "quote": "La livraison vidéo doit être accompagnée d'une version française en stéréo (piste 1 : gauche, piste 2 : droit).",
+          "page": 6,
+          "quote": "Les versions audio, dont les signaux s’avéreront conformes à la Recommandation Technique PAD fichier Diffuseurs, seront placées sur les pistes (tracks) selon l’ordre suivant",
           "unit": null,
           "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : paires?|aes)",
-          "batch": 3
-        },
-        {
-          "field": "audio.channel_layout",
-          "value": "stereo_pairs",
-          "page": 8,
-          "quote": "Codec Audio: PCM Little Endian 24bit @ 48 kHz",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : paires?|aes)",
-          "batch": 4
+          "reason": "citation introuvable dans la page (trouvée p. 5)",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
@@ -476,40 +315,34 @@
         {
           "field": "audio.max_pairs",
           "value": 8,
-          "page": 5,
-          "quote": "les fichiers MXF Prêts à Diffuser ne pourront comporter que 4, 8 ou 16 pistes (tracks) audio selon le type et le nombre de versions audio incluses.",
+          "page": 6,
+          "quote": "les fichiers MXF Prêts à Diffuser ne pourront comporter que 4, 8 ou 16 pistes (tracks) audio selon le type et le nombre de versions audio incluses",
           "unit": null,
           "status": "CITATION_INVALIDE",
-          "reason": "le nombre 8 n'est pas suivi de l'unité attendue dans la citation",
-          "batch": 3
+          "reason": "citation introuvable dans la page (trouvée p. 5)",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
     {
       "path": "audio.no_silent_tracks",
       "description": "Interdiction des pistes sans contenu (silence)",
-      "status": "A_VERIFIER",
-      "value": false,
+      "status": "CITATION_INVALIDE",
+      "value": null,
       "findings": [
         {
           "field": "audio.no_silent_tracks",
           "value": false,
-          "page": 5,
-          "quote": "Dans ce contexte, les éventuelles pistes inutilisées transporteront des canaux silencieux (silence codé).",
-          "unit": null,
-          "status": "A_VERIFIER",
-          "reason": "",
-          "batch": 3
-        },
-        {
-          "field": "audio.no_silent_tracks",
-          "value": true,
-          "page": 8,
-          "quote": "Codec Audio: PCM Little Endian 24bit @ 48 kHz",
+          "page": 6,
+          "quote": "Dans ce contexte, les éventuelles pistes inutilisées transporteront des canaux silencieux (silence codé)",
           "unit": null,
           "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : silenc|sans contenu)",
-          "batch": 4
+          "reason": "citation introuvable dans la page (trouvée p. 5)",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
@@ -521,79 +354,137 @@
       "findings": [
         {
           "field": "audio.silent_track_dbfs",
-          "value": -90,
-          "page": 5,
-          "quote": "les éventuelles pistes inutilisées transporteront des canaux silencieux (silence codé).",
+          "value": -60.0,
+          "page": 6,
+          "quote": "Dans ce contexte, les éventuelles pistes inutilisées transporteront des canaux silencieux (silence codé)",
           "unit": "dBFS",
           "status": "CITATION_INVALIDE",
-          "reason": "la citation ne contient pas le nombre -90",
-          "batch": 3
-        },
-        {
-          "field": "audio.silent_track_dbfs",
-          "value": -90,
-          "page": 8,
-          "quote": "Codec Audio: PCM Little Endian 24bit @ 48 kHz",
-          "unit": "dBFS",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : pistes?)",
-          "batch": 4
+          "reason": "citation introuvable dans la page (trouvée p. 5)",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
     {
-      "path": "audio.dual_mono_must_be_identical",
-      "description": "Une version mono doit être livrée en double mono identique et en phase",
+      "path": "audio.groups",
+      "description": "Affectation des pistes audio (nom de version, numéros de pistes, stéréo/mono/5.1, obligatoire)",
       "status": "A_VERIFIER",
-      "value": true,
+      "value": [
+        {
+          "name": "AD",
+          "tracks": [
+            7,
+            8
+          ],
+          "layout": "stereo",
+          "required": false
+        }
+      ],
       "findings": [
         {
-          "field": "audio.dual_mono_must_be_identical",
-          "value": true,
-          "page": 5,
-          "quote": "Dans le cas d'un son mono, il doit être dupliqué sur les deux pistes.",
+          "field": "audio.groups",
+          "value": [
+            {
+              "name": "VO",
+              "tracks": [
+                1,
+                2
+              ],
+              "layout": "stereo",
+              "required": true
+            },
+            {
+              "name": "VF",
+              "tracks": [
+                3,
+                4
+              ],
+              "layout": "stereo",
+              "required": false
+            },
+            {
+              "name": "VI",
+              "tracks": [
+                5,
+                6
+              ],
+              "layout": "stereo",
+              "required": false
+            }
+          ],
+          "page": 6,
+          "quote": "La VF sera livrée au format stéréo (2.0) compatible mono : o 1 = canal gauche o 2 = canal droit o 3 = silence codé o 4 = silence codé",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page (trouvée p. 5)",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "audio.groups",
+          "value": [
+            {
+              "name": "AD",
+              "tracks": [
+                7,
+                8
+              ],
+              "layout": "stereo",
+              "required": false
+            }
+          ],
+          "page": 6,
+          "quote": "L’AD sera au format stéréo dit “broadcaster mix”, où version française et commentaire d’audio-description sont préalablement mixés et affectés aux canaux 7 et 8",
           "unit": null,
           "status": "A_VERIFIER",
           "reason": "",
-          "batch": 3
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
         },
         {
-          "field": "audio.dual_mono_must_be_identical",
-          "value": true,
-          "page": 8,
-          "quote": "Codec Audio: PCM Little Endian 24bit @ 48 kHz",
+          "field": "audio.groups",
+          "value": [
+            {
+              "name": "VM",
+              "tracks": [
+                9,
+                10
+              ],
+              "layout": "stereo",
+              "required": false
+            }
+          ],
+          "page": 6,
+          "quote": "La VM sera au format stéréo (2.0) compatible mono, et affectée aux canaux 9 à 14",
           "unit": null,
           "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : mono)",
-          "batch": 4
+          "reason": "la citation ne contient pas le nombre 10",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
     {
       "path": "audio.loudness.method",
       "description": "Méthode et norme de mesure du loudness (ex. EBU R 128, ITU-R BS.1770)",
-      "status": "A_VERIFIER",
-      "value": "R128",
+      "status": "RENVOI_NORME",
+      "value": null,
       "findings": [
         {
           "field": "audio.loudness.method",
-          "value": "EBU R 128",
-          "page": 5,
-          "quote": "les versions audio, dont les signaux s’avéreront conformes à la Recommandation Technique PAD fichier Diffuseurs, seront placées sur les pistes (tracks) selon l’ordre suivant :",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : r ?128|1770|3341|3342|3343|3344|ebu)",
-          "batch": 3
-        },
-        {
-          "field": "audio.loudness.method",
-          "value": "R128",
+          "value": null,
           "page": 7,
-          "quote": "Pour chaque version, l’ensemble des mesures de loudness de chaque paire de pistes devront être conformes à la norme R128.",
+          "quote": "conformes à la norme R128",
           "unit": null,
-          "status": "A_VERIFIER",
+          "status": "RENVOI_NORME",
           "reason": "",
-          "batch": 4
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": "ebu_r128"
         }
       ]
     },
@@ -611,35 +502,41 @@
           "unit": "s",
           "status": "CITATION_INVALIDE",
           "reason": "la citation ne contient pas le nombre 120",
-          "batch": 4
+          "batch": 4,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.long_program_min_seconds",
+          "value": 120,
+          "page": 9,
+          "quote": "Programmes longs (≥2 minutes)",
+          "unit": "s",
+          "status": "CITATION_INVALIDE",
+          "reason": "la citation ne contient pas le nombre 120",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
     {
       "path": "audio.loudness.long.integrated_lufs",
       "description": "Loudness intégré cible du programme en LUFS (ex. -23)",
-      "status": "CONFLIT",
-      "value": null,
+      "status": "A_VERIFIER",
+      "value": -23.0,
       "findings": [
-        {
-          "field": "audio.loudness.long.integrated_lufs",
-          "value": -23,
-          "page": 5,
-          "quote": "les versions audio, dont les signaux s’avéreront conformes à la Recommandation Technique PAD fichier Diffuseurs, seront placées sur les pistes (tracks) selon l’ordre suivant :",
-          "unit": "LUFS",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : loudness|lufs|lkfs|integr|intensite sonore)",
-          "batch": 3
-        },
         {
           "field": "audio.loudness.long.integrated_lufs",
           "value": -23.0,
           "page": 7,
-          "quote": "Mesure cible du niveau d’intensité sonore sur le programme complet (Integrated Loudness) ≤ -23 LUFS",
+          "quote": "≤ -23 LUFS",
           "unit": "LUFS",
-          "status": "CONFLIT",
-          "reason": "même citation et même valeur que audio.loudness.short.integrated_lufs",
-          "batch": 4
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 4,
+          "source_type": "client_value",
+          "norm": null
         },
         {
           "field": "audio.loudness.long.integrated_lufs",
@@ -647,9 +544,11 @@
           "page": 9,
           "quote": "Mesure cible du niveau d’intensité sonore sur le programme complet (Integrated Loudness) ≤ -23 LUFS",
           "unit": "LUFS",
-          "status": "CONFLIT",
-          "reason": "même citation et même valeur que audio.loudness.short.integrated_lufs",
-          "batch": 5
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
@@ -661,23 +560,15 @@
       "findings": [
         {
           "field": "audio.loudness.long.integrated_tolerance_lu",
-          "value": 1,
-          "page": 5,
-          "quote": "les versions audio, dont les signaux s’avéreront conformes à la Recommandation Technique PAD fichier Diffuseurs, seront placées sur les pistes (tracks) selon l’ordre suivant :",
-          "unit": "LU",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : toleran|±|+/-)",
-          "batch": 3
-        },
-        {
-          "field": "audio.loudness.long.integrated_tolerance_lu",
           "value": 1.0,
           "page": 7,
-          "quote": "Mesure cible du niveau d’intensité sonore sur le programme complet (Integrated Loudness) -23 LUFS (+/- 1 LU)",
+          "quote": "-23 LUFS (+/- 1 LU)",
           "unit": "LU",
           "status": "A_VERIFIER",
           "reason": "",
-          "batch": 4
+          "batch": 4,
+          "source_type": "client_value",
+          "norm": null
         },
         {
           "field": "audio.loudness.long.integrated_tolerance_lu",
@@ -687,7 +578,9 @@
           "unit": "LU",
           "status": "A_VERIFIER",
           "reason": "",
-          "batch": 5
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
@@ -699,23 +592,15 @@
       "findings": [
         {
           "field": "audio.loudness.long.lra_max_lu",
-          "value": 14,
-          "page": 5,
-          "quote": "les versions audio, dont les signaux s’avéreront conformes à la Recommandation Technique PAD fichier Diffuseurs, seront placées sur les pistes (tracks) selon l’ordre suivant :",
+          "value": 20,
+          "page": 7,
+          "quote": "≤ 20 LU (+5 LU)",
           "unit": "LU",
           "status": "CITATION_INVALIDE",
           "reason": "citation sans rapport avec le champ (mots attendus : lra|loudness range)",
-          "batch": 3
-        },
-        {
-          "field": "audio.loudness.long.lra_max_lu",
-          "value": 20.0,
-          "page": 7,
-          "quote": "Excursion dynamique (Loudness Range ou LRA) ≤ 20 LU (+5 LU)",
-          "unit": "LU",
-          "status": "A_VERIFIER",
-          "reason": "",
-          "batch": 4
+          "batch": 4,
+          "source_type": "client_value",
+          "norm": null
         },
         {
           "field": "audio.loudness.long.lra_max_lu",
@@ -725,7 +610,9 @@
           "unit": "LU",
           "status": "A_VERIFIER",
           "reason": "",
-          "batch": 5
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
@@ -738,79 +625,17 @@
         {
           "field": "audio.loudness.long.lra_recommended_range_lu",
           "value": [
-            0,
-            14
-          ],
-          "page": 5,
-          "quote": "les versions audio, dont les signaux s’avéreront conformes à la Recommandation Technique PAD fichier Diffuseurs, seront placées sur les pistes (tracks) selon l’ordre suivant :",
-          "unit": "LU",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : lra|loudness range)",
-          "batch": 3
-        },
-        {
-          "field": "audio.loudness.long.lra_recommended_range_lu",
-          "value": [
-            0,
-            20
-          ],
-          "page": 7,
-          "quote": "Excursion dynamique (Loudness Range ou LRA) ≤ 20 LU (+5 LU)",
-          "unit": "LU",
-          "status": "CITATION_INVALIDE",
-          "reason": "la citation ne contient pas le nombre 0",
-          "batch": 4
-        },
-        {
-          "field": "audio.loudness.long.lra_recommended_range_lu",
-          "value": [
-            0,
-            20
+            5,
+            15
           ],
           "page": 9,
           "quote": "Excursion dynamique (Loudness Range ou LRA) ≤ 20 LU (+5 LU)",
           "unit": "LU",
           "status": "CITATION_INVALIDE",
-          "reason": "la citation ne contient pas le nombre 0",
-          "batch": 5
-        }
-      ]
-    },
-    {
-      "path": "audio.loudness.long.short_term_dialogue_excursion_lu",
-      "description": "Excursion admise du loudness short term (3 s) autour de la cible pour le dialogue, en LU",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "audio.loudness.long.short_term_dialogue_excursion_lu",
-          "value": 3,
-          "page": 5,
-          "quote": "les versions audio, dont les signaux s’avéreront conformes à la Recommandation Technique PAD fichier Diffuseurs, seront placées sur les pistes (tracks) selon l’ordre suivant :",
-          "unit": "LU",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : short.?term|court terme)",
-          "batch": 3
-        },
-        {
-          "field": "audio.loudness.long.short_term_dialogue_excursion_lu",
-          "value": 7,
-          "page": 7,
-          "quote": "Plage d’excursion de l’intensité sonore court terme des dialogues niveau moyen -23 LUFS à +7 ou -7 LUFS",
-          "unit": "LU",
-          "status": "CITATION_INVALIDE",
-          "reason": "le nombre 7 n'est pas suivi de l'unité attendue dans la citation",
-          "batch": 4
-        },
-        {
-          "field": "audio.loudness.long.short_term_dialogue_excursion_lu",
-          "value": 5,
-          "page": 9,
-          "quote": "Excursion dynamique (Loudness Range ou LRA) ≤ 20 LU (+5 LU)",
-          "unit": "LU",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : short.?term|court terme)",
-          "batch": 5
+          "reason": "la citation ne contient pas le nombre 15",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
@@ -822,23 +647,15 @@
       "findings": [
         {
           "field": "audio.loudness.long.short_term_max_lufs",
-          "value": -1,
-          "page": 5,
-          "quote": "les versions audio, dont les signaux s’avéreront conformes à la Recommandation Technique PAD fichier Diffuseurs, seront placées sur les pistes (tracks) selon l’ordre suivant :",
-          "unit": "LUFS",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : short.?term|court terme)",
-          "batch": 3
-        },
-        {
-          "field": "audio.loudness.long.short_term_max_lufs",
           "value": -20,
           "page": 7,
-          "quote": "Niveau maximum de la mesure d’intensité sonore court terme (Max Short Term Loudness) ≤ -20 LUFS",
+          "quote": "≤ -20 LUFS",
           "unit": "LUFS",
           "status": "CITATION_INVALIDE",
           "reason": "dans le tableau, la valeur est dans la colonne des programmes courts",
-          "batch": 4
+          "batch": 4,
+          "source_type": "client_value",
+          "norm": null
         },
         {
           "field": "audio.loudness.long.short_term_max_lufs",
@@ -848,174 +665,9 @@
           "unit": "LUFS",
           "status": "CITATION_INVALIDE",
           "reason": "dans le tableau, la valeur est dans la colonne des programmes courts",
-          "batch": 5
-        }
-      ]
-    },
-    {
-      "path": "audio.loudness.long.short_term_excursion_above_lu",
-      "description": "Excursion maximale du short term au-dessus de la cible, en LU",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "audio.loudness.long.short_term_excursion_above_lu",
-          "value": 3,
-          "page": 5,
-          "quote": "les versions audio, dont les signaux s’avéreront conformes à la Recommandation Technique PAD fichier Diffuseurs, seront placées sur les pistes (tracks) selon l’ordre suivant :",
-          "unit": "LU",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : short.?term|court terme)",
-          "batch": 3
-        },
-        {
-          "field": "audio.loudness.long.short_term_excursion_above_lu",
-          "value": 5,
-          "page": 7,
-          "quote": "Excursion dynamique (Loudness Range ou LRA) ≤ 20 LU (+5 LU)",
-          "unit": "LU",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : short.?term|court terme)",
-          "batch": 4
-        },
-        {
-          "field": "audio.loudness.long.short_term_excursion_above_lu",
-          "value": 7,
-          "page": 9,
-          "quote": "Plage d’excursion de l’intensité sonore court terme des dialogues niveau moyen -23 LUFS à +7 ou -7 LUFS",
-          "unit": "LU",
-          "status": "CITATION_INVALIDE",
-          "reason": "le nombre 7 n'est pas suivi de l'unité attendue dans la citation",
-          "batch": 5
-        }
-      ]
-    },
-    {
-      "path": "audio.loudness.short.integrated_lufs",
-      "description": "Loudness intégré cible du programme en LUFS (ex. -23)",
-      "status": "CONFLIT",
-      "value": null,
-      "findings": [
-        {
-          "field": "audio.loudness.short.integrated_lufs",
-          "value": -23.0,
-          "page": 7,
-          "quote": "Mesure cible du niveau d’intensité sonore sur le programme complet (Integrated Loudness) ≤ -23 LUFS",
-          "unit": "LUFS",
-          "status": "CONFLIT",
-          "reason": "même citation et même valeur que audio.loudness.long.integrated_lufs",
-          "batch": 4
-        }
-      ]
-    },
-    {
-      "path": "audio.loudness.short.integrated_tolerance_lu",
-      "description": "Tolérance autour du loudness intégré cible, en LU (ex. 1 pour ± 1 LU)",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "audio.loudness.short.integrated_tolerance_lu",
-          "value": 1,
-          "page": 7,
-          "quote": "Mesure cible du niveau d’intensité sonore sur le programme complet (Integrated Loudness) -23 LUFS (+/- 1 LU)",
-          "unit": "LU",
-          "status": "CITATION_INVALIDE",
-          "reason": "dans le tableau, la valeur est dans la colonne des programmes longs",
-          "batch": 4
-        }
-      ]
-    },
-    {
-      "path": "audio.loudness.short.lra_max_lu",
-      "description": "Plage de loudness (LRA) maximale en LU",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "audio.loudness.short.lra_max_lu",
-          "value": 20,
-          "page": 7,
-          "quote": "Excursion dynamique (Loudness Range ou LRA) ≤ 20 LU (+5 LU)",
-          "unit": "LU",
-          "status": "CITATION_INVALIDE",
-          "reason": "dans le tableau, la valeur est dans la colonne des programmes longs",
-          "batch": 4
-        }
-      ]
-    },
-    {
-      "path": "audio.loudness.short.lra_recommended_range_lu",
-      "description": "Plage de LRA recommandée en LU [min, max] (information)",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "audio.loudness.short.lra_recommended_range_lu",
-          "value": [
-            0,
-            20
-          ],
-          "page": 7,
-          "quote": "Excursion dynamique (Loudness Range ou LRA) ≤ 20 LU (+5 LU)",
-          "unit": "LU",
-          "status": "CITATION_INVALIDE",
-          "reason": "la citation ne contient pas le nombre 0",
-          "batch": 4
-        }
-      ]
-    },
-    {
-      "path": "audio.loudness.short.short_term_dialogue_excursion_lu",
-      "description": "Excursion admise du loudness short term (3 s) autour de la cible pour le dialogue, en LU",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "audio.loudness.short.short_term_dialogue_excursion_lu",
-          "value": 7,
-          "page": 7,
-          "quote": "Plage d’excursion de l’intensité sonore court terme des dialogues niveau moyen -23 LUFS à +7 ou -7 LUFS",
-          "unit": "LU",
-          "status": "CITATION_INVALIDE",
-          "reason": "dans le tableau, la valeur est dans la colonne des programmes longs",
-          "batch": 4
-        }
-      ]
-    },
-    {
-      "path": "audio.loudness.short.short_term_max_lufs",
-      "description": "Loudness short term (3 s) maximal en LUFS",
-      "status": "A_VERIFIER",
-      "value": -20.0,
-      "findings": [
-        {
-          "field": "audio.loudness.short.short_term_max_lufs",
-          "value": -20.0,
-          "page": 7,
-          "quote": "Niveau maximum de la mesure d’intensité sonore court terme (Max Short Term Loudness) ≤ -20 LUFS",
-          "unit": "LUFS",
-          "status": "A_VERIFIER",
-          "reason": "",
-          "batch": 4
-        }
-      ]
-    },
-    {
-      "path": "audio.loudness.short.short_term_excursion_above_lu",
-      "description": "Excursion maximale du short term au-dessus de la cible, en LU",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "audio.loudness.short.short_term_excursion_above_lu",
-          "value": 5,
-          "page": 7,
-          "quote": "Excursion dynamique (Loudness Range ou LRA) ≤ 20 LU (+5 LU)",
-          "unit": "LU",
-          "status": "CITATION_INVALIDE",
-          "reason": "dans le tableau, la valeur est dans la colonne des programmes longs",
-          "batch": 4
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
@@ -1027,23 +679,15 @@
       "findings": [
         {
           "field": "audio.true_peak_max_dbtp",
-          "value": -1,
-          "page": 5,
-          "quote": "les versions audio, dont les signaux s’avéreront conformes à la Recommandation Technique PAD fichier Diffuseurs, seront placées sur les pistes (tracks) selon l’ordre suivant :",
-          "unit": "dBTP",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : true.?peak|crete|tp|dbtp)",
-          "batch": 3
-        },
-        {
-          "field": "audio.true_peak_max_dbtp",
           "value": -3.0,
           "page": 7,
-          "quote": "Niveau maximum des crêtes (Max True Peak) -3 dB TP",
+          "quote": "-3 dB TP",
           "unit": "dBTP",
           "status": "A_VERIFIER",
           "reason": "",
-          "batch": 4
+          "batch": 4,
+          "source_type": "client_value",
+          "norm": null
         },
         {
           "field": "audio.true_peak_max_dbtp",
@@ -1053,223 +697,49 @@
           "unit": "dBTP",
           "status": "A_VERIFIER",
           "reason": "",
-          "batch": 5
-        }
-      ]
-    },
-    {
-      "path": "audio.alignment_tone.hz",
-      "description": "Fréquence du signal d'alignement en Hz",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "audio.alignment_tone.hz",
-          "value": 1000,
-          "page": 5,
-          "quote": "les versions audio, dont les signaux s’avéreront conformes à la Recommandation Technique PAD fichier Diffuseurs, seront placées sur les pistes (tracks) selon l’ordre suivant :",
-          "unit": "Hz",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : alignement|sinus|signal de reference|line.?up)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "audio.alignment_tone.dbfs",
-      "description": "Niveau du signal d'alignement en dBFS",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "audio.alignment_tone.dbfs",
-          "value": -20,
-          "page": 5,
-          "quote": "les versions audio, dont les signaux s’avéreront conformes à la Recommandation Technique PAD fichier Diffuseurs, seront placées sur les pistes (tracks) selon l’ordre suivant :",
-          "unit": "dBFS",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : alignement|sinus|signal de reference|line.?up)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "audio.silence_dbfs",
-      "description": "Niveau en dBFS sous lequel le son est un silence",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "audio.silence_dbfs",
-          "value": -90,
-          "page": 5,
-          "quote": "les éventuelles pistes inutilisées transporteront des canaux silencieux (silence codé).",
-          "unit": "dBFS",
-          "status": "CITATION_INVALIDE",
-          "reason": "la citation ne contient pas le nombre -90",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "audio.phase_min_correlation",
-      "description": "Corrélation de phase stéréo minimale admise",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "audio.phase_min_correlation",
-          "value": 0.9,
-          "page": 5,
-          "quote": "les versions audio, dont les signaux s’avéreront conformes à la Recommandation Technique PAD fichier Diffuseurs, seront placées sur les pistes (tracks) selon l’ordre suivant :",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : phase|correlation)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "audio.phase_min_seconds",
-      "description": "Durée en secondes au-delà de laquelle une opposition de phase est signalée",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "audio.phase_min_seconds",
-          "value": 0.5,
-          "page": 5,
-          "quote": "les versions audio, dont les signaux s’avéreront conformes à la Recommandation Technique PAD fichier Diffuseurs, seront placées sur les pistes (tracks) selon l’ordre suivant :",
-          "unit": "s",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : phase|correlation)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "audio.av_sync_ms.audio_early_max",
-      "description": "Avance maximale du son sur l'image, en ms",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "audio.av_sync_ms.audio_early_max",
-          "value": 50,
-          "page": 5,
-          "quote": "les versions audio, dont les signaux s’avéreront conformes à la Recommandation Technique PAD fichier Diffuseurs, seront placées sur les pistes (tracks) selon l’ordre suivant :",
-          "unit": "ms",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : synchro|lip|avance|decalage)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "audio.av_sync_ms.audio_late_max",
-      "description": "Retard maximal du son sur l'image, en ms",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "audio.av_sync_ms.audio_late_max",
-          "value": 50,
-          "page": 5,
-          "quote": "les versions audio, dont les signaux s’avéreront conformes à la Recommandation Technique PAD fichier Diffuseurs, seront placées sur les pistes (tracks) selon l’ordre suivant :",
-          "unit": "ms",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : synchro|lip|retard|decalage)",
-          "batch": 3
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
     {
       "path": "structure.leaders",
       "description": "Amorces : classic (mire, noirs de tête et de queue) ou none (aucune amorce)",
-      "status": "CITATION_INVALIDE",
-      "value": null,
+      "status": "A_VERIFIER",
+      "value": "none",
       "findings": [
         {
           "field": "structure.leaders",
-          "value": "classic",
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
+          "value": "none",
+          "page": 3,
+          "quote": "Le début de programme (première image et premier son utile) doit commencer obligatoirement au Time Code 00:00:00:00, sans présence d’amorce en début de fichier (SOM et TC IN).",
           "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : amorces?|leaders?|clap|decompte|mire)",
-          "batch": 3
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 2,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
     {
       "path": "structure.timecode.file_start",
       "description": "Timecode de la première image du fichier, HH:MM:SS:FF",
-      "status": "CITATION_INVALIDE",
-      "value": null,
+      "status": "A_VERIFIER",
+      "value": "00:00:00:00",
       "findings": [
         {
           "field": "structure.timecode.file_start",
           "value": "00:00:00:00",
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
+          "page": 3,
+          "quote": "Le début de programme (première image et premier son utile) doit commencer obligatoirement au Time Code 00:00:00:00, sans présence d’amorce en début de fichier (SOM et TC IN).",
           "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : timecode|time code|tc)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.timecode.program_start",
-      "description": "Timecode de la première image du programme, HH:MM:SS:FF (ex. 10:00:00:00)",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.timecode.program_start",
-          "value": "00:00:00:00",
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : timecode|time code|tc)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.timecode.tolerance_frames",
-      "description": "Tolérance en images sur le début du programme",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.timecode.tolerance_frames",
-          "value": 0,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : timecode|time code|tc)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.timecode.drop_frame_allowed",
-      "description": "Timecode drop frame autorisé",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.timecode.drop_frame_allowed",
-          "value": false,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : drop)",
-          "batch": 3
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 2,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     },
@@ -1282,489 +752,14 @@
         {
           "field": "structure.timecode.must_be_continuous",
           "value": true,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
+          "page": 3,
+          "quote": "Le début de programme (première image et premier son utile) doit commencer obligatoirement au Time Code 00:00:00:00, sans présence d’amorce en début de fichier (SOM et TC IN).",
           "unit": null,
           "status": "CITATION_INVALIDE",
           "reason": "citation sans rapport avec le champ (mots attendus : continu|saut|recouvrement|discontinu)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.bars.required",
-      "description": "Mire de barres obligatoire en tête",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.bars.required",
-          "value": true,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : mire|barres|bars)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.bars.forbidden",
-      "description": "Mire interdite dans le fichier",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.bars.forbidden",
-          "value": false,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : mire|barres|bars|amorces?)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.bars.start_tc",
-      "description": "Timecode de début de la mire, HH:MM:SS:FF",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.bars.start_tc",
-          "value": "00:00:00:00",
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : mire|barres|bars)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.bars.min_seconds",
-      "description": "Durée minimale de la mire, en secondes",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.bars.min_seconds",
-          "value": 0.5,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": "s",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : mire|barres|bars)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.bars.pattern",
-      "description": "Type de mire : ebu_75, ebu_100 ou smpte_hd",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.bars.pattern",
-          "value": "ebu_75",
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : mire|barres|bars)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.bars.tone_hz",
-      "description": "Fréquence du son de mire en Hz",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.bars.tone_hz",
-          "value": 1000,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": "Hz",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : mire|barres|bars|1 ?khz|1[. ]?000 ?hz)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.bars.tone_dbfs",
-      "description": "Niveau du son de mire en dBFS",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.bars.tone_dbfs",
-          "value": -20,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": "dBFS",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : mire|barres|bars|1 ?khz|1[. ]?000 ?hz)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.bars.tone_tolerance_db",
-      "description": "Tolérance sur le niveau du son de mire, en dB",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.bars.tone_tolerance_db",
-          "value": 1,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": "dB",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : mire|barres|bars|1 ?khz|1[. ]?000 ?hz)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.black.head_min_seconds",
-      "description": "Durée minimale du noir de tête, en secondes",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.black.head_min_seconds",
-          "value": 0.5,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": "s",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : noir|black)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.black.tail_min_seconds",
-      "description": "Durée minimale du noir de queue, en secondes",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.black.tail_min_seconds",
-          "value": 0.5,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": "s",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : noir|black)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.black.head_max_seconds",
-      "description": "Durée maximale du noir de tête, en secondes (sans amorce)",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.black.head_max_seconds",
-          "value": 10,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": "s",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : noir|black)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.black.tail_max_seconds",
-      "description": "Durée maximale du noir de queue, en secondes (sans amorce)",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.black.tail_max_seconds",
-          "value": 10,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": "s",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : noir|black)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.black.silence_dbfs",
-      "description": "Niveau en dBFS sous lequel le son du noir est un silence",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.black.silence_dbfs",
-          "value": -90,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": "dBFS",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : silence)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.freeze.min_seconds",
-      "description": "Durée minimale d'une image figée signalée, en secondes",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.freeze.min_seconds",
-          "value": 0.5,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": "s",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : fige|freeze|gel)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.pse.enabled",
-      "description": "Contrôle des flashs activé",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.pse.enabled",
-          "value": true,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : flash|epilep|pse|harding|clignot|photosensib)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.pse.max_flashes_per_second",
-      "description": "Nombre maximal de flashs par seconde",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.pse.max_flashes_per_second",
-          "value": 10,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : flash|epilep|pse|harding|clignot|photosensib)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.pse.flash_min_delta_pct",
-      "description": "Variation de luminance minimale d'un flash, en pourcentage",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.pse.flash_min_delta_pct",
-          "value": 10,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": "%",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : flash|epilep|pse|harding|clignot|photosensib)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.pse.flash_min_area_pct",
-      "description": "Surface minimale d'un flash, en pourcentage de l'image",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.pse.flash_min_area_pct",
-          "value": 5,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": "%",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : flash|epilep|pse|harding|clignot|photosensib)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.first_frames.no_subtitles_first_frames",
-      "description": "Nombre de premières images sans sous-titre",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.first_frames.no_subtitles_first_frames",
-          "value": 0,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : sous.?titre)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.logo.forbidden",
-      "description": "Logo de chaîne interdit dans le programme",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.logo.forbidden",
-          "value": true,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : logo)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.credits.end_credits_max_seconds",
-      "description": "Durée maximale du générique de fin par genre, en secondes",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.credits.end_credits_max_seconds",
-          "value": {
-            "drama": 10,
-            "comedy": 10,
-            "documentary": 10,
-            "news": 10,
-            "sport": 10,
-            "children": 10,
-            "music": 10,
-            "other": 10
-          },
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": "s",
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : generique)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.credits.silent_black_credits_forbidden",
-      "description": "Générique silencieux sur noir interdit",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.credits.silent_black_credits_forbidden",
-          "value": true,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : generique)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.safe_areas.title_safe_pct.horizontal",
-      "description": "Marge horizontale en pourcentage",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.safe_areas.title_safe_pct.horizontal",
-          "value": 0.05,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : securite|safe|marges?)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.safe_areas.title_safe_pct.vertical",
-      "description": "Marge verticale en pourcentage",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.safe_areas.title_safe_pct.vertical",
-          "value": 0.05,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : securite|safe|marges?)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.safe_areas.subtitle_safe",
-      "description": "Zone de sécurité des sous-titres",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.safe_areas.subtitle_safe",
-          "value": "0.05, 0.05, 0.9, 0.9",
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : sous.?titre|securite|safe)",
-          "batch": 3
-        }
-      ]
-    },
-    {
-      "path": "structure.safe_areas.logo_corners_free",
-      "description": "Coins de l'image libres pour le logo",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.safe_areas.logo_corners_free",
-          "value": true,
-          "page": 5,
-          "quote": "Les programmes doivent être livrés en haute définition (HD)",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : logo|coins?)",
-          "batch": 3
+          "batch": 2,
+          "source_type": "client_value",
+          "norm": null
         }
       ]
     }
@@ -1773,12 +768,20 @@
     "format.codecs",
     "format.containers",
     "format.pix_fmt",
+    "format.color_primaries",
+    "format.color_transfer",
+    "format.color_space",
+    "format.color_range",
     "format.unknown_color_tags_severity",
     "format.letterbox.check",
     "format.letterbox.formats",
     "format.letterbox.tolerance_lines",
-    "format.delivery.scan",
+    "format.delivery.fps",
     "video.bit_depth",
+    "video.y_min_legal",
+    "video.y_max_legal",
+    "video.y_tolerance_low_pct",
+    "video.y_tolerance_high_pct",
     "video.rgb_min_pct",
     "video.rgb_max_pct",
     "video.max_out_of_range_area_pct",
@@ -1790,12 +793,59 @@
     "video.scan_detection.interlaced_min_pct",
     "video.scan_detection.progressive_max_pct",
     "video.scan_detection.min_moving_frames",
-    "audio.groups",
+    "audio.bit_depth_allowed",
+    "audio.same_bit_depth_all_tracks",
+    "audio.dual_mono_must_be_identical",
     "audio.loudness_exempt_groups",
+    "audio.loudness.long.short_term_dialogue_excursion_lu",
+    "audio.loudness.long.short_term_excursion_above_lu",
+    "audio.loudness.short.integrated_lufs",
+    "audio.loudness.short.integrated_tolerance_lu",
+    "audio.loudness.short.lra_max_lu",
+    "audio.loudness.short.lra_recommended_range_lu",
+    "audio.loudness.short.short_term_dialogue_excursion_lu",
+    "audio.loudness.short.short_term_max_lufs",
+    "audio.loudness.short.short_term_excursion_above_lu",
+    "audio.alignment_tone.hz",
+    "audio.alignment_tone.dbfs",
+    "audio.silence_dbfs",
     "audio.silence_max_seconds",
+    "audio.phase_min_correlation",
+    "audio.phase_min_seconds",
+    "audio.av_sync_ms.audio_early_max",
+    "audio.av_sync_ms.audio_late_max",
     "audio.exclude_head_tail",
+    "structure.timecode.program_start",
+    "structure.timecode.tolerance_frames",
+    "structure.timecode.drop_frame_allowed",
+    "structure.bars.required",
+    "structure.bars.forbidden",
+    "structure.bars.start_tc",
+    "structure.bars.min_seconds",
+    "structure.bars.pattern",
+    "structure.bars.tone_hz",
+    "structure.bars.tone_dbfs",
+    "structure.bars.tone_tolerance_db",
     "structure.bars.tolerance",
+    "structure.black.head_min_seconds",
+    "structure.black.tail_min_seconds",
+    "structure.black.head_max_seconds",
+    "structure.black.tail_max_seconds",
     "structure.black.y_max",
-    "structure.freeze.threshold"
+    "structure.black.silence_dbfs",
+    "structure.freeze.threshold",
+    "structure.freeze.min_seconds",
+    "structure.pse.enabled",
+    "structure.pse.max_flashes_per_second",
+    "structure.pse.flash_min_delta_pct",
+    "structure.pse.flash_min_area_pct",
+    "structure.first_frames.no_subtitles_first_frames",
+    "structure.logo.forbidden",
+    "structure.credits.end_credits_max_seconds",
+    "structure.credits.silent_black_credits_forbidden",
+    "structure.safe_areas.title_safe_pct.horizontal",
+    "structure.safe_areas.title_safe_pct.vertical",
+    "structure.safe_areas.subtitle_safe",
+    "structure.safe_areas.logo_corners_free"
   ]
 }

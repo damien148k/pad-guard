@@ -37,6 +37,7 @@ La spécification complète est dans `docs/SPEC.md`. La feuille de route et les 
 ```
 profiles/             profils des diffuseurs (YAML) ; meta.extends cite les normes héritées
 normes/               normes lisibles par l'outil (YAML partiels, une source par valeur)
+normes/glossaire.yaml vocabulaire des diffuseurs pour draft-profile (termes, unités, plages vraisemblables) : pas une norme
 normes/sources/       PDF des normes (non versionné, inventaire dans README.md)
 diffuseurs/           PDF des cahiers des charges des diffuseurs (non versionné, inventaire dans README.md)
 src/pad_guard/

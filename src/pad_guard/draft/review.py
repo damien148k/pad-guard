@@ -7,6 +7,10 @@ inherited from a norm, as a recommendation capped at minor). Values the PDF did 
 taken from the base profile (by default the existing ``profiles/<name>.yaml``, else the template
 ``profiles/modeles/gabarit_diffuseur.yaml``) and flagged A VERIFIER when uncited.
 
+Implausible values (out of the glossary range, or cited with a unit the field does not accept)
+are shown in red. When the reviewer corrects or completes a value, the term the broadcaster uses
+may be added to the glossary (normes/glossaire.yaml), after confirmation.
+
 Before the profile is written, the rules that can block or fail a PAD while their value would
 come from a norm only (so be capped at minor) are listed: the most dangerous trap.
 """
@@ -25,7 +29,8 @@ from typing import Any
 
 import yaml
 
-from pad_guard.draft.extract import CONFLICT, OK
+from pad_guard.draft import glossary as glossary_mod
+from pad_guard.draft.extract import CONFLICT, IMPLAUSIBLE, NORM_REF, OK
 from pad_guard.draft.schema import catalogue, check_value
 from pad_guard.draft.write import dump, one_line, scalar
 from pad_guard.profiles.resolve import (
@@ -66,6 +71,7 @@ class Review:
     fields: list[dict]  # findings.json "fields"
     base: Path
     decisions: list[Decision] = field(default_factory=list)
+    glossary: glossary_mod.Glossary | None = None
 
 
 def load(draft: Path, base: Path | None) -> Review:
@@ -77,7 +83,12 @@ def load(draft: Path, base: Path | None) -> Review:
     if base is None:
         own = ROOT / "profiles" / f"{meta['name']}.yaml"
         base = own if own.is_file() else TEMPLATE
-    return Review(draft=draft, meta=meta, fields=data["fields"], base=base)
+    terms = norms_dir_for(base) / glossary_mod.GLOSSARY.name
+    try:
+        g = glossary_mod.load(terms) if terms.is_file() else None
+    except glossary_mod.GlossaryError as exc:
+        raise ReviewError(str(exc)) from None
+    return Review(draft=draft, meta=meta, fields=data["fields"], base=base, glossary=g)
 
 
 def norm_values(extends: list[str], norms_dir: Path) -> dict[str, tuple[Any, str]]:
@@ -124,48 +135,70 @@ def _citation(doc: str, finding: dict) -> str:
     return f"{doc} p. {finding['page']} : « {one_line(finding['quote'], 300)} »"
 
 
-def ask_fields(review: Review, ask: Ask, say: Say, everything: bool = False) -> list[dict]:
-    """Ask about the fields to verify (A_VERIFIER) and in conflict; with ``everything``, also about
-    the fields whose proposals were all refused. Returns the fields not asked about (they keep the
-    value of the base profile)."""
+ASKED = (OK, CONFLICT, IMPLAUSIBLE, NORM_REF)
+
+
+def ask_fields(review: Review, ask: Ask, say: Say, everything: bool = False, alert: Say | None = None) -> list[dict]:
+    """Ask about the fields to verify (A_VERIFIER, INVRAISEMBLABLE, RENVOI_NORME) and in conflict;
+    with ``everything``, also about the fields whose proposals were all refused. Returns the fields
+    not asked about (they keep the value of the base profile). ``alert`` prints in red."""
+    alert = alert or say
     specs = {s.path: s for s in catalogue()}
     base_raw = read_yaml(review.base)
     norms = norm_values(review.meta.get("extends", []), norms_dir_for(review.base))
     doc = review.meta.get("source_document", "document")
-    asked = [f for f in review.fields if everything or f["status"] in (OK, CONFLICT)]
+    asked = [f for f in review.fields if everything or f["status"] in ASKED]
     skipped = [f for f in review.fields if f not in asked]
     total = len(asked)
     for i, f in enumerate(asked, start=1):
         path = f["path"]
         say(f"\n[{i}/{total}] {path} — {f['description']}")
-        good = [x for x in f["findings"] if x["status"] in (OK, CONFLICT)]
+        good = [x for x in f["findings"] if x["status"] in (OK, CONFLICT, IMPLAUSIBLE)]
         candidates = good if f["status"] == CONFLICT else []
-        if f["status"] == OK:
-            first = next(x for x in good if x["value"] == f["value"])
+        if f["status"] in (OK, IMPLAUSIBLE):
+            first = next(x for x in good if x["value"] == f["value"] and x["status"] == f["status"])
             say(f"  Proposé : {scalar(f['value'])} (p. {first['page']}) « {one_line(first['quote'], 200)} »")
+            if f["status"] == IMPLAUSIBLE:
+                alert(f"  INVRAISEMBLABLE : {first['reason']}")
+            rejected = [x for x in f["findings"] if x["status"] not in (OK, IMPLAUSIBLE, NORM_REF)
+                        and x["value"] is not None and x["value"] != f["value"]]
+            if rejected:
+                alert(f"  {len(rejected)} autre(s) proposition(s) rejetée(s) avec une autre valeur : "
+                      "la valeur proposée est peut-être incomplète")
+                for x in rejected:
+                    say(f"      {one_line(scalar(x['value']), 120)} (p. {x['page']}, {x['status']} : {x['reason']}) "
+                        f"« {one_line(x['quote'], 120)} »")
+        elif f["status"] == NORM_REF:
+            ref = next(x for x in f["findings"] if x["status"] == NORM_REF)
+            say(f"  Le document renvoie à {ref['norm']} sans écrire la valeur (p. {ref['page']}) "
+                f"« {one_line(ref['quote'], 200)} »")
+            alert("  Laissé vide, le champ sera hérité de la norme et plafonné à mineur. Pour en faire une valeur du "
+                  "client, corriger [c] avec la citation du renvoi.")
         else:
             say(f"  Statut : {f['status']}")
             for k, x in enumerate(f["findings"], start=1):
                 mark = f"[{k}] " if x in candidates else "    "
-                say(f"  {mark}{scalar(x['value'])} (p. {x['page']}, {x['status']}"
-                    f"{' : ' + x['reason'] if x.get('reason') else ''}) « {one_line(x['quote'], 160)} »")
+                line = (f"  {mark}{scalar(x['value'])} (p. {x['page']}, {x['status']}"
+                        f"{' : ' + x['reason'] if x.get('reason') else ''}) « {one_line(x['quote'], 160)} »")
+                (alert if x["status"] == IMPLAUSIBLE else say)(line)
         base_value = _get(base_raw, path)
         say(f"  Profil de base ({review.base.name}) : {scalar(base_value) if base_value is not None else '—'}")
         if path in norms:
             say(f"  Norme (information) : {scalar(norms[path][0])} ({norms[path][1]})")
-        choices = (["a"] if f["status"] == OK else []) + [str(k) for k in range(1, len(f["findings"]) + 1)
+        choices = (["a"] if f["status"] in (OK, IMPLAUSIBLE) else []) + [str(k) for k in range(1, len(f["findings"]) + 1)
                                                           if f["findings"][k - 1] in candidates]
         choices += ["c", "v"] + (["g"] if base_value is not None else [])
         labels = {"a": "accepter", "c": "corriger", "v": "laisser vide", "g": "garder la valeur de base"}
         menu = " ".join(f"[{c}] {labels.get(c, 'choisir ce candidat')}" for c in choices)
-        default = "a" if "a" in choices else "g" if "g" in choices else "v"
+        # An implausible value is never accepted by default.
+        default = "a" if f["status"] == OK else "g" if "g" in choices else "v"
         while True:
             answer = ask(f"  {menu} (Entrée = {default})").strip().lower() or default
             if answer in choices:
                 break
             say(f"  Réponse attendue : {', '.join(choices)}")
         if answer == "a":
-            first = next(x for x in good if x["value"] == f["value"])
+            first = next(x for x in good if x["value"] == f["value"] and x["status"] == f["status"])
             review.decisions.append(Decision(path, "accept", f["value"], _citation(doc, first)))
         elif answer.isdigit():
             x = f["findings"][int(answer) - 1]
@@ -176,7 +209,25 @@ def ask_fields(review: Review, ask: Ask, say: Say, everything: bool = False) -> 
             review.decisions.append(Decision(path, "keep"))
         else:
             review.decisions.append(_correct(path, specs.get(path), doc, ask, say))
+            learn(review.glossary, path, ask, say)
     return skipped
+
+
+def learn(g: glossary_mod.Glossary | None, path: str, ask: Ask, say: Say) -> None:
+    """Offer to add the broadcaster's term for ``path`` to the glossary, after confirmation."""
+    if g is None:
+        return
+    term = " ".join(ask("  Terme employé par le document pour ce champ, à ajouter au glossaire "
+                        "(Entrée : aucun)").split())
+    if not term:
+        return
+    if g.has_term(path, term):
+        say("  Ce terme est déjà reconnu par le glossaire.")
+        return
+    answer = ask(f"  Ajouter « {term} » au glossaire pour {path} ? [f] terme français [e] terme anglais "
+                 "[n] non (Entrée = n)").strip().lower()
+    if answer in ("f", "e") and glossary_mod.add_term(g, path, "fr" if answer == "f" else "en", term):
+        say(f"  Ajouté à {g.path.name if g.path else 'glossaire'} ({path}). Le glossaire reste à relire par un humain.")
 
 
 def _correct(path: str, spec, doc: str, ask: Ask, say: Say) -> Decision:
@@ -238,7 +289,7 @@ def missing_fields(error: ReviewError) -> list[str]:
 
 
 def complete(data: dict[str, Any], comments: dict[str, str], missing: list[str], doc: str, ask: Ask,
-             say: Say) -> None:
+             say: Say, glossary: glossary_mod.Glossary | None = None) -> None:
     """Ask for each required field left missing (a section accepted only in part, e.g. format.delivery
     with its codec only). An empty answer removes the incomplete section instead."""
     specs = {s.path: s for s in catalogue()}
@@ -260,6 +311,7 @@ def complete(data: dict[str, Any], comments: dict[str, str], missing: list[str],
                 continue
             _set(data, path, value)
             comments[path] = f"A VERIFIER : valeur saisie à la relecture, sans citation de {doc}"
+            learn(glossary, path, ask, say)
             break
 
 

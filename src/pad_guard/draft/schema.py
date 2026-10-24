@@ -88,8 +88,14 @@ def _type_text(schema: dict, defs: dict) -> str:
     return {"number": "nombre", "integer": "entier", "string": "texte", "boolean": "booléen"}.get(kind, "valeur")
 
 
+SOURCE_TYPES = ("client_value", "client_refers_to_norm", "not_found")
+
+
 def response_schema(fields: list[FieldSpec]) -> dict:
-    """JSON schema imposed on the model: a list of findings on known fields."""
+    """JSON schema imposed on the model: a list of findings on known fields.
+
+    ``source_type`` tells a value written by the client (client_value) from a mere reference to a
+    norm without its value (client_refers_to_norm: ``norm`` names it, ``value`` is null)."""
     return {
         "type": "object",
         "properties": {
@@ -99,12 +105,14 @@ def response_schema(fields: list[FieldSpec]) -> dict:
                     "type": "object",
                     "properties": {
                         "field": {"type": "string", "enum": [f.path for f in fields]},
+                        "source_type": {"type": "string", "enum": list(SOURCE_TYPES)},
                         "value": {},
                         "page": {"type": "integer"},
                         "quote": {"type": "string"},
                         "unit": {"type": ["string", "null"]},
+                        "norm": {"type": ["string", "null"]},
                     },
-                    "required": ["field", "value", "page", "quote", "unit"],
+                    "required": ["field", "source_type", "value", "page", "quote", "unit", "norm"],
                 },
             },
         },

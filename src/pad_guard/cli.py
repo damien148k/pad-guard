@@ -11,6 +11,7 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeRemainingColumn
 from rich.table import Table
 
@@ -492,6 +493,9 @@ def draft_profile(
     for status, n in sorted(counts.items()):
         console.print(f"  {status} : {n} champ(s)")
     console.print(f"  non trouvés : {len(x.not_found)} champ(s)")
+    cited = x.cited_norms()
+    console.print("Normes citées par le document : " + (", ".join(cited) if cited else "aucune"))
+    console.print(f"meta.extends proposé : {', '.join(draft.proposed_extends(list(cited)))}", highlight=False)
     console.print(f"Brouillon : {files['yaml']}\n  détail : {files['findings']}\n  réponses du modèle : {files['log']}")
     console.print(f"À relire avec : pad-guard review-profile {files['yaml']}")
 
@@ -534,7 +538,8 @@ def review_profile(
                   f"profil de base {rv.base}")
     skipped = review.ask_fields(rv, ask=lambda text: typer.prompt(text, default="", show_default=False),
                                 say=lambda text: console.print(text, markup=False, highlight=False),
-                                everything=everything)
+                                everything=everything,
+                                alert=lambda text: console.print(f"[bold red]{escape(text)}[/bold red]", highlight=False))
     if skipped:
         console.print(f"\n{len(skipped)} champ(s) dont toutes les propositions ont été rejetées n'ont pas été "
                       "relus : ils gardent la valeur du profil de base (A VERIFIER). Les relire avec --tous :")
@@ -556,7 +561,8 @@ def review_profile(
                 err_console.print(f"[red]{exc}[/red]")
                 raise typer.Exit(EXIT_USAGE) from None
             asked.update(missing)
-            review.complete(data, comments, missing, rv.meta.get("source_document", "document"), ask, say)
+            review.complete(data, comments, missing, rv.meta.get("source_document", "document"), ask, say,
+                            rv.glossary)
     tmp.unlink(missing_ok=True)
     risks = review.norm_only_rules(resolved)
     if risks:

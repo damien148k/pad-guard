@@ -16,8 +16,17 @@ from typer.testing import CliRunner
 
 import pdf_fixture
 from pad_guard.cli import app
-from pad_guard.draft import DraftError, make_draft, pdf, verify, vocabulary
-from pad_guard.draft.extract import BAD_VALUE, CONFLICT, INVALID, OK, UNVERIFIABLE
+from pad_guard.draft import DraftError, examples, glossary, make_draft, pdf, proposed_extends, verify, vocabulary
+from pad_guard.draft.extract import (
+    BAD_VALUE,
+    CONFLICT,
+    IMPLAUSIBLE,
+    INVALID,
+    NORM_REF,
+    OK,
+    UNVERIFIABLE,
+    check,
+)
 from pad_guard.draft.schema import SECTIONS, catalogue, response_schema
 from pad_guard.llm import LLMClient, LLMError, LLMRequest
 from pad_guard.profiles import resolve_profile
@@ -51,8 +60,10 @@ class FakeClient(LLMClient):
         return json.dumps({"findings": self.by_page.get(first, [])}, ensure_ascii=False)
 
 
-def finding(field: str, value, page: int, quote: str, unit: str | None = None) -> dict:
-    return {"field": field, "value": value, "page": page, "quote": quote, "unit": unit}
+def finding(field: str, value, page: int, quote: str, unit: str | None = None,
+            source_type: str = "client_value", norm: str | None = None) -> dict:
+    return {"field": field, "source_type": source_type, "value": value, "page": page, "quote": quote,
+            "unit": unit, "norm": norm}
 
 
 @pytest.fixture(scope="module")
@@ -89,6 +100,19 @@ def test_schema_covers_every_field_of_the_model() -> None:
     assert set(response_schema(fields)["properties"]["findings"]["items"]["properties"]["field"]["enum"]) == expected
     assert all(f.description for f in fields)  # every field explains itself, in French
     assert set(vocabulary.KEYWORDS) | vocabulary.INTERNAL == expected  # every field has its vocabulary
+    item = response_schema(fields)["properties"]["findings"]["items"]
+    assert item["properties"]["source_type"]["enum"] == ["client_value", "client_refers_to_norm", "not_found"]
+    assert set(item["required"]) == {"field", "source_type", "value", "page", "quote", "unit", "norm"}
+
+
+def test_glossary_covers_every_field_and_is_canonical() -> None:
+    g = glossary.load()
+    expected = {f.path for f in catalogue()} - vocabulary.INTERNAL
+    assert set(g.champs) == expected
+    assert all(t.fr and t.en for t in g.champs.values())
+    assert glossary.dump(g) == glossary.GLOSSARY.read_text(encoding="utf-8")  # the tool rewrites it as is
+    assert {"ebu_r128", "ebu_r103"} <= set(g.normes)
+    assert "glossaire" not in proposed_extends()  # the glossary is not a norm
 
 
 def _sub(section: str) -> type[BaseModel]:
@@ -237,6 +261,8 @@ def test_meaning_of_choices_and_prohibitions() -> None:
     assert vocabulary.evidence("structure.logo.forbidden", "true", "Le logo est en haut à droite") is not None
     assert vocabulary.evidence("format.field_order", '"tt"', "Entrelacement: Entrelacé / Upper Field First") is None
     assert vocabulary.evidence("format.field_order", '"progressive"', "Entrelacement: Entrelacé") is not None
+    assert vocabulary.evidence("format.field_order", '"tb"', "Entrelacement: Entrelacé / Upper Field First") is not None
+    assert vocabulary.evidence("format.field_order", '"bb"', "Entrelacement: Entrelacé / Upper Field First") is not None
 
 
 def test_units_of_list_values() -> None:
@@ -265,6 +291,137 @@ def test_lists_compared_as_sets(doc_pdf, tmp_path) -> None:
     x, _ = draft(doc_pdf, tmp_path, FakeClient({1: [finding("format.fps_allowed", ["25/1"], 2, quote),
                                                     finding("format.delivery.fps", ["25/1"], 2, quote)]}))
     assert set(statuses(x).values()) == {OK}  # same quote for two fields: fine when it is not a number
+
+
+R128_QUOTE = "Les mesures de loudness sont conformes à la recommandation EBU R128."
+
+
+def test_reference_to_a_norm_gives_no_value(doc_pdf, tmp_path) -> None:
+    x, files = draft(doc_pdf, tmp_path, FakeClient({1: [
+        # The model copies the R 128 value it knows: ignored, the client did not write it.
+        finding("audio.loudness.long.integrated_lufs", -23, 1, R128_QUOTE, source_type="client_refers_to_norm",
+                norm="EBU R128"),
+        finding("audio.loudness.short.integrated_lufs", None, 1,
+                "Le loudness des programmes courts respecte la recommandation CST-RT-017.",
+                source_type="client_refers_to_norm", norm="CST-RT-017"),
+        finding("audio.loudness.method", None, 1, "Consignes techniques de la chaîne de test, version 1.",
+                source_type="client_refers_to_norm", norm="EBU R128"),  # names no norm
+        finding("audio.loudness.long.lra_max_lu", None, 1, R128_QUOTE,  # says nothing of the LRA
+                source_type="client_refers_to_norm", norm="EBU R128"),
+        finding("audio.true_peak_max_dbtp", None, 1, TP_QUOTE,  # « True Peak » is no norm (no number)
+                source_type="client_refers_to_norm", norm="True Peak"),
+        finding("audio.silence_dbfs", None, 1, "rien", source_type="not_found"),  # dropped
+    ]}))
+    s = statuses(x)
+    assert s == {"audio.loudness.method": INVALID, "audio.loudness.long.integrated_lufs": NORM_REF,
+                 "audio.loudness.short.integrated_lufs": NORM_REF, "audio.true_peak_max_dbtp": INVALID,
+                 "audio.loudness.long.lra_max_lu": INVALID}
+    reasons = {r.path: r.findings[0].reason for r in x.fields}
+    assert "sans rapport" in reasons["audio.loudness.long.lra_max_lu"]
+    assert "ne nomme aucune norme" in reasons["audio.true_peak_max_dbtp"]
+    ref = next(r for r in x.fields if r.path == "audio.loudness.long.integrated_lufs")
+    assert ref.value is None and ref.findings[0].norm == "ebu_r128" and "ignorée" in ref.findings[0].reason
+    data = yaml.safe_load(files["yaml"].read_text(encoding="utf-8"))
+    assert "integrated_lufs" not in (data.get("audio", {}).get("loudness", {}).get("long") or {})
+    assert data["meta"]["extends"] == ["ebu_r103", "ebu_r128", "lumiris_maison"]  # the cited norm after the others
+    text = files["yaml"].read_text(encoding="utf-8")
+    assert "EBU R 128 (normes/ebu_r128.yaml) : p. 1" in text
+    assert "CST-RT-017 (loudness, usage français) (absente de normes/" in text
+    assert "audio.loudness.long.integrated_lufs -> ebu_r128 (p. 1)" in text
+    saved = json.loads(files["findings"].read_text(encoding="utf-8"))
+    assert [(n["norm"], n["available"]) for n in saved["cited_norms"]] == [("cst_rt017", False), ("ebu_r128", True)]
+
+
+def test_implausible_value_or_unit_is_kept_and_flagged(doc_pdf, tmp_path) -> None:
+    x, files = draft(doc_pdf, tmp_path, FakeClient({1: [
+        finding("audio.sample_rate", 48, 2, "Audio | 48 kHz, 24 bits", "kHz"),  # 48 Hz: a reading error
+        finding("audio.true_peak_max_dbtp", -1, 1, TP_QUOTE, "LUFS"),  # unit of another field
+        finding("audio.loudness.long.integrated_lufs", -23, 1, LOUD_QUOTE, "LUFS"),
+    ]}))
+    s = statuses(x)
+    assert s["audio.sample_rate"] == IMPLAUSIBLE and s["audio.true_peak_max_dbtp"] == IMPLAUSIBLE
+    assert s["audio.loudness.long.integrated_lufs"] == OK
+    rate = next(r for r in x.fields if r.path == "audio.sample_rate")
+    assert rate.value == 48 and "hors de la plage vraisemblable" in rate.findings[0].reason
+    tp = next(r for r in x.fields if r.path == "audio.true_peak_max_dbtp")
+    assert "unité citée « LUFS » incompatible" in tp.findings[0].reason
+    text = files["yaml"].read_text(encoding="utf-8")
+    assert "sample_rate: 48  # INVRAISEMBLABLE (valeur 48 hors de la plage vraisemblable" in text
+
+
+def test_kept_value_with_rejected_others_may_be_incomplete(doc_pdf, tmp_path) -> None:
+    _, files = draft(doc_pdf, tmp_path, FakeClient({1: [
+        finding("audio.true_peak_max_dbtp", -1, 1, TP_QUOTE, "dBTP"),
+        finding("audio.true_peak_max_dbtp", -3, 1, "niveau true peak de -3 dBTP"),  # invented: refused
+    ]}))
+    text = files["yaml"].read_text(encoding="utf-8")
+    assert "1 autre(s) proposition(s) rejetée(s) avec une autre valeur : valeur peut-être incomplète" in text
+
+
+def test_glossary_checks() -> None:
+    g = glossary.load()
+    assert glossary.implausible(g, "structure.timecode.program_start", "10:00:00:00", None) is None
+    assert "mal formé" in glossary.implausible(g, "structure.timecode.program_start", "10:00:61:00", None)
+    assert glossary.implausible(g, "format.fps_allowed", ["25/1", "50/1"], "i/s") is None
+    assert "hors de la plage" in glossary.implausible(g, "format.fps_allowed", ["250/1"], None)
+    assert glossary.implausible(g, "audio.true_peak_max_dbtp", -1, "dBTP max") is None  # starts with dBTP
+    assert glossary.implausible(g, "structure.bars.tone_tolerance_db", 1, "dBFS") is not None  # dB is not dBFS
+    assert g.norms_in("conformément à la R 128 et à l'EBU R103") == ["ebu_r128", "ebu_r103"]
+    assert g.norms_in("R1280") == []
+
+
+def test_glossary_term_names_the_field_and_is_learnt(tmp_path) -> None:
+    from pad_guard.draft.pdf import Document, Page
+    from pad_guard.draft.schema import catalogue as fields
+
+    copy = tmp_path / "glossaire.yaml"
+    shutil.copy(glossary.GLOSSARY, copy)
+    g = glossary.load(copy)
+    doc = Document(path=tmp_path / "x.pdf", sha256="", pages=[Page(1, "Seuil de mutisme des pistes : -60 dBFS.")])
+    specs = {s.path: s for s in fields()}
+    raw = finding("audio.silence_dbfs", -60, 1, "Seuil de mutisme des pistes : -60 dBFS.", "dBFS")
+    assert check(doc, raw, specs, 1, [1], g).status == INVALID  # « silence » is not in the quote
+    assert glossary.add_term(g, "audio.silence_dbfs", "fr", "seuil de mutisme")
+    assert not glossary.add_term(g, "audio.silence_dbfs", "fr", "Seuil  de MUTISME")  # already known
+    g = glossary.load(copy)  # written to the file
+    assert "seuil de mutisme" in g.champs["audio.silence_dbfs"].fr
+    assert check(doc, raw, specs, 1, [1], g).status == OK
+
+
+def test_prompt_shows_glossary_of_the_fields_on_the_pages(doc_pdf, tmp_path) -> None:
+    client = FakeClient()
+    draft(doc_pdf, tmp_path, client)
+    first, last = client.requests[0].prompt, client.requests[1].prompt
+    assert "Glossaire des champs" in first and "- audio.true_peak_max_dbtp : termes : true peak" in first
+    assert "Glossaire des champs" not in last  # page 3 has no text
+    assert "client_refers_to_norm" in client.requests[0].system
+
+
+def _validated(path: Path, broadcaster: str, quote: str, sha: str = "0" * 64) -> None:
+    path.write_text(yaml.safe_dump({
+        "meta": {"name": path.stem, "broadcaster": broadcaster, "status": "validated", "source_pdf_sha256": sha},
+        "audio": {"true_peak_max_dbtp": -2.0},
+        "sources": {"audio.true_peak_max_dbtp": quote, "format.codecs": "Lumiris : master interne"},
+    }, allow_unicode=True), encoding="utf-8")
+
+
+def test_examples_never_come_from_the_same_broadcaster(doc_pdf, tmp_path) -> None:
+    profiles = tmp_path / "profiles"
+    profiles.mkdir()
+    _validated(profiles / "chaine_test_uhd.yaml", "Chaîne de test", "Chaîne §1 : crête vraie -2 dBTP")
+    _validated(profiles / "autre.yaml", "Autre diffuseur", "Autre §2 : true peak -2 dBTP")
+    _validated(profiles / "meme_pdf.yaml", "Nom différent", "Même PDF §3 : -2 dBTP", sha=pdf.sha256(doc_pdf))
+    client = FakeClient()
+    make_draft(doc_pdf, "chaine_test", client, tmp_path / "out", broadcaster="Chaîne de test",
+               profiles_dir=profiles)
+    prompt = client.requests[0].prompt
+    assert "chez Autre diffuseur, « Autre §2 : true peak -2 dBTP » a donné -2.0" in prompt
+    assert "Chaîne §1" not in prompt and "Même PDF" not in prompt and "master interne" not in prompt
+    # The validated profiles of the repository: Arte's examples are never shown for an Arte PDF.
+    arte = examples.collect(ROOT / "profiles", examples.Target(name="arte_hd_sdr"))
+    assert arte == {}
+    other = examples.collect(ROOT / "profiles", examples.Target(name="france_tv_hd", broadcaster="France Télévisions"))
+    assert other and all(e.profile == "arte_hd_sdr.yaml" for items in other.values() for e in items)
 
 
 # --- review-profile and compare-profiles -------------------------------------------------------
@@ -300,8 +457,8 @@ def _review(draft_yaml: Path, base: Path, out: Path, answers: list[str]):
 def test_review_profile_accept_correct_choose(review_lab) -> None:
     draft_yaml, base, out = review_lab
     # Field order: audio.sample_rate (conflict), audio.loudness.long.integrated_lufs, audio.true_peak_max_dbtp,
-    # structure.timecode.program_start.
-    result = _review(draft_yaml, base, out, ["1", "a", "c", "-3", "1", "le niveau des crêtes", "a", "Vincent"])
+    # structure.timecode.program_start. After the correction, no term is added to the glossary ("").
+    result = _review(draft_yaml, base, out, ["1", "a", "c", "-3", "1", "le niveau des crêtes", "", "a", "Vincent"])
     assert result.exit_code == 0, result.output
     r = resolve_profile(out)
     assert r.profile.meta.status == "validated" and r.profile.meta.validated_by == "Vincent"
@@ -311,6 +468,19 @@ def test_review_profile_accept_correct_choose(review_lab) -> None:
     text = out.read_text(encoding="utf-8")
     assert "A VERIFIER : sans citation de chaine_test.pdf" in text  # base values not in the PDF
     assert draft_yaml.with_name("chaine_test.review.json").is_file()
+
+
+def test_review_flags_implausible_and_learns_terms(review_lab, tmp_path) -> None:
+    draft_yaml, base, out = review_lab
+    # sample_rate: CONFLIT between 48000 and the implausible 48. True peak corrected, with a new term.
+    answers = ["1", "a", "c", "-3", "1", "le niveau des crêtes", "plafond numérique", "f", "a", "Vincent"]
+    result = _review(draft_yaml, base, out, answers)
+    assert result.exit_code == 0, result.output
+    text = " ".join(result.output.split())
+    assert "INVRAISEMBLABLE" in text and "hors de la plage vraisemblable" in text
+    learnt = glossary.load(tmp_path / "normes" / "glossaire.yaml")
+    assert "plafond numérique" in learnt.champs["audio.true_peak_max_dbtp"].fr
+    assert "plafond numérique" not in glossary.load().champs["audio.true_peak_max_dbtp"].fr  # repository untouched
 
 
 def test_review_shows_norm_only_blocking_rules(review_lab) -> None:

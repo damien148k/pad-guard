@@ -3,9 +3,11 @@
 Files of a draft ``<name>``, in ``profiles/drafts/``:
 
 * ``<name>.yaml``: meta (status draft, source PDF and its SHA-256, proposed norms), the checked
-  values, each with ``# A VERIFIER (p. N) « citation »``; fields in conflict or with an invalid
-  citation are written ``null`` with the candidates in comment; fields not found are absent
-  (inherited from a norm, so capped at minor) and listed at the top;
+  values, each with ``# A VERIFIER (p. N) « citation »``; implausible values are written with
+  ``# INVRAISEMBLABLE``; fields in conflict or with an invalid citation are written ``null`` with
+  the candidates in comment; fields not found, and fields for which the document only refers to
+  a norm, are absent (inherited from a norm, so capped at minor) and listed at the top, with the
+  norms the document cites;
 * ``<name>.findings.json``: every finding with its status, read by ``review-profile``;
 * ``<name>.llm.jsonl``: the raw answers of the model, one line per page batch.
 
@@ -21,7 +23,7 @@ from typing import Any
 
 import yaml
 
-from pad_guard.draft.extract import OK, Extraction, FieldResult
+from pad_guard.draft.extract import IMPLAUSIBLE, NORM_REF, OK, Extraction, FieldResult, Finding, canonical
 
 ORDER = ("meta", "format", "video", "audio", "structure", "rules", "llm", "sources")
 QUOTE_CHARS = 160
@@ -81,21 +83,43 @@ def _emit(lines: list[str], key: str, value: Any, depth: int, path: str, comment
         lines.append(f"{pad}{name}: {scalar(value)}{note}")
 
 
+Norms = dict[str, tuple[str, bool, Finding]]  # key -> (title, file in normes/, first citation)
+
+
+def rejected_others(r: FieldResult) -> list[Finding]:
+    """Proposals refused by a check whose value differs from the kept one: the kept value may be
+    incomplete (audio.groups: the AD tracks kept, VO and VF refused)."""
+    return [f for f in r.findings if f.status not in (OK, IMPLAUSIBLE, NORM_REF) and f.value is not None
+            and canonical(f.value) != canonical(r.value)]
+
+
 def _comment(r: FieldResult) -> str:
-    if r.status == OK:
-        f = next(f for f in r.findings if f.status == OK and f.value == r.value)
-        others = sorted({g.page for g in r.findings if g.status == OK} - {f.page})
+    if r.status in (OK, IMPLAUSIBLE):
+        f = next(f for f in r.findings if f.status == r.status and f.value == r.value)
+        others = sorted({g.page for g in r.findings if g.status in (OK, IMPLAUSIBLE)} - {f.page})
         also = f" ; aussi p. {', '.join(map(str, others))}" if others else ""
         unit = f" [{f.unit}]" if f.unit else ""
-        return f"A VERIFIER (p. {f.page}) « {one_line(f.quote)} »{unit}{also}"
+        lead = "A VERIFIER" if r.status == OK else f"INVRAISEMBLABLE ({f.reason})"
+        rejected = rejected_others(r)
+        more = f" ; {len(rejected)} autre(s) proposition(s) rejetée(s) avec une autre valeur : valeur peut-être incomplète" \
+            if rejected else ""
+        return f"{lead} (p. {f.page}) « {one_line(f.quote)} »{unit}{also}{more}"
     candidates = " | ".join(f"{scalar(f.value)} (p. {f.page}, {f.status}{': ' + f.reason if f.reason else ''}) "
                             f"« {one_line(f.quote, 80)} »" for f in r.findings)
     return f"{r.status} : {candidates}"
 
 
-def draft_text(x: Extraction, meta: dict[str, Any]) -> str:
-    values = {r.path: r.value for r in x.fields}
-    comments = {r.path: _comment(r) for r in x.fields}
+def _norm_line(key: str, title: str, available: bool, f: Finding) -> str:
+    where = f"normes/{key}.yaml" if available else "absente de normes/ : à ajouter ou à saisir à la main"
+    return f"  - {title} ({where}) : p. {f.page} « {one_line(f.quote, 120)} »"
+
+
+def draft_text(x: Extraction, meta: dict[str, Any], norms: Norms | None = None) -> str:
+    norms = norms or {}
+    kept = [r for r in x.fields if r.status != NORM_REF]  # a reference to a norm gives no value
+    refs = [r for r in x.fields if r.status == NORM_REF]
+    values = {r.path: r.value for r in kept}
+    comments = {r.path: _comment(r) for r in kept}
     data = {"meta": meta, **nest(values)}
     counts = {s: sum(r.status == s for r in x.fields) for s in sorted({r.status for r in x.fields})}
     header = [
@@ -106,15 +130,29 @@ def draft_text(x: Extraction, meta: dict[str, Any]) -> str:
         "mais seul un humain peut confirmer le sens. À relire avec : pad-guard review-profile <ce fichier>.",
         "Statuts : " + ", ".join(f"{n} {s}" for s, n in counts.items()) + f", {len(x.not_found)} champ(s) non trouvé(s).",
         "",
+        "Normes citées par le document (proposées dans meta.extends, après les autres : elles priment) :",
+        *([_norm_line(k, *v) for k, v in norms.items()] or ["  (aucune)"]),
+        "",
+        "Champs pour lesquels le document renvoie à une norme sans écrire la valeur (absents : hérités de la",
+        "norme, donc plafonnés à minor, sauf si le relecteur saisit la valeur avec la citation du renvoi) :",
+        *([f"  - {r.path} -> {_ref(r)}" for r in refs] or ["  (aucun)"]),
+        "",
         "Champs non trouvés dans le document (absents : hérités d'une norme, donc plafonnés à minor, ou à fixer) :",
         *[f"  - {p}" for p in x.not_found],
     ]
     return dump(data, comments, header)
 
 
-def findings_json(x: Extraction, meta: dict[str, Any]) -> str:
+def _ref(r: FieldResult) -> str:
+    f = next(f for f in r.findings if f.status == NORM_REF)
+    return f"{f.norm} (p. {f.page}) « {one_line(f.quote, 100)} »"
+
+
+def findings_json(x: Extraction, meta: dict[str, Any], norms: Norms | None = None) -> str:
+    cited = [{"norm": k, "title": t, "available": a, "page": f.page, "quote": f.quote, "field": f.field}
+             for k, (t, a, f) in (norms or {}).items()]
     data = {"meta": meta, "model": x.model, "prompt_version": x.prompt_version, "pdf_sha256": x.pdf_sha256,
-            "pages": x.pages, "batches": x.batches, "fields": [r.to_json() for r in x.fields],
+            "pages": x.pages, "batches": x.batches, "cited_norms": cited, "fields": [r.to_json() for r in x.fields],
             "not_found": x.not_found}
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
@@ -124,12 +162,13 @@ def paths_for(out_dir: Path, name: str) -> dict[str, Path]:
             "log": out_dir / f"{name}.llm.jsonl"}
 
 
-def write_draft(out_dir: Path, name: str, x: Extraction, meta: dict[str, Any]) -> dict[str, Path]:
+def write_draft(out_dir: Path, name: str, x: Extraction, meta: dict[str, Any],
+                norms: Norms | None = None) -> dict[str, Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     targets = paths_for(out_dir, name)
     texts = {
-        "yaml": draft_text(x, meta),
-        "findings": findings_json(x, meta),
+        "yaml": draft_text(x, meta, norms),
+        "findings": findings_json(x, meta, norms),
         "log": "".join(json.dumps(line, ensure_ascii=False) + "\n" for line in x.log),
     }
     temps = {}

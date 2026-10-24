@@ -1,0 +1,484 @@
+# Glossaire des cahiers des charges des diffuseurs, lu par pad-guard draft-profile (SPEC §13).
+#
+# Ce fichier n'est pas une norme : il n'apporte aucune valeur au profil et ne touche jamais au verdict.
+# Pour chaque champ du profil : termes français (fr) et anglais (en) qui le désignent dans un document,
+# unités acceptées pour la valeur citée, contextes à ne pas confondre, plage vraisemblable et forme.
+# - Les termes présents dans un lot de pages choisissent les champs dont le glossaire est montré au modèle,
+#   et une citation qui contient un terme du champ a le vocabulaire du champ. Un terme doit donc être
+#   précis (« noir de tête », pas « noir »).
+# - Plage, unités et forme servent au contrôle de vraisemblance : hors plage, unité incompatible ou
+#   timecode mal formé -> INVRAISEMBLABLE (valeur gardée, signalée en rouge à la relecture). Les plages
+#   ne sont pas des valeurs de norme : elles attrapent les erreurs de lecture (48 pour 48 kHz).
+# - normes : alias par lesquels un document renvoie à une norme ; la clé est le nom du fichier normes/<clé>.yaml
+#   quand il existe. Une norme sans fichier est signalée « absente de normes/ » dans le brouillon.
+# review-profile ajoute ici, après confirmation, le terme employé par un diffuseur quand le relecteur corrige
+# ou complète une valeur. Le fichier est réécrit par l'outil : garder les commentaires dans cet en-tête.
+
+meta:
+  kind: "glossary"
+  version: "1"
+  status: "draft"
+  reviewed_by: null
+  reviewed_at: null
+
+normes:
+  ebu_r128:
+    titre: "EBU R 128"
+    alias: ["R128", "R 128", "R-128", "EBU R128", "EBU R 128", "EBU-R128", "UER R128", "UER R 128"]
+  ebu_r103:
+    titre: "EBU R 103"
+    alias: ["R103", "R 103", "R-103", "EBU R103", "EBU R 103", "UER R103", "UER R 103"]
+  itu_bs1770:
+    titre: "ITU-R BS.1770"
+    alias: ["BS.1770", "BS 1770", "BS1770", "BS-1770"]
+  ebu_tech3341:
+    titre: "EBU Tech 3341"
+    alias: ["Tech 3341", "Tech3341", "Tech. 3341", "EBU 3341"]
+  ebu_tech3343:
+    titre: "EBU Tech 3343"
+    alias: ["Tech 3343", "Tech3343", "Tech. 3343", "EBU 3343"]
+  itu_bt709:
+    titre: "ITU-R BT.709"
+    alias: ["BT.709", "BT 709", "BT709", "Rec. 709", "Rec.709", "Rec 709", "BT-709", "REC 709"]
+  itu_bt2020:
+    titre: "ITU-R BT.2020"
+    alias: ["BT.2020", "BT 2020", "BT2020", "Rec. 2020", "Rec.2020", "BT-2020"]
+  itu_bt2100:
+    titre: "ITU-R BT.2100"
+    alias: ["BT.2100", "BT 2100", "BT2100", "BT-2100"]
+  ofcom_pse:
+    titre: "Ofcom, lignes directrices sur les images photosensibles (PSE)"
+    alias: ["Ofcom", "ITU-R BT.1702", "BT.1702"]
+  cst_rt017:
+    titre: "CST-RT-017 (loudness, usage français)"
+    alias: ["CST-RT-017", "CST RT 017", "RT-017", "RT 017"]
+  cst_rt040:
+    titre: "CST-RT-040 (PAD, usage français)"
+    alias: ["CST-RT-040", "CST RT 040", "RT-040", "RT 040"]
+  ebu_tech3264:
+    titre: "EBU Tech 3264 (sous-titres STL)"
+    alias: ["Tech 3264", "Tech. 3264", "Tech3264"]
+
+champs:
+  format.pix_fmt:
+    fr: ["4:2:2 10 bits", "4.2.2 10 bits", "sous-échantillonnage de la chrominance", "échantillonnage 4:2:2", "structure d'échantillonnage"]
+    en: ["4:2:2 10-bit", "chroma subsampling", "pixel format", "sampling structure"]
+    contextes: ["PAD / proxy ou fichier web", "HD / UHD"]
+  format.width:
+    fr: ["résolution", "définition", "pixels par ligne", "pixels actifs"]
+    en: ["resolution", "active pixels", "frame size", "picture size"]
+    unites: ["pixels", "px", "pixels/ligne", "pixels/line"]
+    contextes: ["HD / UHD", "PAD / fichier web ou vertical"]
+    plage: [640, 7680]
+  format.height:
+    fr: ["résolution", "définition", "lignes actives", "nombre de lignes"]
+    en: ["resolution", "active lines", "frame size", "picture size"]
+    unites: ["lignes", "pixels", "px", "lines"]
+    contextes: ["HD / UHD", "PAD / fichier web ou vertical"]
+    plage: [480, 4320]
+  format.fps_allowed:
+    fr: ["fréquence image", "cadence image", "cadence", "images par seconde", "fréquence trame"]
+    en: ["frame rate", "frames per second", "fps"]
+    unites: ["i/s", "i/sec", "images/s", "images/seconde", "images par seconde", "fps", "p", "i", "p/s", "Hz"]
+    contextes: ["50i (25 images entrelacées) / 50p / 25p", "HD / UHD", "PAD / fichier web"]
+    plage: [23, 60]
+    forme: cadence
+  format.field_order:
+    fr: ["balayage", "progressif", "entrelacé", "trame paire en premier", "trame impaire en premier", "ordre des trames"]
+    en: ["scan type", "progressive", "interlaced", "field order", "top field first", "bottom field first"]
+    contextes: ["master analysé / fichier livré (format.delivery)"]
+  format.color_primaries:
+    fr: ["primaires", "colorimétrie", "espace colorimétrique"]
+    en: ["colour primaries", "color primaries", "colorimetry", "colour space", "color space"]
+    contextes: ["SDR (BT.709) / HDR (BT.2020)"]
+  format.color_transfer:
+    fr: ["fonction de transfert", "courbe de transfert", "gamma", "colorimétrie"]
+    en: ["transfer characteristics", "transfer function", "gamma", "OETF", "EOTF"]
+    contextes: ["SDR (BT.709) / HDR (PQ, HLG)"]
+  format.color_space:
+    fr: ["matrice", "matrice de couleur", "coefficients de matrice", "colorimétrie"]
+    en: ["matrix coefficients", "colour matrix", "color matrix", "colorimetry"]
+    contextes: ["SDR (BT.709) / HDR (BT.2020)"]
+  format.color_range:
+    fr: ["plage de codage", "niveaux légaux", "plage légale", "plage pleine", "niveaux vidéo"]
+    en: ["legal range", "narrow range", "full range", "video range", "limited range"]
+  format.letterbox.formats:
+    fr: ["format d'image", "lignes actives", "lignes utiles", "format d'image source", "letterbox", "bandes noires"]
+    en: ["aspect ratio", "active lines", "active picture", "letterbox", "pillarbox"]
+  format.delivery.scan:
+    fr: ["type de balayage", "balayage", "progressif", "entrelacé", "PsF"]
+    en: ["scan type", "progressive", "interlaced", "segmented frame", "PsF"]
+    contextes: ["fichier livré au diffuseur, pas le master Lumiris"]
+  format.delivery.fps:
+    fr: ["fréquence image", "cadence image", "images par seconde"]
+    en: ["frame rate", "frames per second", "fps"]
+    unites: ["i/s", "i/sec", "images/s", "images/seconde", "images par seconde", "fps", "p", "i", "p/s", "Hz"]
+    contextes: ["fichier livré au diffuseur, pas le master Lumiris", "HD / UHD"]
+    plage: [23, 60]
+    forme: cadence
+  format.delivery.codec:
+    fr: ["codec", "format de compression", "conteneur", "format de fichier", "wrapper"]
+    en: ["codec", "compression format", "container", "wrapper", "file format"]
+    contextes: ["PAD / proxy ou fichier web", "HD / UHD"]
+  video.bit_depth:
+    fr: ["quantification vidéo", "profondeur de quantification", "profondeur de bits"]
+    en: ["bit depth", "video bit depth", "quantization"]
+    unites: ["bits", "bit"]
+    plage: [8, 16]
+  video.y_min_legal:
+    fr: ["niveau du noir", "noir nominal", "niveau de noir"]
+    en: ["black level", "nominal black"]
+    plage: [0, 128]
+  video.y_max_legal:
+    fr: ["niveau du blanc", "blanc nominal", "niveau de blanc"]
+    en: ["white level", "nominal white", "peak white"]
+    plage: [700, 1023]
+  video.y_tolerance_low_pct:
+    fr: ["luminance", "niveau minimal de la luminance", "tolérance basse"]
+    en: ["luminance", "minimum luma", "luma lower limit"]
+    unites: ["%"]
+    contextes: ["luminance Y / composantes RVB"]
+    plage: [-10, 5]
+  video.y_tolerance_high_pct:
+    fr: ["luminance", "niveau maximal de la luminance", "tolérance haute"]
+    en: ["luminance", "maximum luma", "luma upper limit"]
+    unites: ["%"]
+    contextes: ["luminance Y / composantes RVB"]
+    plage: [95, 110]
+  video.rgb_min_pct:
+    fr: ["composantes RVB", "niveau minimal des composantes", "gamut"]
+    en: ["RGB components", "RGB gamut", "minimum RGB"]
+    unites: ["%"]
+    contextes: ["luminance Y / composantes RVB"]
+    plage: [-10, 5]
+  video.rgb_max_pct:
+    fr: ["composantes RVB", "niveau maximal des composantes", "gamut"]
+    en: ["RGB components", "RGB gamut", "maximum RGB"]
+    unites: ["%"]
+    contextes: ["luminance Y / composantes RVB"]
+    plage: [95, 110]
+  video.max_out_of_range_area_pct:
+    fr: ["surface de l'image", "pourcentage de la surface", "superficie de l'image"]
+    en: ["picture area", "of the image area", "area of the picture"]
+    unites: ["%"]
+    plage: [0, 100]
+  video.prefilter:
+    fr: ["filtre passe-bas", "filtrage avant mesure", "préfiltre", "filtrage du signal"]
+    en: ["low-pass filter", "prefilter", "pre-filter"]
+  video.measure_spaces:
+    fr: ["espace RVB", "espace YCbCr", "composantes RVB et luminance"]
+    en: ["RGB space", "YCbCr space", "RGB and YCbCr"]
+  audio.sample_rate:
+    fr: ["fréquence d'échantillonnage", "échantillonnage audio", "échantillonnage"]
+    en: ["sample rate", "sampling rate", "sampling frequency"]
+    unites: ["Hz", "kHz"]
+    plage: [32000, 192000]
+  audio.bit_depth:
+    fr: ["quantification audio", "résolution audio", "profondeur de quantification audio"]
+    en: ["audio bit depth", "bit depth", "word length"]
+    unites: ["bits", "bit"]
+    plage: [16, 32]
+  audio.bit_depth_allowed:
+    fr: ["quantification audio", "résolution audio"]
+    en: ["audio bit depth", "bit depth", "word length"]
+    unites: ["bits", "bit"]
+    plage: [16, 32]
+  audio.same_bit_depth_all_tracks:
+    fr: ["même quantification", "quantification identique"]
+    en: ["same bit depth", "identical bit depth"]
+  audio.channel_layout:
+    fr: ["paires AES", "paire AES", "pistes appairées"]
+    en: ["AES pairs", "AES pair", "paired tracks"]
+  audio.max_pairs:
+    fr: ["nombre de paires", "paires AES", "nombre maximal de paires"]
+    en: ["number of pairs", "AES pairs", "maximum pairs"]
+    unites: ["paires", "paire"]
+    plage: [1, 16]
+  audio.no_silent_tracks:
+    fr: ["piste silencieuse", "pistes silencieuses", "piste sans contenu", "pistes vides", "piste vide"]
+    en: ["silent track", "silent tracks", "empty track", "empty tracks"]
+  audio.silent_track_dbfs:
+    fr: ["piste silencieuse", "piste sans contenu", "piste vide"]
+    en: ["silent track", "empty track"]
+    unites: ["dBFS", "dB FS"]
+    plage: [-150, -40]
+  audio.dual_mono_must_be_identical:
+    fr: ["double mono", "mono doublé", "dual mono"]
+    en: ["dual mono", "double mono"]
+  audio.groups:
+    fr: ["affectation des pistes", "répartition des pistes", "plan de pistes", "piste 1", "pistes 1 et 2", "voie 1"]
+    en: ["track layout", "track allocation", "track assignment", "channel layout", "track 1"]
+    contextes: ["VO / VF / VA / version internationale (M&E)", "stéréo / 5.1 / mono", "audiodescription"]
+  audio.loudness.method:
+    fr: ["méthode de mesure", "mesure du loudness", "mesure de l'intensité sonore"]
+    en: ["measurement method", "loudness measurement", "metering"]
+  audio.loudness.long_program_min_seconds:
+    fr: ["programmes longs", "programme long", "durée supérieure à", "programmes courts"]
+    en: ["long-form", "long programmes", "short-form"]
+    unites: ["s", "secondes", "sec", "min", "minutes", "'"]
+    plage: [10, 3600]
+  audio.loudness.long.integrated_lufs:
+    fr: ["loudness intégré", "niveau de loudness intégré", "intensité sonore intégrée", "niveau sonore intégré", "loudness cible", "valeur cible du loudness"]
+    en: ["integrated loudness", "programme loudness", "target loudness", "loudness target"]
+    unites: ["LUFS", "LKFS", "LU"]
+    contextes: ["programme long / programme court, bande-annonce, publicité", "direct", "VO / VF"]
+    plage: [-31, -14]
+  audio.loudness.long.integrated_tolerance_lu:
+    fr: ["tolérance", "écart toléré", "marge de tolérance"]
+    en: ["tolerance", "permitted deviation"]
+    unites: ["LU", "LUFS", "dB"]
+    contextes: ["programme long / programme court", "direct"]
+    plage: [0, 3]
+  audio.loudness.long.lra_max_lu:
+    fr: ["LRA", "plage de loudness", "dynamique sonore", "range de loudness"]
+    en: ["LRA", "loudness range"]
+    unites: ["LU"]
+    contextes: ["programme long / programme court"]
+    plage: [3, 30]
+  audio.loudness.long.lra_recommended_range_lu:
+    fr: ["LRA", "plage de loudness recommandée", "dynamique sonore"]
+    en: ["LRA", "loudness range", "recommended loudness range"]
+    unites: ["LU"]
+    contextes: ["programme long / programme court"]
+    plage: [0, 30]
+  audio.loudness.long.short_term_dialogue_excursion_lu:
+    fr: ["loudness court terme du dialogue", "short term des dialogues", "dialogues en short term"]
+    en: ["short-term loudness of dialogue", "dialogue short-term"]
+    unites: ["LU"]
+    contextes: ["programme long / programme court"]
+    plage: [0, 15]
+  audio.loudness.long.short_term_max_lufs:
+    fr: ["loudness court terme maximal", "short term maximal", "loudness short term", "court terme"]
+    en: ["maximum short-term loudness", "short-term loudness", "short term"]
+    unites: ["LUFS", "LKFS"]
+    contextes: ["programme long / programme court"]
+    plage: [-30, -5]
+  audio.loudness.long.short_term_excursion_above_lu:
+    fr: ["excursion du short term", "au-dessus de la cible en short term", "dépassement court terme"]
+    en: ["short-term excursion", "short-term above target"]
+    unites: ["LU"]
+    contextes: ["programme long / programme court"]
+    plage: [0, 15]
+  audio.loudness.short.integrated_lufs:
+    fr: ["loudness intégré", "niveau de loudness intégré", "intensité sonore intégrée", "loudness cible", "valeur cible du loudness"]
+    en: ["integrated loudness", "programme loudness", "target loudness", "loudness target"]
+    unites: ["LUFS", "LKFS", "LU"]
+    contextes: ["programme court, bande-annonce, publicité / programme long", "direct", "VO / VF"]
+    plage: [-31, -14]
+  audio.loudness.short.integrated_tolerance_lu:
+    fr: ["tolérance", "écart toléré", "marge de tolérance"]
+    en: ["tolerance", "permitted deviation"]
+    unites: ["LU", "LUFS", "dB"]
+    contextes: ["programme court / programme long"]
+    plage: [0, 3]
+  audio.loudness.short.lra_max_lu:
+    fr: ["LRA", "plage de loudness", "dynamique sonore", "range de loudness"]
+    en: ["LRA", "loudness range"]
+    unites: ["LU"]
+    contextes: ["programme court / programme long"]
+    plage: [3, 30]
+  audio.loudness.short.lra_recommended_range_lu:
+    fr: ["LRA", "plage de loudness recommandée", "dynamique sonore"]
+    en: ["LRA", "loudness range", "recommended loudness range"]
+    unites: ["LU"]
+    contextes: ["programme court / programme long"]
+    plage: [0, 30]
+  audio.loudness.short.short_term_dialogue_excursion_lu:
+    fr: ["loudness court terme du dialogue", "short term des dialogues", "dialogues en short term"]
+    en: ["short-term loudness of dialogue", "dialogue short-term"]
+    unites: ["LU"]
+    contextes: ["programme court / programme long"]
+    plage: [0, 15]
+  audio.loudness.short.short_term_max_lufs:
+    fr: ["loudness court terme maximal", "short term maximal", "loudness short term", "court terme"]
+    en: ["maximum short-term loudness", "short-term loudness", "short term"]
+    unites: ["LUFS", "LKFS"]
+    contextes: ["programme court / programme long"]
+    plage: [-30, -5]
+  audio.loudness.short.short_term_excursion_above_lu:
+    fr: ["excursion du short term", "au-dessus de la cible en short term", "dépassement court terme"]
+    en: ["short-term excursion", "short-term above target"]
+    unites: ["LU"]
+    contextes: ["programme court / programme long"]
+    plage: [0, 15]
+  audio.true_peak_max_dbtp:
+    fr: ["true peak", "crête vraie", "niveau crête maximal", "niveau de crête vraie", "crêtes", "niveau crête", "niveau des crêtes"]
+    en: ["true peak", "true-peak", "maximum true peak level", "peak level"]
+    unites: ["dBTP", "dB TP", "dBTP max"]
+    contextes: ["programme long / programme court, bande-annonce", "direct", "VO / VF"]
+    plage: [-10, 0]
+  audio.alignment_tone.hz:
+    fr: ["signal d'alignement", "son d'alignement", "signal de référence", "sinusoïde de référence", "bip d'alignement"]
+    en: ["alignment tone", "line-up tone", "reference tone"]
+    unites: ["Hz", "kHz"]
+    plage: [20, 20000]
+  audio.alignment_tone.dbfs:
+    fr: ["signal d'alignement", "son d'alignement", "signal de référence", "niveau d'alignement", "niveau de référence"]
+    en: ["alignment tone", "line-up tone", "line-up level", "reference level"]
+    unites: ["dBFS", "dB FS"]
+    plage: [-30, -9]
+  audio.silence_dbfs:
+    fr: ["silence", "seuil de silence", "niveau de silence"]
+    en: ["silence", "silence threshold"]
+    unites: ["dBFS", "dB FS"]
+    plage: [-150, -40]
+  audio.silence_max_seconds:
+    fr: ["durée de silence", "silence de plus de", "silence supérieur à"]
+    en: ["silence duration", "silence longer than"]
+    unites: ["s", "secondes", "sec", "images"]
+    plage: [0.04, 120]
+  audio.phase_min_correlation:
+    fr: ["corrélation de phase", "opposition de phase", "phase"]
+    en: ["phase correlation", "out of phase", "phase"]
+    plage: [-1, 1]
+  audio.phase_min_seconds:
+    fr: ["opposition de phase", "durée d'opposition de phase"]
+    en: ["out of phase", "phase reversal"]
+    unites: ["s", "secondes", "sec"]
+    plage: [0.04, 120]
+  audio.av_sync_ms.audio_early_max:
+    fr: ["synchronisation", "synchro labiale", "avance du son", "décalage son image"]
+    en: ["lip sync", "audio leads video", "audio advance", "av sync"]
+    unites: ["ms", "millisecondes"]
+    plage: [0, 200]
+  audio.av_sync_ms.audio_late_max:
+    fr: ["synchronisation", "synchro labiale", "retard du son", "décalage son image"]
+    en: ["lip sync", "audio lags video", "audio delay", "av sync"]
+    unites: ["ms", "millisecondes"]
+    plage: [0, 200]
+  structure.leaders:
+    fr: ["amorce", "amorces", "amorce de tête", "décompte", "clap", "mire de début"]
+    en: ["leader", "leaders", "head leader", "countdown", "slate"]
+  structure.timecode.file_start:
+    fr: ["timecode de début", "TC de début", "time code de départ", "timecode de la première image du fichier"]
+    en: ["start timecode", "file start timecode", "first frame timecode"]
+    forme: timecode
+  structure.timecode.program_start:
+    fr: ["timecode du programme", "TC début programme", "début du programme", "timecode de la première image du programme", "première image active"]
+    en: ["programme start", "program start", "first frame of action", "FFOA"]
+    forme: timecode
+  structure.timecode.tolerance_frames:
+    fr: ["tolérance du timecode", "à l'image près", "images près"]
+    en: ["timecode tolerance", "frame accurate"]
+    unites: ["images", "image", "frames", "frame"]
+    plage: [0, 50]
+  structure.timecode.drop_frame_allowed:
+    fr: ["drop frame", "timecode drop frame"]
+    en: ["drop frame", "drop-frame"]
+  structure.timecode.must_be_continuous:
+    fr: ["timecode continu", "continuité du timecode", "rupture de timecode", "saut de timecode"]
+    en: ["continuous timecode", "timecode break", "timecode discontinuity"]
+  structure.bars.required:
+    fr: ["mire de barres", "mire", "barres de couleur"]
+    en: ["colour bars", "color bars", "bars"]
+  structure.bars.forbidden:
+    fr: ["mire de barres", "mire", "barres de couleur"]
+    en: ["colour bars", "color bars", "bars"]
+  structure.bars.start_tc:
+    fr: ["début de la mire", "mire à", "mire de barres"]
+    en: ["bars start", "colour bars at", "color bars at"]
+    forme: timecode
+  structure.bars.min_seconds:
+    fr: ["durée de la mire", "mire de barres"]
+    en: ["bars duration", "colour bars", "color bars"]
+    unites: ["s", "secondes", "sec", "'", "min"]
+    plage: [1, 300]
+  structure.bars.pattern:
+    fr: ["type de mire", "mire EBU", "mire SMPTE", "barres 75 %", "barres 100 %"]
+    en: ["bars pattern", "EBU bars", "SMPTE bars"]
+  structure.bars.tone_hz:
+    fr: ["son de mire", "1 kHz", "1000 Hz", "fréquence du son de mire"]
+    en: ["bars tone", "line-up tone", "1 kHz"]
+    unites: ["Hz", "kHz"]
+    plage: [20, 20000]
+  structure.bars.tone_dbfs:
+    fr: ["son de mire", "niveau du son de mire", "1 kHz"]
+    en: ["bars tone", "tone level", "line-up tone"]
+    unites: ["dBFS", "dB FS"]
+    plage: [-30, -9]
+  structure.bars.tone_tolerance_db:
+    fr: ["tolérance du son de mire", "tolérance sur le niveau de la mire"]
+    en: ["tone tolerance"]
+    unites: ["dB", "LU"]
+    plage: [0, 3]
+  structure.black.head_min_seconds:
+    fr: ["noir de tête", "noir en tête", "noir avant le programme", "noir en début"]
+    en: ["head black", "black at head", "black before programme"]
+    unites: ["s", "secondes", "sec", "images"]
+    plage: [0, 120]
+  structure.black.tail_min_seconds:
+    fr: ["noir de queue", "noir en queue", "noir après le programme", "noir en fin"]
+    en: ["tail black", "black at tail", "black after programme"]
+    unites: ["s", "secondes", "sec", "images"]
+    plage: [0, 120]
+  structure.black.head_max_seconds:
+    fr: ["noir de tête", "noir en tête", "noir avant le programme", "noir en début"]
+    en: ["head black", "black at head", "black before programme"]
+    unites: ["s", "secondes", "sec", "images"]
+    plage: [0, 120]
+  structure.black.tail_max_seconds:
+    fr: ["noir de queue", "noir en queue", "noir après le programme", "noir en fin"]
+    en: ["tail black", "black at tail", "black after programme"]
+    unites: ["s", "secondes", "sec", "images"]
+    plage: [0, 120]
+  structure.black.silence_dbfs:
+    fr: ["silence sur le noir", "noir silencieux", "noir et silence"]
+    en: ["silent black", "black and silence"]
+    unites: ["dBFS", "dB FS"]
+    plage: [-150, -40]
+  structure.freeze.min_seconds:
+    fr: ["image figée", "images figées", "arrêt sur image", "image gelée"]
+    en: ["freeze frame", "frozen frame", "still frame"]
+    unites: ["s", "secondes", "sec", "images"]
+    plage: [0.04, 60]
+  structure.pse.enabled:
+    fr: ["épilepsie photosensible", "flashs", "images photosensibles", "test de Harding", "clignotements"]
+    en: ["photosensitive epilepsy", "PSE", "Harding", "flashing images"]
+  structure.pse.max_flashes_per_second:
+    fr: ["flashs par seconde", "nombre de flashs", "clignotements par seconde"]
+    en: ["flashes per second", "flash rate"]
+    unites: ["flashs", "flashes", "par seconde", "/s"]
+    plage: [1, 10]
+  structure.pse.flash_min_delta_pct:
+    fr: ["variation de luminance", "flash", "différence de luminance"]
+    en: ["luminance change", "flash", "luminance difference"]
+    unites: ["%", "cd/m²"]
+    plage: [1, 100]
+  structure.pse.flash_min_area_pct:
+    fr: ["surface de l'écran", "surface du flash", "superficie de l'écran"]
+    en: ["screen area", "flash area"]
+    unites: ["%"]
+    plage: [1, 100]
+  structure.first_frames.no_subtitles_first_frames:
+    fr: ["sous-titre", "sous-titres", "premières images sans sous-titre"]
+    en: ["subtitle", "subtitles", "captions"]
+    unites: ["images", "image", "frames"]
+    plage: [0, 250]
+  structure.logo.forbidden:
+    fr: ["logo", "logo de chaîne", "habillage"]
+    en: ["logo", "channel logo", "bug", "DOG"]
+  structure.credits.end_credits_max_seconds:
+    fr: ["générique de fin", "durée du générique", "générique"]
+    en: ["end credits", "closing credits", "credits duration"]
+    unites: ["s", "secondes", "sec", "min", "minutes", "'"]
+    contextes: ["fiction / documentaire / magazine / long métrage"]
+    plage: [0, 1800]
+  structure.credits.silent_black_credits_forbidden:
+    fr: ["générique silencieux", "générique sur noir", "générique muet"]
+    en: ["silent credits", "credits on black"]
+  structure.safe_areas.title_safe_pct.horizontal:
+    fr: ["zone de sécurité", "zone de sécurité titres", "marge horizontale", "zone utile"]
+    en: ["title safe", "safe area", "horizontal margin"]
+    unites: ["%"]
+    plage: [0, 20]
+  structure.safe_areas.title_safe_pct.vertical:
+    fr: ["zone de sécurité", "zone de sécurité titres", "marge verticale", "zone utile"]
+    en: ["title safe", "safe area", "vertical margin"]
+    unites: ["%"]
+    plage: [0, 20]
+  structure.safe_areas.subtitle_safe:
+    fr: ["zone de sécurité des sous-titres", "sous-titres", "zone des sous-titres"]
+    en: ["subtitle safe", "subtitle safe area", "caption safe"]
+  structure.safe_areas.logo_corners_free:
+    fr: ["coins de l'image", "coin de l'image", "emplacement du logo", "logo"]
+    en: ["corners of the picture", "logo position", "logo"]

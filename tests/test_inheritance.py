@@ -16,7 +16,7 @@ from pad_guard.cli import EXIT_USAGE, app
 from pad_guard.measure.scan import detect
 from pad_guard.probe.models import VideoInfo
 from pad_guard.profiles import from_json, load_norm, resolve_profile
-from pad_guard.profiles.resolve import REPO_NORMS, leaves
+from pad_guard.profiles.resolve import REPO_NORMS, is_norm, leaves, read_yaml
 from pad_guard.rules.profile import ProfileError, ScanDetection, null_fields
 
 from conftest import PROFILES, ROOT, TEST_PROFILES
@@ -79,7 +79,9 @@ def test_france_tv_is_draft() -> None:
     assert r.origins["audio.true_peak_max_dbtp"].replaced == [{"file": "normes/ebu_r128.yaml", "value": -1.0}]
 
 
-@pytest.mark.parametrize("path", sorted(REPO_NORMS.glob("*.yaml")), ids=lambda p: p.name)
+# normes/glossaire.yaml (meta.kind: glossary) is vocabulary for draft-profile, not a norm.
+@pytest.mark.parametrize("path", [p for p in sorted(REPO_NORMS.glob("*.yaml")) if is_norm(read_yaml(p))],
+                         ids=lambda p: p.name)
 def test_norms_cite_every_value(path: Path) -> None:
     norm = load_norm(path)
     assert norm.meta.kind == "norm" and norm.meta.document.version
