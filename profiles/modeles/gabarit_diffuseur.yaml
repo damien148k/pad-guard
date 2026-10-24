@@ -90,6 +90,7 @@ rules:
     structure_timecode: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
     letterbox: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
     format: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
+    scan_interlaced: [{else: minor, source: "A VERIFIER : gravité à fixer d'après le document du client"}]
 
 llm:
   backend: ollama

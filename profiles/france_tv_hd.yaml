@@ -134,6 +134,8 @@ rules:
       - {else: blocking, source: "A VERIFIER : pas de document FTV"}
     format:
       - {else: blocking, source: "A VERIFIER : pas de document FTV"}
+    scan_interlaced:                               # images entrelacées alors que le profil attend du progressif
+      - {else: blocking, source: "A VERIFIER : pas de document FTV"}
     integrity:                                     # fichier corrompu : erreur de décodage, images manquantes
       - {else: blocking, source: "A VERIFIER : pas de document FTV"}
 

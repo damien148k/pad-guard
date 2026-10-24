@@ -63,7 +63,8 @@ def _profile_variant(tmp_path: Path, base: Path, name: str, mutate) -> Path:
 # --- reports unchanged since Phase 3 -------------------------------------------------------------
 
 VOLATILE = ("| Chemin |", "| SHA-256 |", "| Taille |", "| Date d'analyse |", "| Commande |", "| Relance")
-CHANGED = ("| Profil |", "- Préfiltre avant mesure des niveaux :")  # rewritten lines
+CHANGED = ("| Profil |", "- Préfiltre avant mesure des niveaux :", "| Balayage |",  # rewritten lines
+           "| Document de référence |")
 NORM_GAPS = "### Écarts entre le profil et les normes (information)"
 ADDED = ("| Statut du profil |", "| Empreinte du profil effectif |", "| Cadence prise en charge par PAD Guard |")
 
@@ -84,7 +85,10 @@ def _lines(md: str) -> list[str]:
 ])
 def test_phase3_reports_unchanged(analysed, name, profile) -> None:
     _, _, out = analysed(name, profile)
-    old = _lines((GOLDEN / f"{Path(name).stem}.md").read_text(encoding="utf-8"))
+    meta = resolve_profile(profile).profile.meta
+    golden = (GOLDEN / f"{Path(name).stem}.md").read_text(encoding="utf-8")
+    golden = golden.replace(f"{meta.name} v1.0 (", f"{meta.name} v{meta.version} (")  # profile versions since
+    old = _lines(golden)
     md = (out / wd.REPORT_MD).read_text(encoding="utf-8")
     new = _lines(md)
     diff = [d for d in difflib.ndiff(old, new) if d[:2] in ("- ", "+ ") and d[2:].strip()]  # blank lines: no effect
@@ -159,6 +163,22 @@ def test_interlaced_fixture_detected(analysed) -> None:
     scan = _json(out, wd.MEASUREMENTS)["scan"]
     assert scan["flag"] == "interlaced" and scan["detected"] == "interlaced" and scan["agrees"] is True
     assert scan["combed_frames"] == scan["moving_frames"] > 200
+
+
+@pytest.mark.parametrize("profile, severity, source", [
+    (CLASSIC, "blocking", "profil de test (fixtures)"),
+    (ARTE, "minor", "Arte V2-01-03 §3.2.2.1 : « Les livraisons en 1080i50 seront encore acceptées jusqu'au 31/12/2027 »"),
+])
+def test_interlaced_master_severity_from_profile(analysed, profile, severity, source) -> None:
+    """Really interlaced pictures: scan_interlaced, severity of the profile (Arte: tolerated until 2027)."""
+    _, _, out = analysed("interlaced_prores.mov", profile)
+    events = _json(out, wd.EVENTS)["events"]
+    scan = [(e["type"], e["severity"], e["severity_source"]) for e in events
+            if e["type"].startswith("scan_") or e["title"] == "Balayage"]
+    assert scan == [("scan_interlaced", severity, source)]
+    row = next(line for line in (out / wd.REPORT_MD).read_text(encoding="utf-8").splitlines()
+               if line.startswith("| Balayage |"))
+    assert "détecté : entrelacé" in row and "drapeau : tb (entrelacé)" in row
 
 
 def test_progressive_fixture_detected(analysed) -> None:

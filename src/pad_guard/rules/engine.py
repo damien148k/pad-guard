@@ -27,6 +27,7 @@ from pad_guard.probe.models import ProbeResult
 from pad_guard.profiles import from_json
 from pad_guard.profiles.resolve import HOUSE
 from pad_guard.rules import delivery, expr
+from pad_guard.rules import scan as scan_rule
 from pad_guard.rules.models import Event, Events, Verdict
 from pad_guard.rules.profile import EVENT_FIELDS, AudioGroup, LoudnessRules, Profile, Severity, require
 from pad_guard.structure import detect
@@ -125,6 +126,8 @@ def severity_types(profile: Profile, groups: list[AudioGroup]) -> set[str]:
         types.add("audio_silent_track")
     if profile.format.delivery is not None:
         types.add("delivery_conversion_required")
+    if profile.format.field_order == "progressive":
+        types |= {"scan_flag_mismatch", "scan_interlaced"}
     return types
 
 
@@ -159,6 +162,8 @@ def depends_on(d: Draft, loudness_set: str) -> tuple[str, ...]:
         "structure_black_too_long": ("structure.black", "structure.leaders"),
         "letterbox": ("format.letterbox",),
         "delivery_conversion_required": ("format.delivery",),
+        "scan_flag_mismatch": ("format.field_order", "video.scan_detection"),
+        "scan_interlaced": ("format.field_order", "video.scan_detection"),
     }
     paths = by_type.get(d.type, ())
     if d.type == "format" and d.check_id:
@@ -222,9 +227,12 @@ class Engine:
 
     def probe_checks(self) -> None:
         unknown_severity = self.p.format.unknown_color_tags_severity
+        scan_decided = scan_rule.evaluate(self.probe, self.m, self.p).decided
         for c in self.probe.checks:
             if c.status == "ok" or (c.status == "unknown" and not c.id.startswith("color_")):
                 continue
+            if c.id == scan_rule.CHECK_ID and scan_decided:
+                continue  # the scan rule (pictures + flag) replaces the flag check
             self.add(type=c.type, title=c.label, source="probe", scope="file", frame_start=0, frame_end=self.last,
                      value_text=c.actual, threshold_text=c.expected,
                      detail="balise absente ou « unknown »" if c.status == "unknown" else "",
@@ -299,6 +307,14 @@ class Engine:
                 self.add(type="integrity", title=f"Erreur de décodage audio : {key}", source="integrity",
                          scope="file", frame_start=0, frame_end=self.last, value_text=f"{n} occurrence(s)",
                          threshold_text="aucune erreur", occurrences=n)
+
+    def scan(self) -> None:
+        """Scan of the pictures against the profile (rules/scan.py); the flag alone does not decide."""
+        r = scan_rule.evaluate(self.probe, self.m, self.p)
+        if not r.decided or r.event_type is None:
+            return
+        self.add(type=r.event_type, title=r.title, source="measure", scope="file", frame_start=0,
+                 frame_end=self.last, value_text=r.actual, threshold_text=self.p.format.field_order)
 
     def delivery(self) -> None:
         """The master differs from the delivery format: information, not a non-conformity."""
@@ -572,6 +588,7 @@ class Engine:
                 "le profil n'a pas de gravité pour : " + ", ".join(f"rules.severity.{t}" for t in missing)
             )
         self.probe_checks()
+        self.scan()
         self.integrity()
         self.structure_checks()
         self.structure_findings()

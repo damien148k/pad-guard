@@ -135,6 +135,8 @@ rules:
       - {else: blocking, source: "profil de test (fixtures)"}
     format:
       - {else: blocking, source: "profil de test (fixtures)"}
+    scan_interlaced:
+      - {else: blocking, source: "profil de test (fixtures)"}
     integrity:                                     # fichier corrompu : erreur de décodage, images manquantes
       - {else: blocking, source: "profil de test (fixtures)"}
 

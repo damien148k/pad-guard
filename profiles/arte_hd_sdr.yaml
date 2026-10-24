@@ -1,9 +1,27 @@
 # Profil de contrôle PAD — ARTE G.E.I.E., HD SDR (1080p25 / 1080p50)
 #
-# Source : "Consignes Techniques Globales ARTE G.E.I.E." V2-01-00, applicable au 1er janvier 2026
-# (les anciennes consignes V1-07-3 restent acceptées pendant une période de transition).
+# Historique
+#   1.0  23/10/2026  validé par Vincent. Version initiale, construite sur les consignes V2-01-00 ;
+#                    format.delivery relu dans la V2-01-03.
+#   1.1  24/10/2026  validé par Damien.
+#                    - Balayage : la règle se fonde sur le balayage détecté sur les images, plus sur
+#                      le drapeau seul. Images progressives sous un drapeau entrelacé :
+#                      scan_flag_mismatch (major, règle Lumiris de normes/lumiris_maison.yaml).
+#                      Images vraiment entrelacées : scan_interlaced, minor (§3.2.2.1, période de
+#                      transition : 1080i50 accepté jusqu'au 31/12/2027). Aucune règle ne lit la date
+#                      du jour : une version ultérieure de ce profil passera scan_interlaced en blocking.
+#                    - Référence des consignes alignée sur le PDF réellement utilisé (V2-01-03,
+#                      SHA-256 dans meta.source_pdf_sha256). Aucune valeur changée : d'après le suivi
+#                      des versions (p. 8), la V2-01-03 ne modifie par rapport à la V2-01-00 que les
+#                      chapitres 2.1, 6.1, 10.1.1 et l'annexe 13 ; chaque paragraphe cité ici a été
+#                      retrouvé dans la V2-01-03 sous le même numéro, et le texte du §6.1 cité
+#                      (logo) y figure toujours.
+#
+# Source : "Consignes Techniques Globales ARTE G.E.I.E." V2-01-03 (septembre 2026), version
+# majeure V2 applicable au 1er janvier 2026 (les anciennes consignes V1-07-3 restent acceptées
+# jusqu'au 31 décembre 2027, §2.1 et §3.2.2.1).
 # Ce fichier ne garde que ce qui est propre à Arte ou qui diffère des normes héritées
-# (meta.extends) ; `pad-checker explain-profile profiles/arte_hd_sdr.yaml` montre le profil
+# (meta.extends) ; `pad-guard explain-profile profiles/arte_hd_sdr.yaml` montre le profil
 # effectif, l'origine de chaque valeur et les conflits avec les normes.
 # Chaque valeur cite le paragraphe du document (section `sources` en fin de fichier). Les valeurs
 # marquées "DEDUIT" ne sont pas écrites noir sur blanc dans le document et sont une
@@ -17,19 +35,20 @@
 
 meta:
   name: arte_hd_sdr
-  version: "1.0"
+  version: "1.1"
   broadcaster: "ARTE G.E.I.E."
-  source_document: "Consignes Techniques Globales ARTE G.E.I.E. V2-01-00 (application 01/01/2026)"
+  source_document: "Consignes Techniques Globales ARTE G.E.I.E. V2-01-03 (septembre 2026)"
   notes: >
     Le PAD final Arte est un MXF OP1a XAVC HD Intra Class 100 (§3.2.2.1), fabriqué par le
     prestataire à partir du master ProRes 422 HQ livré par Lumiris. Ce profil contrôle ce master
     avec les règles du PAD (niveaux, structure, timecode, audio) ; seul le codec attendu diffère.
-    Le PDF rangé dans diffuseurs/ est la version V2-01-03 (septembre 2026) : format.delivery y a
-    été relu ; les autres paragraphes viennent de la V2-01-00.
+    Les paragraphes cités sont ceux de la V2-01-03 (septembre 2026), le PDF rangé dans
+    diffuseurs/ ; le profil a été construit sur la V2-01-00, dont la V2-01-03 garde la
+    numérotation et le texte des paragraphes cités (voir l'historique en tête de fichier).
   extends: [ebu_r128, ebu_r103, lumiris_maison]
   status: validated
-  validated_by: Vincent
-  validated_at: 2026-10-23
+  validated_by: Damien
+  validated_at: 2026-10-24
   source_pdf: "diffuseurs/Consignes Techniques Globales ARTE G.E.I.E_.pdf"
   source_pdf_sha256: 2939fd0b530040a42e0305f2c80ea3d9f28c451020bfaf6662cd1c06e935abf0
 
@@ -42,7 +61,7 @@ format:
   width: 1920                                        # UHD 3840x2160 hors périmètre (Phase 6)
   height: 1080
   fps_allowed: ["25/1", "50/1"]
-  field_order: progressive                           # 1080i50 toléré pendant la transition (V2-01-03 : jusqu'au 31/12/2027 sous V1-07-3)
+  field_order: progressive                           # 1080i50 toléré pendant la transition (§3.2.2.1 : jusqu'au 31/12/2027 sous V1-07-3), voir rules.severity.scan_interlaced
   color_primaries: bt709
   color_transfer: bt709
   color_space: bt709
@@ -204,6 +223,8 @@ rules:
       - {else: minor, source: "Arte §3.2.4"}
     format:
       - {else: blocking, source: "Arte §3.2.2.1"}
+    scan_interlaced:                                   # images entrelacées (balayage détecté) : 1080i50 toléré pendant la transition
+      - {else: minor, source: "Arte V2-01-03 §3.2.2.1 : « Les livraisons en 1080i50 seront encore acceptées jusqu'au 31/12/2027 »"}
 
 llm:                                                 # couche IA locale, désactivée sauf --llm ollama
   backend: ollama
@@ -213,7 +234,8 @@ llm:                                                 # couche IA locale, désact
   temperature: 0.1
   language: fr
 
-# Paragraphes des consignes Arte V2 (V2-01-00 sauf mention V2-01-03), affichés par explain-profile.
+# Paragraphes des consignes Arte V2-01-03 (numérotation identique à la V2-01-00 pour ces paragraphes),
+# affichés par explain-profile.
 sources:
   format.codecs: "Lumiris : master interne ProRes 422 HQ ou DNxHR HQX (le PAD Arte est en XAVC, §3.2.2.1)"
   format.containers: "Lumiris : master interne en MOV ou MXF"

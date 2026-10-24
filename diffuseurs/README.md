@@ -21,5 +21,7 @@ Empreintes : SHA-256 du fichier tel qu'il a été rangé le 23 octobre 2026.
 | `NETFLIX_NonBrandedSpec_&_Delivery_Overview_9_3.docx.pdf` | Netflix | Non-Branded Spec & Delivery Overview (non lu) | 9.3 d'après le nom | `a9893c6cb96297e41fe07ba4a68ed7ac6e652b8f6fa9a0c17fd4d57d4e551f74` |
 
 Remarque : `profiles/arte_hd_sdr.yaml` a été construit sur la version **V2-01-00** des consignes Arte ;
-le PDF présent ici est la **V2-01-03**. Les numéros de paragraphe du profil restent à revérifier
-sur la V2-01-03, sauf ceux de `format.delivery`, lus dans la V2-01-03 (Phase 4a).
+le PDF présent ici est la **V2-01-03**, à laquelle le profil se réfère depuis sa version 1.1
+(24 octobre 2026). Chaque paragraphe cité par le profil a été retrouvé dans la V2-01-03 sous le
+même numéro ; d'après le suivi des versions (p. 8), elle ne modifie que les chapitres 2.1, 6.1,
+10.1.1 et l'annexe 13.

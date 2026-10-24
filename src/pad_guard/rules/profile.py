@@ -49,6 +49,8 @@ EVENT_TYPES = (
     "format",
     "integrity",
     "delivery_conversion_required",
+    "scan_flag_mismatch",
+    "scan_interlaced",
 )
 EventType = Literal[EVENT_TYPES]  # type: ignore[valid-type]
 

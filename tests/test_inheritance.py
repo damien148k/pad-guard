@@ -29,6 +29,7 @@ V3_ADDITIONS = {
     "audio.loudness.method",
     "format.delivery.scan", "format.delivery.fps", "format.delivery.codec",
     "rules.severity.delivery_conversion_required",
+    "rules.severity.scan_flag_mismatch", "rules.severity.scan_interlaced",
     "video.scan_detection.comb_ratio_min", "video.scan_detection.motion_min",
     "video.scan_detection.interlaced_min_pct", "video.scan_detection.progressive_max_pct",
     "video.scan_detection.min_moving_frames",
@@ -48,7 +49,7 @@ def test_arte_effective_profile_identical_to_v2() -> None:
 
 def test_arte_inherits_and_conflicts() -> None:
     r = resolve_profile(PROFILES / "arte_hd_sdr.yaml")
-    assert r.profile.meta.status == "validated" and r.profile.meta.validated_by == "Vincent"
+    assert r.profile.meta.status == "validated" and r.profile.meta.validated_by == "Damien"
     assert [layer.file for layer in r.layers] == [
         "normes/ebu_r128.yaml", "normes/ebu_r103.yaml", "normes/lumiris_maison.yaml", "profiles/arte_hd_sdr.yaml"]
     # The client's document is authoritative: every value Arte states is in the Arte profile, cited.
@@ -59,6 +60,10 @@ def test_arte_inherits_and_conflicts() -> None:
     from_norms = {p for p, o in r.origins.items() if o.file in ("normes/ebu_r128.yaml", "normes/ebu_r103.yaml")}
     assert from_norms == {"audio.loudness.method"}  # information only, no rule depends on it
     assert r.origins["rules.severity.pse"].file == "normes/lumiris_maison.yaml"
+    assert r.origins["rules.severity.scan_flag_mismatch"].file == "normes/lumiris_maison.yaml"
+    assert r.profile.rules.severity["scan_interlaced"][0].else_ == "minor"
+    assert r.profile.rules.severity["scan_interlaced"][0].source.startswith("Arte V2-01-03 §3.2.2.1")
+    assert "V2-01-03" in r.profile.meta.source_document
     assert r.origins["format.delivery.scan"].source.startswith("Arte V2-01-03 §3.2.2.1")
     assert {(c.path, c.replaced_value, c.value, c.replaced_file) for c in r.conflicts} == {
         ("video.y_tolerance_low_pct", -5.0, -1.0, "normes/ebu_r103.yaml"),
@@ -242,7 +247,7 @@ def test_cli_validate_and_explain() -> None:
     result = runner.invoke(app, ["validate-profile", str(ROOT / "normes" / "ebu_r128.yaml")])
     assert result.exit_code == 0 and "Norme valide" in result.output
     result = runner.invoke(app, ["validate-profile", str(PROFILES / "arte_hd_sdr.yaml")])
-    assert result.exit_code == 0 and "validé par Vincent" in result.output
+    assert result.exit_code == 0 and "validé par Damien" in result.output
     result = runner.invoke(app, ["explain-profile", str(PROFILES / "arte_hd_sdr.yaml")], env={"COLUMNS": "250"})
     assert result.exit_code == 0, result.output
     text = " ".join(result.output.split())

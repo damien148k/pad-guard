@@ -248,11 +248,19 @@ def test_rerun_interlaced_limitation(analysed, tmp_path) -> None:
     _, _, out = analysed("arte_ok.mov", ARTE)
     work = _copy(out, tmp_path)
     probe = json.loads((work / wd.PROBE).read_text(encoding="utf-8"))
-    probe["video"]["field_order"] = "tb"
+    probe["video"]["field_order"], probe["video"]["scan_flag"] = "tb", "interlaced"
     (work / wd.PROBE).write_text(json.dumps(probe), encoding="utf-8")
     invoke("rerun", str(work))
     md = (work / wd.REPORT_MD).read_text(encoding="utf-8")
     assert "Fichier entrelacé (tb)" in md and "images entières" in md
+    # Progressive pictures under an interlaced flag: the label is wrong, not the master (rules/scan.py).
+    events = json.loads((work / wd.EVENTS).read_text(encoding="utf-8"))["events"]
+    assert [(e["type"], e["severity"], e["title"]) for e in events] == [
+        ("scan_flag_mismatch", "major",
+         "Drapeau de balayage incorrect (tb) sur un master progressif : corriger l'étiquette à l'export")]
+    assert events[0]["severity_source"].startswith("Lumiris")
+    row = next(line for line in md.splitlines() if line.startswith("| Balayage |"))
+    assert "détecté : progressif" in row and "drapeau : tb (entrelacé)" in row and row.endswith("| ÉCHEC |")
 
 
 def test_rerun_refuses_old_measurements(analysed, tmp_path) -> None:

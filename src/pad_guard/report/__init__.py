@@ -26,6 +26,7 @@ from pad_guard.profiles import fingerprint, from_json
 from pad_guard.profiles.resolve import HOUSE
 from pad_guard.report import charts, pdf, thumbnails as thumbs
 from pad_guard.rules import delivery
+from pad_guard.rules import scan as scan_rule
 from pad_guard.rules.engine import error_key
 from pad_guard.rules.models import Event, Events, Verdict
 from pad_guard.rules.profile import Profile
@@ -132,8 +133,14 @@ class _Builder:
         return " ".join(parts)
 
     def checks(self) -> list[dict]:
-        rows = [dict(label=c.label, expected=c.expected, actual=c.actual, status=_STATUS[c.status])
-                for c in self.probe.checks]
+        scan = scan_rule.evaluate(self.probe, self.m, self.p)
+        rows = []
+        for c in self.probe.checks:
+            if c.id == scan_rule.CHECK_ID:  # scan: what the pictures show, and the flag
+                status = ("ok" if scan.event_type is None else "fail") if scan.decided else c.status
+                rows.append(dict(label=c.label, expected=c.expected, actual=scan.actual, status=_STATUS[status]))
+            else:
+                rows.append(dict(label=c.label, expected=c.expected, actual=c.actual, status=_STATUS[c.status]))
         integ = self.m.integrity
         rows.append(dict(
             label="Intégrité du décodage", expected=f"{integ.frames_expected or '?'} images, aucune erreur",

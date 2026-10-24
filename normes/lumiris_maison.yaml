@@ -37,6 +37,8 @@ rules:
       - {else: blocking, source: "Lumiris : fichier corrompu ou incomplet"}
     delivery_conversion_required:
       - {else: info, source: "Lumiris : information de livraison, pas une non-conformité du master (CLAUDE.md, Format de livraison)"}
+    scan_flag_mismatch:                    # images progressives, drapeau entrelacé : l'étiquette est fausse, pas les images
+      - {else: major, source: "Lumiris : drapeau de balayage à corriger à l'export (master progressif)"}
 
 sources:
   video.scan_detection: >-

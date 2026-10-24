@@ -28,6 +28,8 @@ TYPE_LABELS = {
     "format": "Format du fichier",
     "integrity": "Intégrité du fichier",
     "delivery_conversion_required": "Conversion pour la livraison",
+    "scan_flag_mismatch": "Drapeau de balayage incorrect",
+    "scan_interlaced": "Master entrelacé",
 }
 
 SEVERITY_LABELS = {"blocking": "bloquant", "major": "majeur", "minor": "mineur", "info": "info"}
