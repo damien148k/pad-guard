@@ -66,7 +66,10 @@ async def current_job(_: Request) -> Response:
 
 
 def routes() -> list:
+    from pad_guard.ui import prepare  # noqa: PLC0415
+
     return [
+        *prepare.routes(),
         Route("/api/profiles", get_profiles),
         Route("/api/jobs/current", current_job),
     ]

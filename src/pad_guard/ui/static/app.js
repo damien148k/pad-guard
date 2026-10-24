@@ -83,7 +83,7 @@ function App() {
 
   let body;
   if (tab === 'profiles') {
-    body = html`<${Profiles} profiles=${profiles} drafts=${drafts} job=${job} setJob=${setJob} reload=${loadProfiles}
+    body = html`<${Profiles} profiles=${profiles} drafts=${drafts} job=${job} setJob=${setJob} reload=${loadProfiles} pdf=${form.pdf}
       useProfile=${name => { setForm(f => ({ ...f, profile: name, pdf: null })); go(form.master ? 'recap' : 'prep'); }} />`;
   } else if (screen === 'prep') {
     body = html`<${Prep} form=${form} setForm=${setForm} profiles=${profiles} job=${job} openRun=${openRun}
