@@ -19,6 +19,7 @@ used by a broadcaster when the reviewer confirms it (:func:`add_term`).
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -71,6 +72,7 @@ class Glossary(BaseModel):
     champs: dict[str, FieldTerms]
     header: list[str] = Field(default_factory=list, exclude=True)  # leading comment lines, kept on rewrite
     path: Path | None = Field(default=None, exclude=True)
+    sha256: str = Field(default="", exclude=True)  # of the file, line ends as LF: recorded with every answer
 
     def field(self, path: str) -> FieldTerms | None:
         return self.champs.get(path)
@@ -132,6 +134,7 @@ def load(path: Path = GLOSSARY) -> Glossary:
             break
         header.append(line)
     g.header, g.path = header, path
+    g.sha256 = hashlib.sha256(text.replace("\r\n", "\n").encode("utf-8")).hexdigest()
     return g
 
 

@@ -12,8 +12,10 @@ la R128 ») gives no value: the field is RENVOI_NORME and the norm is proposed i
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
+import re
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -23,7 +25,7 @@ from pad_guard.draft import examples as examples_mod
 from pad_guard.draft import verify, vocabulary
 from pad_guard.draft.glossary import Glossary, implausible
 from pad_guard.draft.pdf import Document, render
-from pad_guard.draft.schema import FieldSpec, catalogue, check_value, response_schema
+from pad_guard.draft.schema import MAX_FINDINGS, FieldSpec, catalogue, check_value, response_schema
 from pad_guard.llm import LLMClient, LLMError, LLMRequest
 
 PROMPT_VERSION = "draft_profile_v2"
@@ -104,6 +106,7 @@ class Extraction:
     not_found: list[str]  # catalogue paths with no finding at all
     log: list[dict]  # raw model answers, one per batch
     num_ctx: int | None = None  # context size of the run, in tokens
+    capped_pages: list[int] = field(default_factory=list)  # pages alone still at MAX_FINDINGS
 
     def cited_norms(self) -> dict[str, Finding]:
         """Norms the document refers to (glossary key or name as written), with their first citation."""
@@ -229,6 +232,7 @@ def check(doc: Document, raw: dict, specs: dict[str, FieldSpec], batch: int, pag
     if why:
         f.status, f.reason = BAD_VALUE, why
         return f
+    value, note = _without_note_marks(f.field, value)
     found = _page_and_quote(doc, f, pages)
     if found is None:
         return f
@@ -258,10 +262,25 @@ def check(doc: Document, raw: dict, specs: dict[str, FieldSpec], batch: int, pag
         f.status, f.reason = INVALID, why
         return f
     f.value = value
+    f.reason = note
     why = implausible(glossary, f.field, value, f.unit) if glossary is not None else None
     if why:
         f.status, f.reason = IMPLAUSIBLE, why
     return f
+
+
+_NOTE_MARKS = re.compile(r"\s*[*†‡¹²³]+$")
+
+
+def _without_note_marks(path: str, value: Any) -> tuple[Any, str]:
+    """Footnote marks copied from a table cell (« 1.33* ») removed from the image formats; the
+    quote keeps them, the reason says it."""
+    if path != "format.letterbox.formats" or not isinstance(value, list):
+        return value, ""
+    cleaned = [{**v, "aspect": _NOTE_MARKS.sub("", v["aspect"])} if isinstance(v.get("aspect"), str) else v
+               for v in value]
+    changed = [v["aspect"] for v in value if isinstance(v.get("aspect"), str) and _NOTE_MARKS.search(v["aspect"])]
+    return cleaned, (f"renvoi de note retiré de aspect : {', '.join(changed)}" if changed else "")
 
 
 def _number(value: Any) -> bool:
@@ -325,14 +344,29 @@ def merge(findings: list[Finding], fields: list[FieldSpec]) -> tuple[list[FieldR
     return results, missing
 
 
+def fingerprint(system: str, prompt: str, images: tuple[bytes, ...], schema: dict) -> str:
+    """SHA-256 of everything the model is given for one request: two requests with the same
+    fingerprint differ only by the model or its settings."""
+    h = hashlib.sha256()
+    for part in (system, prompt, json.dumps(schema, sort_keys=True, ensure_ascii=False),
+                 *(hashlib.sha256(image).hexdigest() for image in images)):
+        h.update(part.encode("utf-8"))
+        h.update(b"\0")
+    return h.hexdigest()
+
+
 def extract(doc: Document, client: LLMClient, progress: Progress | None = None,
             pages_per_batch: int = PAGES_PER_BATCH, timeout: float = 600.0,
-            context: Context | None = None) -> Extraction:
+            context: Context | None = None, system: str | None = None) -> Extraction:
+    """``system``: the system prompt, by default the versioned file of PROMPT_VERSION (a test bench
+    passes a frozen copy)."""
     context = context or Context()
     fields = catalogue()
     specs = {f.path: f for f in fields}
     schema = response_schema(fields)
-    system = system_prompt()
+    system = system if system is not None else system_prompt()
+    system_sha = hashlib.sha256(system.encode("utf-8")).hexdigest()
+    glossary_sha = context.glossary.sha256 if context.glossary is not None else None
     plan = batches(doc, pages_per_batch)
     prompts = [build_prompt(doc, pages, fields, context) for pages in plan]
     fit_context(client, doc, plan, prompts, system)
@@ -340,36 +374,48 @@ def extract(doc: Document, client: LLMClient, progress: Progress | None = None,
         progress(0, len(plan))  # context fixed, first request next
     findings: list[Finding] = []
     log: list[dict] = []
-    for i, (pages, prompt) in enumerate(zip(plan, prompts), start=1):
+    capped: list[int] = []
+
+    def ask(batch: int, pages: list[int], prompt: str, retry: bool) -> list[dict]:
         images = tuple(render(doc.path, n) for n in pages if doc.page(n).needs_image)[:MAX_IMAGES_PER_BATCH]
         request = LLMRequest(prompt=prompt, schema=schema, system=system, images=images, timeout=timeout)
-        where = f"pages {pages[0]}-{pages[-1]}"
+        where = f"page {pages[0]}" if len(pages) == 1 else f"pages {pages[0]}-{pages[-1]}"
         try:
             raw = client.generate(request)
         except LLMError as exc:
             raise DraftError(f"{where} : {exc}") from None
         usage = client.usage()
-        log.append({"batch": i, "pages": pages, "model": client.model, "prompt_version": PROMPT_VERSION,
-                    "images": len(images), "num_ctx": client.num_ctx,
-                    "prompt_tokens": usage.prompt_tokens if usage else None,
+        log.append({"batch": batch, "pages": pages, "retry_page_by_page": retry, "model": client.model,
+                    "prompt_version": PROMPT_VERSION, "options": client.settings(), "max_findings": MAX_FINDINGS,
+                    "system_sha256": system_sha, "glossary_sha256": glossary_sha,
+                    "prompt_sha256": fingerprint(system, prompt, images, schema), "images": len(images),
+                    "num_ctx": client.num_ctx, "prompt_tokens": usage.prompt_tokens if usage else None,
                     "output_tokens": usage.output_tokens if usage else None, "response": raw})
         try:
-            data = json.loads(raw)
-            items = data["findings"]
+            items = json.loads(raw)["findings"]
             if not isinstance(items, list) or not all(isinstance(x, dict) for x in items):
                 raise TypeError("findings n'est pas une liste d'objets")
         except (json.JSONDecodeError, KeyError, TypeError) as exc:
             raise DraftError(f"{where} : réponse du modèle mal formée ({exc.__class__.__name__}: {exc}). "
                              "Aucun brouillon n'a été écrit.") from None
-        # not_found answers say nothing: they stay in the log only.
-        findings += [check(doc, x, specs, i, pages, context.glossary) for x in items
-                     if x.get("source_type") != NOT_FOUND]
+        return items
+
+    for i, (pages, prompt) in enumerate(zip(plan, prompts), start=1):
+        answers = [(pages, ask(i, pages, prompt, retry=False))]
+        if len(answers[0][1]) >= MAX_FINDINGS:
+            if len(pages) > 1:  # the limit may have cut proposals: each page asked alone
+                answers = [([n], ask(i, [n], build_prompt(doc, [n], fields, context), retry=True)) for n in pages]
+            capped += [n[0] for n, items in answers if len(n) == 1 and len(items) >= MAX_FINDINGS]
+        for asked, items in answers:
+            # not_found answers say nothing: they stay in the log only.
+            findings += [check(doc, x, specs, i, asked, context.glossary) for x in items
+                         if x.get("source_type") != NOT_FOUND]
         if progress:
             progress(i, len(plan))
     results, missing = merge(findings, fields)
     return Extraction(model=client.model, prompt_version=PROMPT_VERSION, pdf_sha256=doc.sha256,
                       pages=len(doc.pages), batches=len(plan), fields=results, not_found=missing, log=log,
-                      num_ctx=client.num_ctx)
+                      num_ctx=client.num_ctx, capped_pages=capped)
 
 
 def estimate_tokens(system: str, prompt: str, images: int) -> int:

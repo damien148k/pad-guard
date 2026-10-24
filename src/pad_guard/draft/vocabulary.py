@@ -122,7 +122,9 @@ KEYWORDS: dict[str, tuple[str, ...]] = {
     "structure.credits.silent_black_credits_forbidden": (r"generique",),
     "structure.safe_areas.title_safe_pct.horizontal": (r"securite|safe|marges?",),
     "structure.safe_areas.title_safe_pct.vertical": (r"securite|safe|marges?",),
-    "structure.safe_areas.subtitle_safe": (r"sous.?titre|securite|safe",),
+    # A zone must be said: « 65 signes au maximum » (subtitle line length) is not a safe area.
+    "structure.safe_areas.subtitle_safe": (r"sous.?titre|subtitle|caption",
+                                           r"securite|safe|zone|cadre|marge|position"),
     "structure.safe_areas.logo_corners_free": (r"logo|coins?",),
 }
 

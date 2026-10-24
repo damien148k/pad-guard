@@ -268,6 +268,63 @@ def test_context_too_small_is_refused_before_any_request(doc_pdf, tmp_path) -> N
     assert client.requests == [] and list(tmp_path.iterdir()) == []
 
 
+def test_answer_at_the_limit_is_asked_again_page_by_page(doc_pdf, tmp_path) -> None:
+    from pad_guard.draft import review
+    from pad_guard.draft.schema import MAX_FINDINGS
+
+    loop = [finding("audio.true_peak_max_dbtp", -1, 1, TP_QUOTE, "dBTP")] * MAX_FINDINGS  # a model in a loop
+    client = FakeClient({1: loop, 2: [finding("audio.sample_rate", 48000, 2, "Audio | 48 kHz, 24 bits", "kHz")]})
+    x, files = draft(doc_pdf, tmp_path, client)
+    log = [json.loads(line) for line in files["log"].read_text(encoding="utf-8").splitlines()]
+    assert [(e["pages"], e["retry_page_by_page"]) for e in log] == [([1, 2], False), ([1], True), ([2], True),
+                                                                   ([3], False)]
+    assert x.capped_pages == [1]  # page 1 alone still at the limit; page 2 answered normally
+    assert statuses(x) == {"audio.true_peak_max_dbtp": OK, "audio.sample_rate": OK}  # copies merged, no conflict
+    text = files["yaml"].read_text(encoding="utf-8")
+    assert "ATTENTION page 1 : limite atteinte, propositions possiblement manquantes" in text
+    assert json.loads(files["findings"].read_text(encoding="utf-8"))["capped_pages"] == [1]
+    said: list[str] = []
+    rv = review.load(files["yaml"], TEST_PROFILES / "test_classic.yaml")
+    review.ask_fields(rv, ask=lambda _: "", say=lambda _: None, alert=said.append)
+    assert "Page 1 : limite atteinte, propositions possiblement manquantes (relire cette page du document à la main)." \
+        in said
+
+
+def test_every_answer_records_where_it_comes_from(doc_pdf, tmp_path) -> None:
+    from pad_guard.draft.schema import MAX_FINDINGS
+
+    assert response_schema(catalogue())["properties"]["findings"]["maxItems"] == MAX_FINDINGS
+    runs = []
+    for out in ("a", "b"):
+        _, files = draft(doc_pdf, tmp_path / out, FakeClient())
+        runs.append([json.loads(line) for line in files["log"].read_text(encoding="utf-8").splitlines()])
+    first, again = runs
+    g = glossary.load()
+    assert {e["glossary_sha256"] for e in first} == {g.sha256} and len(g.sha256) == 64
+    assert len({e["system_sha256"] for e in first}) == 1
+    assert first[0]["prompt_sha256"] != first[1]["prompt_sha256"]  # other pages, other prompt
+    assert [e["prompt_sha256"] for e in first] == [e["prompt_sha256"] for e in again]  # same inputs, same prints
+    assert first[0]["max_findings"] == MAX_FINDINGS and first[0]["options"] == {}  # the fake client sends nothing
+
+
+def test_frozen_prompt_and_glossary(doc_pdf, tmp_path) -> None:
+    import hashlib
+
+    from pad_guard.draft.extract import PROMPT_FILE
+
+    frozen = tmp_path / "gel"
+    frozen.mkdir()
+    (frozen / "consigne.md").write_text(PROMPT_FILE.read_text(encoding="utf-8") + "\nGel du banc.\n", encoding="utf-8")
+    shutil.copy(glossary.GLOSSARY, frozen / "glossaire.yaml")
+    client = FakeClient()
+    _, files = make_draft(doc_pdf, "chaine_test", client, tmp_path / "out", glossary_path=frozen / "glossaire.yaml",
+                          system_path=frozen / "consigne.md")
+    assert client.requests[0].system.endswith("Gel du banc.\n")
+    entry = json.loads(files["log"].read_text(encoding="utf-8").splitlines()[0])
+    assert entry["system_sha256"] == hashlib.sha256(client.requests[0].system.encode("utf-8")).hexdigest()
+    assert entry["glossary_sha256"] == glossary.load(frozen / "glossaire.yaml").sha256
+
+
 class _FakeOllama:
     """Stands for ollama.Client: records the calls, answers as told."""
 
@@ -324,6 +381,10 @@ def test_ollama_client_context_errors(monkeypatch) -> None:
             assert "--num-ctx 19456" in str(exc.value)  # 9195 + 10240 for the answer, rounded up
     client.release()
     assert _FakeOllama.calls[-1] == ("generate", {"model": "m", "prompt": "", "keep_alive": 0})
+    _FakeOllama.answer = _response()
+    client = OllamaClient(model="m", num_ctx=16384, repeat_penalty=1.1)
+    client.generate(request)
+    assert _FakeOllama.calls[-1][1]["options"]["repeat_penalty"] == 1.1 == client.settings()["repeat_penalty"]
 
 
 class _ReleasingClient(FakeClient):
@@ -461,6 +522,27 @@ def test_kept_value_with_rejected_others_may_be_incomplete(doc_pdf, tmp_path) ->
     ]}))
     text = files["yaml"].read_text(encoding="utf-8")
     assert "1 autre(s) proposition(s) rejetée(s) avec une autre valeur : valeur peut-être incomplète" in text
+
+
+def test_errors_found_on_the_arte_acceptance(tmp_path) -> None:
+    from pad_guard.draft.pdf import Document, Page
+    from pad_guard.draft.schema import catalogue as fields
+
+    specs = {s.path: s for s in fields()}
+    g = glossary.load()
+    # Subtitle line length is not a subtitle safe area (qwen3-vl:8b, Arte p. 84).
+    line = "Les sous-titres doivent comporter 65 signes au maximum, espace compris."
+    doc = Document(path=tmp_path / "x.pdf", sha256="", pages=[Page(1, line + "\nPosition : cadre rouge, voir annexe 13.1.")])
+    f = check(doc, finding("structure.safe_areas.subtitle_safe", "65 signes au maximum, espace compris.", 1, line),
+              specs, 1, [1], g)
+    assert f.status == INVALID and "sans rapport" in f.reason
+    # A footnote mark copied from a table cell (Arte p. 19) is not part of the image format.
+    row = "1.33* | 1440 | 21 | 1123 | 1080"
+    table = "Format d'image source | Pixels / Ligne | Lignes de début | Lignes de fin | Lignes actives\n" + row
+    doc = Document(path=tmp_path / "x.pdf", sha256="", pages=[Page(1, table)])
+    value = [{"aspect": "1.33*", "active_lines": 1080, "first_line": 21, "last_line": 1123, "active_pixels": 1440}]
+    f = check(doc, finding("format.letterbox.formats", value, 1, table), specs, 1, [1], g)
+    assert f.status == OK and f.value[0]["aspect"] == "1.33" and "renvoi de note retiré" in f.reason
 
 
 def test_glossary_checks() -> None:

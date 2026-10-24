@@ -36,7 +36,7 @@ import yaml
 from pad_guard.draft import glossary as glossary_mod
 from pad_guard.draft.extract import CONFLICT, IMPLAUSIBLE, NORM_REF, OK
 from pad_guard.draft.schema import catalogue, check_value
-from pad_guard.draft.write import dump, one_line, scalar
+from pad_guard.draft.write import CAPPED, dump, one_line, scalar
 from pad_guard.profiles.resolve import (
     HOUSE,
     ResolvedProfile,
@@ -78,6 +78,7 @@ class Review:
     decisions: list[Decision] = field(default_factory=list)
     glossary: glossary_mod.Glossary | None = None
     cited_norms: list[dict] = field(default_factory=list)  # findings.json "cited_norms"
+    capped_pages: list[int] = field(default_factory=list)  # findings.json "capped_pages"
     references: list[dict] = field(default_factory=list)  # confirmed: {norm, source} for meta.refers_to
 
 
@@ -96,7 +97,7 @@ def load(draft: Path, base: Path | None) -> Review:
     except glossary_mod.GlossaryError as exc:
         raise ReviewError(str(exc)) from None
     return Review(draft=draft, meta=meta, fields=data["fields"], base=base, glossary=g,
-                  cited_norms=data.get("cited_norms", []))
+                  cited_norms=data.get("cited_norms", []), capped_pages=data.get("capped_pages", []))
 
 
 def norm_values(extends: list[str], norms_dir: Path) -> dict[str, tuple[Any, str]]:
@@ -151,6 +152,8 @@ def ask_fields(review: Review, ask: Ask, say: Say, everything: bool = False, ale
     with ``everything``, also about the fields whose proposals were all refused. Returns the fields
     not asked about (they keep the value of the base profile). ``alert`` prints in red."""
     alert = alert or say
+    for n in review.capped_pages:
+        alert(f"Page {n} : {CAPPED} (relire cette page du document à la main).")
     specs = {s.path: s for s in catalogue()}
     base_raw = read_yaml(review.base)
     norms = norm_values(review.meta.get("extends", []), norms_dir_for(review.base))

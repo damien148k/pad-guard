@@ -40,7 +40,8 @@ def _shown(path: Path) -> str:
 def make_draft(pdf_path: Path, name: str, client: LLMClient, out_dir: Path = DRAFTS,
                broadcaster: str | None = None, progress: Progress | None = None,
                on_read=None, glossary_path: Path = glossary.GLOSSARY,
-               profiles_dir: Path = PROFILES) -> tuple[Extraction, dict[str, Path]]:
+               profiles_dir: Path = PROFILES,
+               system_path: Path | None = None) -> tuple[Extraction, dict[str, Path]]:
     try:
         doc = pdf.read(pdf_path)
         terms = glossary.load(glossary_path)
@@ -50,7 +51,8 @@ def make_draft(pdf_path: Path, name: str, client: LLMClient, out_dir: Path = DRA
         on_read(doc)
     target = examples.Target(name=name, broadcaster=broadcaster, pdf_sha256=doc.sha256, pdf_name=pdf_path.name)
     context = Context(glossary=terms, examples=examples.collect(profiles_dir, target))
-    x = extract(doc, client, progress, context=context)
+    system = system_path.read_text(encoding="utf-8") if system_path is not None else None
+    x = extract(doc, client, progress, context=context, system=system)
     meta = {
         "name": name,
         "version": "0.1",

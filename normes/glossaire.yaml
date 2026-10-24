@@ -477,7 +477,7 @@ champs:
     unites: ["%"]
     plage: [0, 20]
   structure.safe_areas.subtitle_safe:
-    fr: ["zone de sécurité des sous-titres", "sous-titres", "zone des sous-titres"]
+    fr: ["zone de sécurité des sous-titres", "zone des sous-titres", "cadre des sous-titres"]
     en: ["subtitle safe", "subtitle safe area", "caption safe"]
   structure.safe_areas.logo_corners_free:
     fr: ["coins de l'image", "coin de l'image", "emplacement du logo", "logo"]

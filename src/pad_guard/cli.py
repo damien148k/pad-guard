@@ -18,6 +18,7 @@ from rich.table import Table
 from pad_guard import __version__, audio_map as amap, draft, jsonio, llm, measure, pipeline, workdir as wd
 from pad_guard.decode.video import DecoderOpenError, VideoDecoder
 from pad_guard.draft import compare, review
+from pad_guard.draft.write import CAPPED
 from pad_guard.labels import SEVERITY_LABELS, SEVERITY_ORDER, status_label
 from pad_guard.measure import scan as scan_mod
 from pad_guard.measure.models import Measurements
@@ -466,10 +467,14 @@ def draft_profile(
     num_ctx: int | None = typer.Option(
         None, "--num-ctx", min=2048,
         help="Taille du contexte en jetons (défaut : calculée sur la plus grosse demande, plus la réponse)."),
+    repeat_penalty: float | None = typer.Option(
+        llm.REPEAT_PENALTY, "--repeat-penalty", min=1.0,
+        help="Pénalité de répétition d'Ollama (1.0 : aucune ; enregistrée dans le .llm.jsonl)."),
 ) -> None:
     """Propose un profil brouillon à partir du PDF d'un diffuseur, avec le modèle local (Ollama)."""
     client = _ollama_or_exit(model)
     client.num_ctx = num_ctx
+    client.repeat_penalty = repeat_penalty
     console.print(f"Modèle local : [bold]{client.model}[/bold] (Ollama, rien ne sort de la machine)")
     start = time.perf_counter()
     with Progress(TextColumn("{task.description}"), BarColumn(), MofNCompleteColumn(), TimeRemainingColumn(),
@@ -503,6 +508,8 @@ def draft_profile(
     for status, n in sorted(counts.items()):
         console.print(f"  {status} : {n} champ(s)")
     console.print(f"  non trouvés : {len(x.not_found)} champ(s)")
+    for n in x.capped_pages:
+        console.print(f"[bold red]Page {n} : {CAPPED}[/bold red]")
     cited = x.cited_norms()
     console.print("Normes citées par le document : " + (", ".join(cited) if cited else "aucune"))
     console.print(f"meta.extends proposé : {', '.join(draft.proposed_extends(list(cited)))}", highlight=False)

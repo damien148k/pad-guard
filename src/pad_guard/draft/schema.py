@@ -89,6 +89,10 @@ def _type_text(schema: dict, defs: dict) -> str:
 
 
 SOURCE_TYPES = ("client_value", "client_refers_to_norm", "not_found")
+# Proposals per answer, imposed by the schema: a model that repeats itself in a loop (qwen3-vl:8b on
+# Arte p. 89-90: 16339 tokens of the same finding) has to close the list. A batch that reaches it is
+# asked again page by page; a page that still reaches it is flagged in the draft.
+MAX_FINDINGS = 40
 
 
 def response_schema(fields: list[FieldSpec]) -> dict:
@@ -101,6 +105,7 @@ def response_schema(fields: list[FieldSpec]) -> dict:
         "properties": {
             "findings": {
                 "type": "array",
+                "maxItems": MAX_FINDINGS,
                 "items": {
                     "type": "object",
                     "properties": {

@@ -22,6 +22,8 @@ DEFAULT_MODEL = "qwen3-vl:32b-instruct"
 FALLBACK_MODEL = "qwen3-vl:8b-instruct"
 SEED = 1234  # fixed: same pages, same model, same context, same answer
 DEFAULT_TIMEOUT = 600.0  # seconds per request
+# Default repeat_penalty of draft-profile. None: not sent, Ollama applies 1.0 (no penalty).
+REPEAT_PENALTY: float | None = None
 
 _TOO_LONG = re.compile(r"request \((\d+) tokens\) exceeds the available context size \((\d+) tokens\)")
 
@@ -62,18 +64,30 @@ class LLMClient(ABC):
         """Tokens of the last answer, when the engine gives them."""
         return None
 
+    def settings(self) -> dict:
+        """Generation settings sent to the engine (recorded with every answer)."""
+        return {}
+
     def release(self) -> None:
         """Free the model from memory (GPU) when the work is done. Never raises."""
 
 
 class OllamaClient(LLMClient):
     def __init__(self, model: str = DEFAULT_MODEL, host: str | None = None, num_ctx: int | None = None,
-                 seed: int = SEED):
+                 seed: int = SEED, repeat_penalty: float | None = None):
         self.model = model
         self.host = host
         self.num_ctx = num_ctx
         self.seed = seed
+        # None: not sent, Ollama applies 1.0 (no penalty: measured, whatever its documentation says).
+        self.repeat_penalty = repeat_penalty
         self._usage: Usage | None = None
+
+    def settings(self) -> dict:
+        options = {"temperature": 0, "seed": self.seed, "num_ctx": self.num_ctx}
+        if self.repeat_penalty is not None:
+            options["repeat_penalty"] = self.repeat_penalty
+        return options
 
     def generate(self, request: LLMRequest) -> str:
         import httpx
@@ -91,7 +105,7 @@ class OllamaClient(LLMClient):
         client = ollama.Client(host=self.host, timeout=request.timeout)
         try:
             response = client.chat(model=self.model, messages=messages, format=request.schema,
-                                   options={"temperature": 0, "seed": self.seed, "num_ctx": self.num_ctx})
+                                   options=self.settings())
         except ollama.ResponseError as exc:
             raise LLMError(self._refusal(exc.status_code, str(exc.error))) from None
         except httpx.TimeoutException:

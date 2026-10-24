@@ -24,9 +24,11 @@ from typing import Any
 import yaml
 
 from pad_guard.draft.extract import IMPLAUSIBLE, NORM_REF, OK, Extraction, FieldResult, Finding, canonical
+from pad_guard.draft.schema import MAX_FINDINGS
 
 ORDER = ("meta", "format", "video", "audio", "structure", "rules", "llm", "sources")
 QUOTE_CHARS = 160
+CAPPED = "limite atteinte, propositions possiblement manquantes"
 
 
 def scalar(value: Any) -> str:
@@ -128,6 +130,8 @@ def draft_text(x: Extraction, meta: dict[str, Any], norms: Norms | None = None) 
         f"Modèle local : {x.model}, consigne {x.prompt_version}, {x.batches} lots de pages, contexte {x.num_ctx} jetons.",
         "Chaque valeur est à vérifier (A VERIFIER) : la citation a été retrouvée dans la page et contient le nombre,",
         "mais seul un humain peut confirmer le sens. À relire avec : pad-guard review-profile <ce fichier>.",
+        *[f"ATTENTION page {n} : {CAPPED} (limite de {MAX_FINDINGS} par réponse, même page par page) : à relire à la main."
+          for n in x.capped_pages],
         "Statuts : " + ", ".join(f"{n} {s}" for s, n in counts.items()) + f", {len(x.not_found)} champ(s) non trouvé(s).",
         "",
         "Normes citées par le document (proposées dans meta.extends, après les autres : elles priment) :",
@@ -152,7 +156,7 @@ def findings_json(x: Extraction, meta: dict[str, Any], norms: Norms | None = Non
     cited = [{"norm": k, "title": t, "available": a, "page": f.page, "quote": f.quote, "field": f.field}
              for k, (t, a, f) in (norms or {}).items()]
     data = {"meta": meta, "model": x.model, "prompt_version": x.prompt_version, "pdf_sha256": x.pdf_sha256,
-            "pages": x.pages, "batches": x.batches, "num_ctx": x.num_ctx, "cited_norms": cited,
+            "pages": x.pages, "batches": x.batches, "num_ctx": x.num_ctx, "capped_pages": x.capped_pages, "cited_norms": cited,
             "fields": [r.to_json() for r in x.fields],
             "not_found": x.not_found}
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n"

@@ -19,6 +19,8 @@
   "pdf_sha256": "3cdd935056d18335ddd561c0e61b60c138af317829db42cc44ac39a886481e28",
   "pages": 9,
   "batches": 5,
+  "num_ctx": 19456,
+  "capped_pages": [],
   "cited_norms": [
     {
       "norm": "ebu_r128",
@@ -73,7 +75,7 @@
           "value": 1080,
           "page": 5,
           "quote": "1920 x 1080 pixels carrés",
-          "unit": "lignes",
+          "unit": "pixels",
           "status": "A_VERIFIER",
           "reason": "",
           "batch": 3,
@@ -154,18 +156,6 @@
       "findings": [
         {
           "field": "format.delivery.scan",
-          "value": "progressive",
-          "page": 3,
-          "quote": "Le début de programme (première image et premier son utile) doit commencer obligatoirement au Time Code 00:00:00:00, sans présence d’amorce en début de fichier (SOM et TC IN).",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : balayage|progressi|entrelac|interlac|scan|psf)",
-          "batch": 2,
-          "source_type": "client_value",
-          "norm": null
-        },
-        {
-          "field": "format.delivery.scan",
           "value": "interlaced_tff",
           "page": 8,
           "quote": "Entrelacement: Entrelacé / Upper Field First",
@@ -188,22 +178,10 @@
           "field": "format.delivery.codec",
           "value": "MXF OP1a (SMPTE ST 377-1:2019, SMPTE RDD 32:2017)",
           "page": 3,
-          "quote": "Le début de programme (première image et premier son utile) doit commencer obligatoirement au Time Code 00:00:00:00, sans présence d’amorce en début de fichier (SOM et TC IN).",
+          "quote": "Le programme livré sous forme de fichier est constitué, quelle que soit sa durée d’un seul fichier MXF Op1a contenant l’essence vidéo et les essences audio associées. Des marqueurs de segmentation pourront être saisis dans les métadonnées si le programme est constitué de plusieurs parties. Le format d’encapsulation MXF décrit dans la Recommandation Technique PAD fichier Diffuseurs s’avère compatible avec le format attendu par France Télévisions, quoique limité à 8 pistes (tracks) audio.",
           "unit": null,
           "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : codec|xavc|prores|dnx|avc|h.?264|mxf|class)",
-          "batch": 2,
-          "source_type": "client_value",
-          "norm": null
-        },
-        {
-          "field": "format.delivery.codec",
-          "value": "MXF OP1a Normé RDD9",
-          "page": 4,
-          "quote": "Format du conteneur MXF : MXF Operational Patern: OP1a Normé RDD9",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "la citation ne contient pas le texte « MXF OP1a Normé RDD9 »",
+          "reason": "citation trop longue (plus de 300 caractères)",
           "batch": 2,
           "source_type": "client_value",
           "norm": null
@@ -232,7 +210,7 @@
           "field": "audio.sample_rate",
           "value": 48000,
           "page": 6,
-          "quote": "fréquence d’échantillonnage... à 48 kHz",
+          "quote": "fréquence d’échantillonnage... 48 kHz",
           "unit": "Hz",
           "status": "CITATION_INVALIDE",
           "reason": "citation introuvable dans la page",
@@ -264,7 +242,7 @@
           "field": "audio.bit_depth",
           "value": 24,
           "page": 6,
-          "quote": "canal monophonique PCM, de résolution 24 bits",
+          "quote": "résolution 24 bits",
           "unit": "bits",
           "status": "CITATION_INVALIDE",
           "reason": "citation introuvable dans la page (trouvée p. 5)",
@@ -296,27 +274,7 @@
           "field": "audio.channel_layout",
           "value": "stereo_pairs",
           "page": 6,
-          "quote": "Les versions audio, dont les signaux s’avéreront conformes à la Recommandation Technique PAD fichier Diffuseurs, seront placées sur les pistes (tracks) selon l’ordre suivant",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation introuvable dans la page (trouvée p. 5)",
-          "batch": 3,
-          "source_type": "client_value",
-          "norm": null
-        }
-      ]
-    },
-    {
-      "path": "audio.max_pairs",
-      "description": "Nombre maximal de paires audio AES",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "audio.max_pairs",
-          "value": 8,
-          "page": 6,
-          "quote": "les fichiers MXF Prêts à Diffuser ne pourront comporter que 4, 8 ou 16 pistes (tracks) audio selon le type et le nombre de versions audio incluses",
+          "quote": "Les éventuelles pistes inutilisées transporteront des canaux silencieux (silence codé).",
           "unit": null,
           "status": "CITATION_INVALIDE",
           "reason": "citation introuvable dans la page (trouvée p. 5)",
@@ -336,7 +294,7 @@
           "field": "audio.no_silent_tracks",
           "value": false,
           "page": 6,
-          "quote": "Dans ce contexte, les éventuelles pistes inutilisées transporteront des canaux silencieux (silence codé)",
+          "quote": "Les éventuelles pistes inutilisées transporteront des canaux silencieux (silence codé).",
           "unit": null,
           "status": "CITATION_INVALIDE",
           "reason": "citation introuvable dans la page (trouvée p. 5)",
@@ -356,7 +314,7 @@
           "field": "audio.silent_track_dbfs",
           "value": -60.0,
           "page": 6,
-          "quote": "Dans ce contexte, les éventuelles pistes inutilisées transporteront des canaux silencieux (silence codé)",
+          "quote": "Les éventuelles pistes inutilisées transporteront des canaux silencieux (silence codé).",
           "unit": "dBFS",
           "status": "CITATION_INVALIDE",
           "reason": "citation introuvable dans la page (trouvée p. 5)",
@@ -369,18 +327,8 @@
     {
       "path": "audio.groups",
       "description": "Affectation des pistes audio (nom de version, numéros de pistes, stéréo/mono/5.1, obligatoire)",
-      "status": "A_VERIFIER",
-      "value": [
-        {
-          "name": "AD",
-          "tracks": [
-            7,
-            8
-          ],
-          "layout": "stereo",
-          "required": false
-        }
-      ],
+      "status": "CITATION_INVALIDE",
+      "value": null,
       "findings": [
         {
           "field": "audio.groups",
@@ -436,10 +384,10 @@
             }
           ],
           "page": 6,
-          "quote": "L’AD sera au format stéréo dit “broadcaster mix”, où version française et commentaire d’audio-description sont préalablement mixés et affectés aux canaux 7 et 8",
+          "quote": "L’AD sera au format stéréo dit “broadcaster mix”, où version française et commentaire d’audio-description sont préalablement mixés et affectés aux canaux 7 et 8 : o 7 = canal gauche (AD) o 8 = canal droit (AD)",
           "unit": null,
-          "status": "A_VERIFIER",
-          "reason": "",
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
           "batch": 3,
           "source_type": "client_value",
           "norm": null
@@ -458,10 +406,10 @@
             }
           ],
           "page": 6,
-          "quote": "La VM sera au format stéréo (2.0) compatible mono, et affectée aux canaux 9 à 14",
+          "quote": "La VM sera au format stéréo (2.0) compatible mono, et affectée aux canaux 9 à 14 : o 9 = canal gauche (VM) o 10 = canal droit (VM)",
           "unit": null,
           "status": "CITATION_INVALIDE",
-          "reason": "la citation ne contient pas le nombre 10",
+          "reason": "citation introuvable dans la page",
           "batch": 3,
           "source_type": "client_value",
           "norm": null
@@ -742,26 +690,6 @@
           "norm": null
         }
       ]
-    },
-    {
-      "path": "structure.timecode.must_be_continuous",
-      "description": "Timecode continu, sans saut ni recouvrement",
-      "status": "CITATION_INVALIDE",
-      "value": null,
-      "findings": [
-        {
-          "field": "structure.timecode.must_be_continuous",
-          "value": true,
-          "page": 3,
-          "quote": "Le début de programme (première image et premier son utile) doit commencer obligatoirement au Time Code 00:00:00:00, sans présence d’amorce en début de fichier (SOM et TC IN).",
-          "unit": null,
-          "status": "CITATION_INVALIDE",
-          "reason": "citation sans rapport avec le champ (mots attendus : continu|saut|recouvrement|discontinu)",
-          "batch": 2,
-          "source_type": "client_value",
-          "norm": null
-        }
-      ]
     }
   ],
   "not_found": [
@@ -795,6 +723,7 @@
     "video.scan_detection.min_moving_frames",
     "audio.bit_depth_allowed",
     "audio.same_bit_depth_all_tracks",
+    "audio.max_pairs",
     "audio.dual_mono_must_be_identical",
     "audio.loudness_exempt_groups",
     "audio.loudness.long.short_term_dialogue_excursion_lu",
@@ -818,6 +747,7 @@
     "structure.timecode.program_start",
     "structure.timecode.tolerance_frames",
     "structure.timecode.drop_frame_allowed",
+    "structure.timecode.must_be_continuous",
     "structure.bars.required",
     "structure.bars.forbidden",
     "structure.bars.start_tc",

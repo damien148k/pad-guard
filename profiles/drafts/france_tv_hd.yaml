@@ -1,9 +1,9 @@
 # BROUILLON de profil « france_tv_hd » produit par pad-guard draft-profile : NE PAS UTILISER EN L'ÉTAT.
 # Source : diffuseurs/Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (SHA-256 3cdd935056d18335ddd561c0e61b60c138af317829db42cc44ac39a886481e28), 9 pages.
-# Modèle local : qwen3-vl:8b-instruct, consigne draft_profile_v2, 5 lots de pages.
+# Modèle local : qwen3-vl:8b-instruct, consigne draft_profile_v2, 5 lots de pages, contexte 19456 jetons.
 # Chaque valeur est à vérifier (A VERIFIER) : la citation a été retrouvée dans la page et contient le nombre,
 # mais seul un humain peut confirmer le sens. À relire avec : pad-guard review-profile <ce fichier>.
-# Statuts : 13 A_VERIFIER, 9 CITATION_INVALIDE, 1 RENVOI_NORME, 1 VALEUR_INVALIDE, 82 champ(s) non trouvé(s).
+# Statuts : 12 A_VERIFIER, 8 CITATION_INVALIDE, 1 RENVOI_NORME, 1 VALEUR_INVALIDE, 84 champ(s) non trouvé(s).
 #
 # Normes citées par le document (proposées dans meta.extends, après les autres : elles priment) :
 #   - EBU R 128 (normes/ebu_r128.yaml) : p. 7 « conformes à la norme R128 »
@@ -43,6 +43,7 @@
 #   - video.scan_detection.min_moving_frames
 #   - audio.bit_depth_allowed
 #   - audio.same_bit_depth_all_tracks
+#   - audio.max_pairs
 #   - audio.dual_mono_must_be_identical
 #   - audio.loudness_exempt_groups
 #   - audio.loudness.long.short_term_dialogue_excursion_lu
@@ -66,6 +67,7 @@
 #   - structure.timecode.program_start
 #   - structure.timecode.tolerance_frames
 #   - structure.timecode.drop_frame_allowed
+#   - structure.timecode.must_be_continuous
 #   - structure.bars.required
 #   - structure.bars.forbidden
 #   - structure.bars.start_tc
@@ -109,22 +111,20 @@ meta:
 
 format:
   width: 1920  # A VERIFIER (p. 5) « 1920 x 1080 pixels carrés » [pixels] ; aussi p. 8
-  height: 1080  # A VERIFIER (p. 5) « 1920 x 1080 pixels carrés » [lignes] ; aussi p. 8
+  height: 1080  # A VERIFIER (p. 5) « 1920 x 1080 pixels carrés » [pixels] ; aussi p. 8
   fps_allowed: null  # VALEUR_INVALIDE : 50/1 (p. 5, VALEUR_INVALIDE: valeur '50/1' incompatible avec le champ (Input should be a valid list)) « Fréquence trame : 50 Hz » | 25/1 (p. 8, VALEUR_INVALIDE: valeur '25/1' incompatible avec le champ (Input should be a valid list)) « Framerate: 25fps »
   field_order: null  # CITATION_INVALIDE : tb (p. 8, CITATION_INVALIDE: la citation contredit la valeur "tb" (négation ou terme contraire)) « Entrelacement: Entrelacé / Upper Field First »
   delivery:
-    scan: interlaced_tff  # A VERIFIER (p. 8) « Entrelacement: Entrelacé / Upper Field First » ; 1 autre(s) proposition(s) rejetée(s) avec une autre valeur : valeur peut-être incomplète
-    codec: Sony XDCAM HD422  # A VERIFIER (p. 8) « Codec Video: Sony XDCAM HD422 » ; 2 autre(s) proposition(s) rejetée(s) avec une autre valeur : valeur peut-être incomplète
+    scan: interlaced_tff  # A VERIFIER (p. 8) « Entrelacement: Entrelacé / Upper Field First »
+    codec: Sony XDCAM HD422  # A VERIFIER (p. 8) « Codec Video: Sony XDCAM HD422 » ; 1 autre(s) proposition(s) rejetée(s) avec une autre valeur : valeur peut-être incomplète
 
 audio:
   sample_rate: 48000  # A VERIFIER (p. 8) « Codec Audio: PCM Little Endian 24bit @ 48 kHz » [Hz]
   bit_depth: 24  # A VERIFIER (p. 8) « Codec Audio: PCM Little Endian 24bit @ 48 kHz » [bits]
-  channel_layout: null  # CITATION_INVALIDE : stereo_pairs (p. 6, CITATION_INVALIDE: citation introuvable dans la page (trouvée p. 5)) « Les versions audio, dont les signaux s’avéreront conformes à la Recommandation… »
-  max_pairs: null  # CITATION_INVALIDE : 8 (p. 6, CITATION_INVALIDE: citation introuvable dans la page (trouvée p. 5)) « les fichiers MXF Prêts à Diffuser ne pourront comporter que 4, 8 ou 16 pistes (… »
-  no_silent_tracks: null  # CITATION_INVALIDE : false (p. 6, CITATION_INVALIDE: citation introuvable dans la page (trouvée p. 5)) « Dans ce contexte, les éventuelles pistes inutilisées transporteront des canaux … »
-  silent_track_dbfs: null  # CITATION_INVALIDE : -60.0 (p. 6, CITATION_INVALIDE: citation introuvable dans la page (trouvée p. 5)) « Dans ce contexte, les éventuelles pistes inutilisées transporteront des canaux … »
-  groups:  # A VERIFIER (p. 6) « L’AD sera au format stéréo dit “broadcaster mix”, où version française et commentaire d’audio-description sont préalablement mixés et affectés aux canaux 7 et 8 » ; 2 autre(s) proposition(s) rejetée(s) avec une autre valeur : valeur peut-être incomplète
-    - {layout: stereo, name: AD, required: false, tracks: [7, 8]}
+  channel_layout: null  # CITATION_INVALIDE : stereo_pairs (p. 6, CITATION_INVALIDE: citation introuvable dans la page (trouvée p. 5)) « Les éventuelles pistes inutilisées transporteront des canaux silencieux (silenc… »
+  no_silent_tracks: null  # CITATION_INVALIDE : false (p. 6, CITATION_INVALIDE: citation introuvable dans la page (trouvée p. 5)) « Les éventuelles pistes inutilisées transporteront des canaux silencieux (silenc… »
+  silent_track_dbfs: null  # CITATION_INVALIDE : -60.0 (p. 6, CITATION_INVALIDE: citation introuvable dans la page (trouvée p. 5)) « Les éventuelles pistes inutilisées transporteront des canaux silencieux (silenc… »
+  groups: null  # CITATION_INVALIDE : [{layout: stereo, name: VO, required: true, tracks: [1, 2]}, {layout: stereo, name: VF, required: false, tracks: [3, 4]}, {layout: stereo, name: VI, required: false, tracks: [5, 6]}] (p. 6, CITATION_INVALIDE: citation introuvable dans la page (trouvée p. 5)) « La VF sera livrée au format stéréo (2.0) compatible mono : o 1 = canal gauche o… » | [{layout: stereo, name: AD, required: false, tracks: [7, 8]}] (p. 6, CITATION_INVALIDE: citation introuvable dans la page) « L’AD sera au format stéréo dit “broadcaster mix”, où version française et comme… » | [{layout: stereo, name: VM, required: false, tracks: [9, 10]}] (p. 6, CITATION_INVALIDE: citation introuvable dans la page) « La VM sera au format stéréo (2.0) compatible mono, et affectée aux canaux 9 à 1… »
   loudness:
     long_program_min_seconds: null  # CITATION_INVALIDE : 120 (p. 7, CITATION_INVALIDE: la citation ne contient pas le nombre 120) « Programmes longs (≥2 minutes) » | 120 (p. 9, CITATION_INVALIDE: la citation ne contient pas le nombre 120) « Programmes longs (≥2 minutes) »
     long:
@@ -139,4 +139,3 @@ structure:
   leaders: none  # A VERIFIER (p. 3) « Le début de programme (première image et premier son utile) doit commencer obligatoirement au Time Code 00:00:00:00, sans présence d’amorce en début de fichier… »
   timecode:
     file_start: 00:00:00:00  # A VERIFIER (p. 3) « Le début de programme (première image et premier son utile) doit commencer obligatoirement au Time Code 00:00:00:00, sans présence d’amorce en début de fichier… »
-    must_be_continuous: null  # CITATION_INVALIDE : true (p. 3, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : continu|saut|recouvrement|discontinu)) « Le début de programme (première image et premier son utile) doit commencer obli… »
