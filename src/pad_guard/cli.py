@@ -27,6 +27,7 @@ from pad_guard.probe.models import ProbeResult
 from pad_guard.profiles import ResolvedProfile, is_norm, load_norm, resolve_profile
 from pad_guard.profiles.resolve import leaves, read_yaml
 from pad_guard.report import ReportError
+from pad_guard.report import ai as ai_mod
 from pad_guard.rules.engine import RulesError
 from pad_guard.rules.models import Verdict
 from pad_guard.rules.profile import Profile, ProfileError, ProfileValueError, null_fields
@@ -82,7 +83,13 @@ def analyze(
         None, "--audio-map",
         help="Groupes de pistes audio pour cette analyse, ex. « VO:1-2,VF:3-4 » (remplace audio.groups du profil).",
     ),
-    llm: LlmBackend = typer.Option(LlmBackend.none, "--llm", help="Synthèse rédigée par un LLM local."),
+    llm_backend: LlmBackend = typer.Option(
+        LlmBackend.none, "--llm",
+        help="Synthèse et qualifications rédigées par le modèle local (ollama) ; none : synthèse par gabarit."),
+    llm_model: str | None = typer.Option(
+        None, "--llm-model", help=f"Modèle Ollama (défaut : {llm.DEFAULT_MODEL}, sinon {llm.FALLBACK_MODEL})."),
+    llm_refresh: bool = typer.Option(
+        False, "--llm-refresh", help=f"Rappelle le modèle même si {wd.LLM_SYNTHESIS} correspond aux entrées."),
     thumbnails: bool | None = typer.Option(
         None, "--thumbnails/--no-thumbnails",
         help="Vignette de chaque anomalie image (par défaut : oui ; sautées avec un avertissement si le fichier source est introuvable lors d'une relance).",
@@ -98,9 +105,9 @@ def analyze(
     resolved = _load_profile_or_exit(profile)
     prof = resolved.profile
     mapping = _audio_map_or_exit(audio_map, prof)
-    for flag, name in ((quick, "--quick"), (llm != LlmBackend.none, "--llm")):
-        if flag:
-            err_console.print(f"[yellow]{name} : non implémenté, option ignorée.[/yellow]")
+    if quick:
+        err_console.print("[yellow]--quick : non implémenté, option ignorée.[/yellow]")
+    ai = _ai_options(llm_backend, llm_model, llm_refresh)
     problems = pipeline.preflight(prof, mapping.groups)
     if problems:
         err_console.print(f"[red]Profil incomplet pour cette analyse : {profile}[/red]")
@@ -109,7 +116,7 @@ def analyze(
         raise typer.Exit(EXIT_USAGE)
     command = _command("analyze", str(file), "--profile", str(profile), "--out", str(out),
                        *(("--audio-map", audio_map) if audio_map else ()), *_thumbnail_flag(thumbnails),
-                       *((f"--workers", str(workers)) if workers else ()))
+                       *((f"--workers", str(workers)) if workers else ()), *_llm_flags(ai))
 
     try:
         result = probe_file(file, prof, profile, mapping)
@@ -134,7 +141,8 @@ def analyze(
 
     measurements = _measure(result, prof, out, workers)
     _print_measurements(measurements, out)
-    _steps(lambda: pipeline.run_steps(out, prof, "structure", thumbnails, _progress(verbose)))
+    _steps(lambda: pipeline.run_steps(out, prof, "structure", thumbnails, _progress(verbose), ai))
+    _print_ai(ai)
     _finish(out)
 
 
@@ -152,6 +160,13 @@ def rerun(
         None, "--thumbnails/--no-thumbnails",
         help="Vignette de chaque anomalie image (par défaut : oui ; sautées avec un avertissement si le fichier source est introuvable lors d'une relance).",
     ),
+    llm_backend: LlmBackend = typer.Option(
+        LlmBackend.none, "--llm",
+        help="Synthèse et qualifications rédigées par le modèle local (ollama) ; none : synthèse par gabarit."),
+    llm_model: str | None = typer.Option(
+        None, "--llm-model", help=f"Modèle Ollama (défaut : {llm.DEFAULT_MODEL}, sinon {llm.FALLBACK_MODEL})."),
+    llm_refresh: bool = typer.Option(
+        False, "--llm-refresh", help=f"Rappelle le modèle même si {wd.LLM_SYNTHESIS} correspond aux entrées."),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Affiche la progression détaillée."),
 ) -> None:
     """Relance structure, règles et rapport à partir des JSON existants, sans refaire les mesures."""
@@ -163,9 +178,11 @@ def rerun(
             for msg in problems:
                 err_console.print(f"  - {msg}")
             raise typer.Exit(EXIT_USAGE)
+    ai = _ai_options(llm_backend, llm_model, llm_refresh)
     command = _command("rerun", str(workdir), "--from", from_step.value, *(("--profile", str(profile)) if profile else ()),
-                       *_thumbnail_flag(thumbnails))
-    _steps(lambda: pipeline.rerun(workdir, from_step.value, profile, command, thumbnails, _progress(verbose)))
+                       *_thumbnail_flag(thumbnails), *_llm_flags(ai))
+    _steps(lambda: pipeline.rerun(workdir, from_step.value, profile, command, thumbnails, _progress(verbose), ai))
+    _print_ai(ai)
     _finish(workdir)
 
 
@@ -176,12 +193,56 @@ def report(
         None, "--thumbnails/--no-thumbnails",
         help="Vignette de chaque anomalie image (par défaut : oui ; sautées avec un avertissement si le fichier source est introuvable lors d'une relance).",
     ),
+    llm_backend: LlmBackend = typer.Option(
+        LlmBackend.none, "--llm",
+        help="Synthèse et qualifications rédigées par le modèle local (ollama) ; none : synthèse par gabarit."),
+    llm_model: str | None = typer.Option(
+        None, "--llm-model", help=f"Modèle Ollama (défaut : {llm.DEFAULT_MODEL}, sinon {llm.FALLBACK_MODEL})."),
+    llm_refresh: bool = typer.Option(
+        False, "--llm-refresh", help=f"Rappelle le modèle même si {wd.LLM_SYNTHESIS} correspond aux entrées."),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Affiche la progression détaillée."),
 ) -> None:
     """Régénère le rapport à partir des JSON d'un dossier d'analyse (= rerun --from report)."""
-    command = _command("report", str(workdir), *_thumbnail_flag(thumbnails))
-    _steps(lambda: pipeline.rerun(workdir, "report", None, command, thumbnails, _progress(verbose)))
+    ai = _ai_options(llm_backend, llm_model, llm_refresh)
+    command = _command("report", str(workdir), *_thumbnail_flag(thumbnails), *_llm_flags(ai))
+    _steps(lambda: pipeline.rerun(workdir, "report", None, command, thumbnails, _progress(verbose), ai))
+    _print_ai(ai)
     _finish(workdir)
+
+
+def _ai_options(backend: LlmBackend, model: str | None, refresh: bool) -> ai_mod.Options | None:
+    if backend == LlmBackend.none:
+        for flag, given in (("--llm-model", model), ("--llm-refresh", refresh)):
+            if given:
+                err_console.print(f"[yellow]{flag} : sans effet sans « --llm ollama ».[/yellow]")
+        return None
+    return ai_mod.Options(model=model, refresh=refresh)
+
+
+def _llm_flags(ai: ai_mod.Options | None) -> tuple[str, ...]:
+    if ai is None:
+        return ()
+    return ("--llm", "ollama", *(("--llm-model", ai.model) if ai.model else ()),
+            *(("--llm-refresh",) if ai.refresh else ()))
+
+
+def _print_ai(ai: ai_mod.Options | None) -> None:
+    """What the local model did, on the console (the report says it too)."""
+    if ai is None or ai.outcome is None:
+        return
+    o = ai.outcome
+    if o.model is None:
+        err_console.print(f"[yellow]IA : non utilisée ({escape(o.fallback or '')}) : synthèse par gabarit.[/yellow]")
+        return
+    how = (f"réponses reprises de {wd.LLM_SYNTHESIS}, sans appel au modèle" if o.reused
+           else f"{o.calls} requête(s) en {o.elapsed:g} s, contexte {o.num_ctx} jetons")
+    console.print(f"IA locale {o.model} : {how}")
+    console.print(f"  qualifications : {len(o.qualifications)} retenue(s), "
+                  f"{o.requested - len(o.qualifications)} laissée(s) vide(s) sur {o.requested}")
+    if o.paragraphs is None:
+        err_console.print(f"[yellow]  synthèse IA écartée : {escape(o.fallback or '')}[/yellow]")
+    else:
+        console.print("  synthèse IA retenue (à relire)")
 
 
 def _thumbnail_flag(thumbnails: bool | None) -> tuple[str, ...]:

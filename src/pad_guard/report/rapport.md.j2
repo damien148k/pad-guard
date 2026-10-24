@@ -42,7 +42,11 @@ Aucune anomalie bloquante, et pas plus de {{ v.max_major }} anomalie(s) majeure(
 
 {{ synthesis }}
 
-*Synthèse générée par gabarit à partir des compteurs (couche IA désactivée).*
+{{ synthesis_note }}
+{%- for w in ai_warnings %}
+
+> **Avertissement** : {{ w }}
+{%- endfor %}
 
 ## 4. Contrôles de format et de structure
 
@@ -113,12 +117,12 @@ Aucun groupe audio mesuré.
 | N° | TC début | TC fin | Durée | Type | Valeur max | Seuil | Surface | Gravité | Qualif. suggérée | Vignette |
 |---|---|---|---|---|---|---|---|---|---|---|
 {%- for e in table.events %}
-| {{ e.id }} | {{ e.tc_start }} | {{ e.tc_end }} | {{ e.duration }} | {{ e.type | cell }} | {{ e.value | cell }} | {{ e.threshold | cell }} | {{ e.area }} | {{ e.severity }} | | {{ e.thumbnail }} |
+| {{ e.id }} | {{ e.tc_start }} | {{ e.tc_end }} | {{ e.duration }} | {{ e.type | cell }} | {{ e.value | cell }} | {{ e.threshold | cell }} | {{ e.area }} | {{ e.severity }} | {% if e.qualification %}{{ e.qualification | cell }} {% endif %}| {{ e.thumbnail }} |
 {%- endfor %}
 
 Détail :
 {% for e in table.events %}
-- **{{ e.id }}. {{ e.title }}**{% if e.group %} — {{ e.group }}{% endif %} — images {{ e.frames }}{% if e.detail %} — {{ e.detail }}{% endif %} — gravité {{ e.severity }} (règle : {{ e.severity_source }})
+- **{{ e.id }}. {{ e.title }}**{% if e.group %} — {{ e.group }}{% endif %} — images {{ e.frames }}{% if e.detail %} — {{ e.detail }}{% endif %} — gravité {{ e.severity }} (règle : {{ e.severity_source }}){% if e.qualification_detail %} — {{ e.qualification_detail }}{% endif %}
 {%- endfor %}
 {%- else -%}
 Aucune.

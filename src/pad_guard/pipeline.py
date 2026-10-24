@@ -94,7 +94,7 @@ def preflight(profile: Profile, groups: list[AudioGroup]) -> list[str]:
 
 
 def run_steps(workdir: Path, profile: Profile, first: Step = "structure", thumbnails: bool | None = None,
-              progress: Progress | None = None) -> None:
+              progress: Progress | None = None, ai: report.ai.Options | None = None) -> None:
     progress = progress or (lambda _msg: None)
     todo = STEPS[STEPS.index(first):]
     if "structure" in todo:
@@ -105,7 +105,7 @@ def run_steps(workdir: Path, profile: Profile, first: Step = "structure", thumbn
         engine.run(workdir, profile)
     if "report" in todo:
         progress("Rapport")
-        report.run(workdir, profile, thumbnails=thumbnails, progress=progress)
+        report.run(workdir, profile, thumbnails=thumbnails, progress=progress, ai=ai)
 
 
 def measurement_differences(workdir: Path, probe: ProbeResult, m: Measurements, profile: Profile) -> list[str]:
@@ -138,7 +138,7 @@ def measurement_differences(workdir: Path, probe: ProbeResult, m: Measurements, 
 
 
 def rerun(workdir: Path, first: Step, profile_path: Path | None, command: str, thumbnails: bool | None = None,
-          progress: Progress | None = None) -> None:
+          progress: Progress | None = None, ai: report.ai.Options | None = None) -> None:
     probe = wd.load(workdir, wd.PROBE, ProbeResult, "analyze")
     m = wd.load(workdir, wd.MEASUREMENTS, Measurements, "analyze")
     stored = workdir / wd.PROFILE
@@ -182,4 +182,4 @@ def rerun(workdir: Path, first: Step, profile_path: Path | None, command: str, t
         analyzed_at="inconnue", command="inconnue", profile_file=str(profile_path))
     info.reruns.append(Rerun(at=now(), command=command, from_step=first, profile_file=str(profile_path)))
     jsonio.write(run_file, info)
-    run_steps(workdir, profile, first, thumbnails, progress)
+    run_steps(workdir, profile, first, thumbnails, progress, ai)

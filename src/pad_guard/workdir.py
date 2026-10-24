@@ -24,6 +24,7 @@ REPORT_MD = "rapport.md"
 REPORT_PDF = "rapport.pdf"
 THUMBNAILS = "vignettes"
 CHARTS = "annexes"
+LLM_SYNTHESIS = "llm_synthese.json"  # answers of the local model, replayed while the inputs are the same
 
 M = TypeVar("M", bound=BaseModel)
 Step = Literal["structure", "rules", "report"]

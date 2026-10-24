@@ -27,6 +27,7 @@ from pad_guard.draft.glossary import Glossary, implausible
 from pad_guard.draft.pdf import Document, render
 from pad_guard.draft.schema import MAX_FINDINGS, FieldSpec, catalogue, check_value, response_schema
 from pad_guard.llm import LLMClient, LLMError, LLMRequest
+from pad_guard.llm.client import request_fingerprint as fingerprint
 
 PROMPT_VERSION = "draft_profile_v2"
 PROMPT_FILE = Path(__file__).resolve().parents[1] / "llm" / "prompts" / f"{PROMPT_VERSION}.md"
@@ -342,17 +343,6 @@ def merge(findings: list[Finding], fields: list[FieldSpec]) -> tuple[list[FieldR
     for name in unknown:
         results.append(FieldResult(name, "", BAD_VALUE, None, by_field[name]))
     return results, missing
-
-
-def fingerprint(system: str, prompt: str, images: tuple[bytes, ...], schema: dict) -> str:
-    """SHA-256 of everything the model is given for one request: two requests with the same
-    fingerprint differ only by the model or its settings."""
-    h = hashlib.sha256()
-    for part in (system, prompt, json.dumps(schema, sort_keys=True, ensure_ascii=False),
-                 *(hashlib.sha256(image).hexdigest() for image in images)):
-        h.update(part.encode("utf-8"))
-        h.update(b"\0")
-    return h.hexdigest()
 
 
 def extract(doc: Document, client: LLMClient, progress: Progress | None = None,

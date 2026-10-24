@@ -14,6 +14,8 @@ become a clear :class:`LLMError`.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -26,6 +28,17 @@ DEFAULT_TIMEOUT = 600.0  # seconds per request
 REPEAT_PENALTY: float | None = None
 
 _TOO_LONG = re.compile(r"request \((\d+) tokens\) exceeds the available context size \((\d+) tokens\)")
+
+
+def request_fingerprint(system: str, prompt: str, images: tuple[bytes, ...], schema: dict) -> str:
+    """SHA-256 of everything the model is given for one request: two requests with the same
+    fingerprint differ only by the model or its settings."""
+    h = hashlib.sha256()
+    for part in (system, prompt, json.dumps(schema, sort_keys=True, ensure_ascii=False),
+                 *(hashlib.sha256(image).hexdigest() for image in images)):
+        h.update(part.encode("utf-8"))
+        h.update(b"\0")
+    return h.hexdigest()
 
 
 class LLMError(Exception):

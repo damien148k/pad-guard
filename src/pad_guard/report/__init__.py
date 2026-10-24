@@ -2,13 +2,16 @@
 
 Reads probe.json, measurements.json (and the JSON Lines files for the annex charts),
 structure.json, events.json, verdict.json and run.json. The source file is needed only for
-``--thumbnails``. Without the LLM layer the synthesis is generated from the counters.
+``--thumbnails``. Without the LLM layer the synthesis is generated from the counters; with it
+(:mod:`pad_guard.report.ai`), the local model writes the synthesis and suggests a qualification
+per anomaly, every word of it checked, and the template comes back at the slightest doubt.
 """
 
 from __future__ import annotations
 
 import json
 import math
+import re
 from collections.abc import Callable
 from fractions import Fraction
 from pathlib import Path
@@ -24,7 +27,7 @@ from pad_guard.measure.series import load_audio, load_video
 from pad_guard.probe.models import ProbeResult
 from pad_guard.profiles import fingerprint, from_json
 from pad_guard.profiles.resolve import HOUSE
-from pad_guard.report import charts, pdf, thumbnails as thumbs
+from pad_guard.report import ai as ai_mod, charts, pdf, thumbnails as thumbs
 from pad_guard.rules import delivery
 from pad_guard.rules import scan as scan_rule
 from pad_guard.rules.engine import error_key
@@ -228,11 +231,49 @@ class _Builder:
                  + (f", LRA ≤ {number(rs.lra_max_lu)} LU" if rs.lra_max_lu is not None else "") + ".")
         return {"program": program, "groups": groups, "tracks": tracks, "rules": rules}
 
-    def event_rows(self, thumbnails: dict[int, str]) -> list[dict]:
+    def ai_inputs(self) -> tuple[dict, list[dict]]:
+        """What the model is given (SPEC §8.1): verdict, profile, key probe facts and the events as
+        the report shows them; never the frame-by-frame measurements."""
+        v, prof, video, s = self.verdict, self.probe.profile, self.probe.video, self.m.scan
+        families: dict[tuple, list[int]] = {}
+        for e in sorted(self.events, key=lambda e: (SEVERITY_ORDER.index(e.severity), e.id)):
+            families.setdefault((type_label(e.type), e.type, e.group, SEVERITY_LABELS[e.severity]), []).append(e.id)
+        context = {
+            "fichier": Path(self.probe.source.path).name,
+            "profil": {"nom": prof.name, "version": prof.version, "diffuseur": self.p.meta.broadcaster,
+                       "statut": "validé" if self.p.meta.status == "validated" else "brouillon, non validé"},
+            "verdict": {"statut": v.status, "affiche": status_label(v.status, v.indicative), "indicatif": v.indicative,
+                        "score": number(v.score, 0 if v.score.is_integer() else 1),
+                        "anomalies_par_gravite": {SEVERITY_LABELS[k]: v.counts[k] for k in SEVERITY_ORDER},
+                        "motifs": v.reasons},
+            "probe": {"codec": f"{video.codec_name} {video.profile or ''}".strip(),
+                      "image": f"{video.width}x{video.height}", "cadence": self.m.source.fps,
+                      "drapeau_de_balayage": video.field_order or "absent",
+                      "balayage_detecte": scan_mod.SCAN_LABELS[s.detected],
+                      "duree": timecode.from_frames(self.st.frames, self.clock.fps)},
+            "anomalies_par_type": [{"type": t, "libelle": label, "groupe": g, "gravite": sev, "nombre": len(ids),
+                                    "anomalies": ids} for (label, t, g, sev), ids in families.items()],  # by severity
+        }
+        events = []
+        for e in self.events:
+            ranged = e.scope == "range"
+            item = {"n": e.id, "type": e.type, "libelle": type_label(e.type), "gravite": SEVERITY_LABELS[e.severity],
+                    "groupe": e.group, "portee": "plage" if ranged else "fichier entier",
+                    "tc_debut": e.tc_start if ranged else None, "tc_fin": e.tc_end if ranged else None,
+                    "duree": self.seconds(e.duration_frames) if ranged else None, "titre": e.title,
+                    "valeur": e.value_text, "seuil": e.threshold_text,
+                    "surface": None if e.area_pct_max is None else f"{number(e.area_pct_max, 2)} %",
+                    "regle": e.severity_source, "source": e.source, "detail": e.detail or None}
+            events.append({k: x for k, x in item.items() if x is not None})
+        return context, events
+
+    def event_rows(self, thumbnails: dict[int, str], outcome: ai_mod.Outcome | None = None) -> list[dict]:
         rows = []
         for e in self.events:
             ranged = e.scope == "range"
             label = type_label(e.type) + (f" ({e.group})" if e.group else "")
+            q = outcome.qualifications.get(e.id) if outcome else None
+            rejected = outcome.rejected.get(e.id) if outcome else None
             rows.append(dict(
                 id=e.id, tc_start=e.tc_start if ranged else "—", tc_end=e.tc_end if ranged else "—",
                 duration=self.seconds(e.duration_frames) if ranged else "global", type=label,
@@ -243,11 +284,14 @@ class _Builder:
                 title=e.title, group=e.group, detail=e.detail, severity_source=e.severity_source,
                 level=e.severity,
                 frames=f"{e.frame_start} à {e.frame_end}" if ranged else "fichier entier",
+                qualification=f"*{q.value}*" if q else "",
+                qualification_detail=(f"qualification suggérée par l'IA, à valider : *{q.value}* ({q.justification})"
+                                      if q else f"qualification IA laissée vide : {rejected}" if rejected else ""),
             ))
         return rows
 
-    def event_tables(self, thumbnails: dict[int, str]) -> list[dict]:
-        rows = self.event_rows(thumbnails)
+    def event_tables(self, thumbnails: dict[int, str], outcome: ai_mod.Outcome | None = None) -> list[dict]:
+        rows = self.event_rows(thumbnails, outcome)
         return [
             dict(title="Bloquantes et majeures",
                  intro="Anomalies qui décident du verdict : à corriger avant livraison.",
@@ -335,7 +379,7 @@ class _Builder:
         return [f"{c.path} : {client} {show(c.value)} ; {norms[c.replaced_file]} {show(c.replaced_value)}"
                 for c in resolved.conflicts if c.file == resolved.profile_file and c.replaced_file in norms]
 
-    def notes(self) -> list[str]:
+    def notes(self, outcome: ai_mod.Outcome | None = None) -> list[str]:
         notes = list(self.st.limitations)
         notes.append("PSE : approximation inspirée d'ITU-R BT.1702 (variations de luminance relative sur l'image "
                      "entière) ; ce n'est pas un test Harding certifié.")
@@ -346,15 +390,66 @@ class _Builder:
         if self.p.audio.loudness.long.short_term_dialogue_excursion_lu is not None:
             notes.append("Short term : seule l'excursion au-dessus de la cible est contrôlée, sur tout le programme ; "
                          "le dialogue n'est pas détecté automatiquement.")
-        notes.append("Qualification suggérée : vide, la couche IA est désactivée.")
+        if outcome is None:
+            notes.append("Qualification suggérée : vide, la couche IA est désactivée.")
+        else:
+            notes.append(ai_note(outcome))
         notes.append("Les seuils sont ceux du profil ; une valeur marquée « A VERIFIER » ou « DEDUIT » dans le profil "
                      "est une interprétation à confirmer.")
         return notes
 
 
-def run(workdir: Path, profile: Profile, thumbnails: bool | None = None, progress: Progress | None = None) -> Path:
+def ai_note(outcome: ai_mod.Outcome) -> str:
+    """« Méthodes et limites » line of the AI layer (French)."""
+    if outcome.model is None:
+        return (f"Synthèse et qualification suggérée : couche IA demandée mais non utilisée ({outcome.fallback}) ; "
+                "synthèse par gabarit, colonne de qualification vide.")
+    kept = len(outcome.qualifications)
+    return (f"Synthèse et qualification suggérée : rédigées par le modèle local {outcome.model} (Ollama, rien ne "
+            f"sort de la machine), prompt {ai_mod.PROMPT_VERSION}. Le modèle reçoit le verdict, le profil, les "
+            "caractéristiques du fichier, la liste des anomalies et leurs vignettes, jamais les mesures image par "
+            "image. Chaque nombre, timecode, numéro et type d'anomalie qu'il écrit doit figurer dans ces données, et "
+            "le verdict écrit doit être celui des règles : sinon la synthèse par gabarit est utilisée. Une "
+            "qualification hors liste, non justifiée, contradictoire, ou dont la justification affirme qu'une "
+            "anomalie respecte son seuil, reste vide. Qualifications : "
+            f"{kept} retenue(s), {outcome.requested - kept} laissée(s) vide(s) sur {outcome.requested} anomalie(s) "
+            "bloquante(s), majeure(s) ou mineure(s). Ce sont des suggestions à valider à l'image ou à l'écoute : "
+            "le verdict, le score et les gravités ne dépendent pas de l'IA.")
+
+
+def synthesis_section(template: str, outcome: ai_mod.Outcome | None) -> tuple[str, str, list[str]]:
+    """(text, note under it, warnings) of section 3."""
+    if outcome is None:
+        return template, "*Synthèse générée par gabarit à partir des compteurs (couche IA désactivée).*", []
+    warnings = []
+    if outcome.paragraphs is not None:
+        text = "\n\n".join(_paragraph(p) for p in outcome.paragraphs)
+        note = (f"*Rédigée par IA locale ({outcome.model}, prompt {ai_mod.PROMPT_VERSION}) à partir des anomalies "
+                "ci-dessous ; à relire. Le verdict est calculé par des règles.*")
+    else:
+        text = template
+        note = ("*Synthèse générée par gabarit à partir des compteurs : la synthèse rédigée par l'IA locale a été "
+                "écartée.*")
+        warnings.append(f"synthèse IA écartée, {outcome.fallback}.")
+    empty = outcome.requested - len(outcome.qualifications)
+    if outcome.model is not None and empty:
+        warnings.append(f"{empty} qualification(s) suggérée(s) sur {outcome.requested} laissée(s) vide(s) par les "
+                        "contrôles ou faute de réponse : motif dans le détail de chaque anomalie.")
+    return text, note, warnings
+
+
+def _paragraph(text: str) -> str:
+    """A paragraph of the model as plain Markdown text: no heading, quote or list marker at the start."""
+    if re.match(r"\d+[.)]\s", text):
+        return re.sub(r"^(\d+)", r"\1\\", text, count=1)
+    return "\\" + text if text and text[0] in "#>-*+|" else text
+
+
+def run(workdir: Path, profile: Profile, thumbnails: bool | None = None, progress: Progress | None = None,
+        ai: ai_mod.Options | None = None) -> Path:
     """``thumbnails``: True asked for (the source file is required), None by default (made if the
-    source file is there, else left out with a note), False not made."""
+    source file is there, else left out with a note), False not made. ``ai``: the local model writes
+    the synthesis and the qualifications (None: template synthesis, empty column)."""
     progress = progress or (lambda _msg: None)
     b = _Builder(workdir, profile)
     names: dict[int, str] = {}
@@ -371,6 +466,16 @@ def run(workdir: Path, profile: Profile, thumbnails: bool | None = None, progres
         progress(f"Vignettes : {count} anomalie(s) image")
         names = thumbs.make(source, b.probe.video.stream_index, b.events, b.m.video_settings,
                             workdir / wd.THUMBNAILS)
+    outcome = None
+    if ai is not None:
+        context, items = b.ai_inputs()
+        images = {n: workdir / wd.THUMBNAILS / name for n, name in names.items()}
+        try:
+            outcome = ai_mod.run(workdir, context, items, images, ai, progress)
+        except Exception as exc:  # noqa: BLE001 - the report is always written (SPEC §8.1)
+            outcome = ai_mod.failed(f"erreur de la couche IA ({exc.__class__.__name__} : {exc})")
+        ai.outcome = outcome
+    synthesis, synthesis_note, ai_warnings = synthesis_section(b.synthesis(), outcome)
     env = Environment(loader=FileSystemLoader(Path(__file__).parent), undefined=StrictUndefined,
                       keep_trailing_newline=True, autoescape=False)
     env.filters["cell"] = _cell
@@ -380,19 +485,21 @@ def run(workdir: Path, profile: Profile, thumbnails: bool | None = None, progres
         status=status_label(b.verdict.status, b.verdict.indicative),
         score=number(b.verdict.score, 0 if b.verdict.score.is_integer() else 1),
         delivery=b.delivery(),
-        synthesis=b.synthesis(),
+        synthesis=synthesis,
+        synthesis_note=synthesis_note,
+        ai_warnings=ai_warnings,
         checks=b.checks(),
         integrity_errors=b.integrity_errors(),
         letterbox_changes=b.st.letterbox.changes if b.st.letterbox else [],
         audio=b.audio(),
-        event_tables=b.event_tables(names),
+        event_tables=b.event_tables(names, outcome),
         thumbnails=b.thumbnail_rows(names),
         thumbnails_note=(f"Vignettes non produites : fichier source introuvable ({missing_source})."
                          if missing_source else ""),
         charts=b.charts(),
         parameters=b.parameters(),
         norm_gaps=b.norm_gaps(),
-        notes=b.notes(),
+        notes=b.notes(outcome),
     )
     md_path = workdir / wd.REPORT_MD
     md_path.write_text(text, encoding="utf-8", newline="\n")

@@ -113,14 +113,18 @@ Orientation v3 du 23 octobre 2026 : multi-diffuseurs, profils hérités de norme
 ## Phase 4c : synthèse IA du rapport (§8.1)
 
 **Livrables**
-- `llm/` : interface `LLMClient` et implémentation `OllamaClient` (bibliothèque `ollama`, sortie forcée au schéma JSON, images jointes). Modèle par défaut `qwen3-vl:32b-instruct`, repli `qwen3-vl:8b-instruct`. Commande `pad-guard llm-check` qui vérifie qu'Ollama répond, que le modèle est installé et qu'il tient en VRAM. Aucun autre moteur, aucune API externe.
-- Prompt système versionné dans `llm/prompts/`, qui interdit explicitement toute modification du verdict.
-- Synthèse rédigée insérée en section 3 du rapport ; colonne « qualification suggérée » remplie à partir des vignettes.
+- `llm/` : interface `LLMClient` et implémentation `OllamaClient` (bibliothèque `ollama`, sortie forcée au schéma JSON, images jointes), communes avec `draft-profile`. Modèle par défaut `qwen3-vl:32b-instruct`, repli `qwen3-vl:8b-instruct`. Aucun autre moteur, aucune API externe. Fait.
+- Options `--llm none|ollama`, `--llm-model`, `--llm-refresh` sur `analyze`, `rerun` et `report`. Fait.
+- Prompt système versionné `llm/prompts/synthese_v1.md`, qui interdit explicitement toute modification du verdict. Fait.
+- `report/ai.py` : une requête par événement à vignette (vision), une par famille d'événements sans vignette, une pour la synthèse ; contrôles déterministes de tout ce que le modèle écrit (SPEC §8.1), repli sur le gabarit avec avertissement ; `llm_synthese.json` rejoué tant que l'empreinte ne change pas. Fait.
+- Synthèse rédigée insérée en section 3 du rapport ; colonne « qualification suggérée » en italique, justification dans le détail ; « Méthodes et limites » mise à jour. Fait.
+- Reste : commande `pad-guard llm-check` (Ollama répond, modèle installé, tient en VRAM).
 
 **Acceptation**
 - Avec `--llm none`, le rapport est strictement identique à la Phase 3.
 - Avec `--llm ollama` sur `bad_levels.mov`, le verdict et les événements sont identiques ; seules la synthèse et la colonne de qualification changent.
-- Test unitaire avec un `LLMClient` factice : une réponse mal formée ou une panne réseau n'empêche pas la génération du rapport (synthèse remplacée par le gabarit, avertissement dans le rapport).
+- Test unitaire avec un `LLMClient` factice : une réponse mal formée ou une panne réseau n'empêche pas la génération du rapport (synthèse remplacée par le gabarit, avertissement dans le rapport). Fait (`tests/test_ai.py`).
+- Recette du 24 octobre 2026 sur le vrai master Arte (`qwen3-vl:8b-instruct`, RTX 3080 Ti) : `events.json` et `verdict.json` identiques à l'octet avant et après, 33 requêtes en 77 s, synthèse retenue, 37 qualifications retenues et 19 vidées (justification des silences VF : « respectent le seuil »), relance sans appel au modèle.
 
 ---
 

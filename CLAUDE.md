@@ -48,7 +48,7 @@ src/pad_guard/
   measure/    mesures par image (dont le peignage) et par bloc audio -> measurements.json
   structure/  mire, noirs de tête/queue, timecode, images figées, PSE
   rules/      schéma du profil, application des règles -> events.json + verdict
-  report/     génération Markdown / PDF
+  report/     génération Markdown / PDF ; ai.py : synthèse et qualifications IA, contrôlées, rejouées depuis llm_synthese.json
   llm/        LLMClient et OllamaClient (seule implémentation), consignes versionnées dans llm/prompts/
   draft/      draft-profile (lecture du PDF, schéma d'extraction, contrôle des citations), review-profile, compare-profiles
   cli.py      point d'entrée `pad-guard`
@@ -79,6 +79,7 @@ uv sync                                     # installer
 uv run pad-guard analyze film.mov --profile profiles/france_tv_hd.yaml --out ./out/
 uv run pad-guard rerun ./out/ [--from structure|rules|report] [--profile p.yaml]   # relancer sans refaire les mesures
 uv run pad-guard report ./out/            # régénérer le rapport sans refaire les mesures
+uv run pad-guard report ./out/ --llm ollama [--llm-model qwen3-vl:8b-instruct] [--llm-refresh]   # synthèse IA locale (aussi sur analyze et rerun)
 uv run pad-guard validate-profile profiles/arte_hd_sdr.yaml   # schéma, normes héritées, cycles
 uv run pad-guard explain-profile profiles/arte_hd_sdr.yaml    # chaque valeur, son origine, les conflits
 uv run pad-guard draft-profile diffuseurs/doc.pdf --name nom  # brouillon dans profiles/drafts/ (Ollama local)
