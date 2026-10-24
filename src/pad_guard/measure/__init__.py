@@ -19,7 +19,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from pad_guard import __version__, jsonio
-from pad_guard.decode.video import VideoDecoder
+from pad_guard.decode.video import VideoDecoder, picture_of
 from pad_guard.measure import audio as am
 from pad_guard.measure.models import (
     AudioSection,
@@ -68,7 +68,8 @@ def run(
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / MEASUREMENTS_FILE).unlink(missing_ok=True)
 
-    decoder = VideoDecoder(source, stream_index=probe.video.stream_index, frames_expected=probe.video.nb_frames)
+    decoder = VideoDecoder(source, stream_index=probe.video.stream_index, frames_expected=probe.video.nb_frames,
+                           picture=picture_of(probe.video.pix_fmt, probe.video.color_range, limits.matrix))
     y_p99 = array("d")  # 10-bit code values (quarters for a 12-bit file)
     comb, d_mean = array("d"), array("d")
     with (out_dir / VIDEO_FILE).open("w", encoding="utf-8", newline="\n") as f:

@@ -52,7 +52,8 @@ PHASE6_REMOVED = {"rules.min_event_frames.freeze", "format.codecs", "format.pix_
 # pix_fmt written as bit depth and chroma sampling.
 PHASE6_FORMAT = {"format.codecs", "format.bit_depth_allowed", "format.chroma_allowed", "format.pix_fmt"}
 # Severity chains of the house rules added in Phase 6 (normes/lumiris_maison.yaml).
-PHASE6_NEW = {"rules.severity.alpha_channel"}
+PHASE6_NEW = {"rules.severity.alpha_channel", "rules.severity.range_content_mismatch", "rules.severity.range_tag_suspect",
+              "video.range_detection.reserved_min_frames_pct"}
 LEVEL_CHAINS = ("rules.severity.white_clip", "rules.severity.black_crush", "rules.severity.gamut")
 
 

@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from pad_guard.decode.video import VideoFrame, read_frames
+from pad_guard.decode.video import Picture, VideoFrame, read_frames
 from pad_guard.labels import VIDEO_TYPES
 from pad_guard.measure.models import VideoSettings
 from pad_guard.measure.video import CHROMA_ZERO, VideoLimits, out_of_range_masks
@@ -72,7 +72,8 @@ def file_name(event: Event) -> str:
     return f"evenement_{event.id:03d}.png"
 
 
-def make(source: Path, stream_index: int, events: list[Event], settings: VideoSettings, out_dir: Path) -> dict[int, str]:
+def make(source: Path, stream_index: int, events: list[Event], settings: VideoSettings, out_dir: Path,
+         picture: Picture | None = None) -> dict[int, str]:
     """Write the thumbnails of the picture events; returns event id -> file name (relative to out_dir)."""
     wanted = [e for e in events if e.type in VIDEO_TYPES and e.scope == "range"]
     if not wanted:
@@ -83,7 +84,7 @@ def make(source: Path, stream_index: int, events: list[Event], settings: VideoSe
     for e in wanted:
         by_frame.setdefault(e.worst_frame if e.worst_frame is not None else e.frame_start, []).append(e)
     names: dict[int, str] = {}
-    for frame in read_frames(source, by_frame, stream_index):
+    for frame in read_frames(source, by_frame, stream_index, picture):
         for e in by_frame[frame.index]:
             name = file_name(e)
             Image.fromarray(render(frame, limits, e.type)).save(out_dir / name, format="PNG")

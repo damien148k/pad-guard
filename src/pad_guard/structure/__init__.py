@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 
 from pad_guard import __version__, jsonio, timecode, workdir as wd
-from pad_guard.decode.video import read_frames
+from pad_guard.decode.video import picture_of, read_frames
 from pad_guard.measure.models import Measurements
 from pad_guard.measure.series import GroupBlocks, VideoSeries, load_audio, load_video
 from pad_guard.probe.models import ProbeResult
@@ -70,6 +70,7 @@ class _Context:
         self.clock = timecode.Clock(self.fps, probe.timecode, probe.timecode_format)
         self.frames = video.frames
         self.source = Path(probe.source.path)
+        self.picture = picture_of(probe.video.pix_fmt, probe.video.color_range, profile.format.color_space)
         self.checks: list[StructureCheck] = []
         self.findings: list[Finding] = []
         s = profile.structure
@@ -121,7 +122,8 @@ def _find_bars(ctx: _Context, patterns: list[str], tolerance: float) -> list[Bar
     ctx.progress(f"Recherche de mire : {len(candidates)} plan(s) fixe(s) à examiner")
     middles = {(a + b) // 2: (a, b) for a, b in candidates}
     found = []
-    for frame in read_frames(ctx.need_source("la recherche de mire"), middles, ctx.probe.video.stream_index):
+    for frame in read_frames(ctx.need_source("la recherche de mire"), middles, ctx.probe.video.stream_index,
+                             ctx.picture):
         pattern, error = bars_mod.best_pattern(frame, patterns)
         if error <= tolerance:
             a, b = middles[frame.index]
@@ -319,7 +321,8 @@ def _letterbox(ctx: _Context, program: FrameRange, excluded: np.ndarray) -> Lett
     wanted = [f for f in range(program.frame_start, program.frame_end + 1, step) if not excluded[f]]
     ctx.progress(f"Format d'image : {len(wanted)} image(s) échantillonnée(s)")
     samples: list[LetterboxSample] = []
-    for frame in read_frames(ctx.need_source("le contrôle du format d'image"), wanted, ctx.probe.video.stream_index):
+    for frame in read_frames(ctx.need_source("le contrôle du format d'image"), wanted, ctx.probe.video.stream_index,
+                             ctx.picture):
         area = lb.active_area(frame.y, frame.index, y_max * frame.scale)
         if area is not None:
             samples.append(area)

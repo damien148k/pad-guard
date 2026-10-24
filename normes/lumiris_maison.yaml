@@ -21,6 +21,8 @@ video:
     interlaced_min_pct: 50.0
     progressive_max_pct: 10.0
     min_moving_frames: 25
+  range_detection:
+    reserved_min_frames_pct: 1.0         # A VERIFIER avec Vincent
 
 structure:
   pse:
@@ -45,6 +47,10 @@ rules:
       - {else: blocking, source: "Lumiris : fichier corrompu ou incomplet"}
     delivery_conversion_required:
       - {else: info, source: "Lumiris : information de livraison, pas une non-conformité du master (CLAUDE.md, Format de livraison)"}
+    range_content_mismatch:                # contenu en plage pleine dans un fichier annoncé en plage légale
+      - {else: major, source: "Lumiris : bornes de la plage numérique atteintes, contenu en plage pleine probable (décision de Damien, 24/10/2026) ; A VERIFIER"}
+    range_tag_suspect:                     # balise plage pleine, contenu en plage légale
+      - {else: info, source: "Lumiris : balise de plage probablement fausse, information"}
     alpha_channel:                         # plan alpha (ProRes 4444, DNxHR 444) : ignoré par les mesures
       - {else: info, source: "Lumiris : canal alpha ignoré par les mesures, signalé (décision de Damien, 24/10/2026)"}
     scan_flag_mismatch:                    # images progressives, drapeau entrelacé : l'étiquette est fausse, pas les images
@@ -60,6 +66,12 @@ sources:
     Lumiris : choix de regroupement, un dépassement de niveaux ou de gamut d'au moins 1 s est majeur, plus
     court il est mineur. Ce n'est pas une exigence des diffuseurs (Arte §3.2.3.3 ne fixe que la surface).
     A VERIFIER : à confirmer avec Vincent (décision de Damien, 24/10/2026).
+  video.range_detection: >-
+    Lumiris : un fichier annoncé en plage légale dont au moins 1 % des images du programme ont une luminance
+    à 4 ou moins, ou à 1019 ou plus (bornes des données vidéo, UIT-R BT.709-6 partie 2 §4.7, « Video data
+    4 through 1 019 » ; « Timing reference 0-3 and 1 020-1 023 » ; ProRes et DNxHR écrêtent à 4-1019) a un
+    contenu en plage pleine probable. Sur le vrai master Arte : 0,08 % des images (carton de fin à 1019).
+    A VERIFIER : seuil à confirmer avec Vincent sur de vrais fichiers.
   video.scan_detection: >-
     Lumiris : paramètres de la détection de peignage (SPEC §12.5), calibrés le 23/10/2026 sur
     testsrc2 entrelacé par FFmpeg tinterlace (comb ≥ 0,99 sur toutes les images), testsrc2 progressif

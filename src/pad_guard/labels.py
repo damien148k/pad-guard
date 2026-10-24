@@ -33,6 +33,8 @@ TYPE_LABELS = {
     "format_frame_rate": "Cadence",
     "integrity": "Intégrité du fichier",
     "alpha_channel": "Canal alpha",
+    "range_content_mismatch": "Contenu en plage pleine annoncé en plage légale",
+    "range_tag_suspect": "Plage pleine annoncée, contenu en plage légale",
     "delivery_conversion_required": "Conversion pour la livraison",
     "scan_flag_mismatch": "Drapeau de balayage incorrect",
     "scan_interlaced": "Master entrelacé",

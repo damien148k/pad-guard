@@ -40,11 +40,12 @@ from fractions import Fraction
 
 import numpy as np
 
+from pad_guard import formats
 from pad_guard.decode.video import VideoFrame
 from pad_guard.rules.profile import Profile
 
-# Luma/chroma weights (Kr, Kb) of the supported matrices. BT.2020 comes with HDR (v3).
-MATRICES = {"bt709": (0.2126, 0.0722)}
+# Luma/chroma weights (Kr, Kb) of the supported matrices (formats.py). BT.2020 comes with HDR.
+MATRICES = formats.MATRICES
 
 # 10-bit legal chroma: 64..960 around 512 (ITU-R BT.709 §3.4 / BT.1361), a definition, not a threshold.
 CHROMA_ZERO = 512

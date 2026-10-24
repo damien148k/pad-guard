@@ -502,7 +502,7 @@ def test_reference_to_a_norm_gives_no_value(doc_pdf, tmp_path) -> None:
     assert ref.value is None and ref.findings[0].norm == "ebu_r128" and "ignorée" in ref.findings[0].reason
     data = yaml.safe_load(files["yaml"].read_text(encoding="utf-8"))
     assert "integrated_lufs" not in (data.get("audio", {}).get("loudness", {}).get("long") or {})
-    assert data["meta"]["extends"] == ["ebu_r103", "ebu_r128", "lumiris_maison"]  # the cited norm after the others
+    assert data["meta"]["extends"] == ["ebu_r103", "itu_bt709", "ebu_r128", "lumiris_maison"]  # the cited norm after the others
     text = files["yaml"].read_text(encoding="utf-8")
     assert "EBU R 128 (normes/ebu_r128.yaml) : p. 1" in text
     assert "CST-RT-017 (absente de normes/" in text

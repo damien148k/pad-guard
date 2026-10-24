@@ -37,6 +37,9 @@ FIXTURE_FILES = (
     "fmt_h264_intra.mp4",
     "fmt_dnxhr_hq_2k.mov",
     "fmt_prores4444_alpha.mov",
+    "fmt_h264_full.mp4",
+    "fmt_full_as_tv.mov",
+    "fmt_dnxhr444_rgb.mov",
 )
 
 

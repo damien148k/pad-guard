@@ -21,6 +21,7 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from pad_guard import timecode, workdir as wd
 from pad_guard.audio_map import describe, tracks_text
 from pad_guard.labels import SEVERITY_LABELS, SEVERITY_ORDER, VIDEO_TYPES, number, status_label, type_label
+from pad_guard.decode.video import picture_of
 from pad_guard.measure import scan as scan_mod
 from pad_guard.measure.models import Measurements
 from pad_guard.measure.series import load_audio, load_video
@@ -525,7 +526,8 @@ def run(workdir: Path, profile: Profile, thumbnails: bool | None = None, progres
         count = sum(e.type in VIDEO_TYPES and e.scope == "range" for e in b.events)
         progress(f"Vignettes : {count} anomalie(s) image")
         names = thumbs.make(source, b.probe.video.stream_index, b.events, b.m.video_settings,
-                            workdir / wd.THUMBNAILS)
+                            workdir / wd.THUMBNAILS,
+                            picture_of(b.probe.video.pix_fmt, b.probe.video.color_range, b.m.video_settings.matrix))
     outcome = None
     if ai is not None:
         context, items = b.ai_inputs()

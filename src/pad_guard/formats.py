@@ -20,15 +20,22 @@ MEASURABLE_RATES: tuple[Fraction, ...] = (
     Fraction(50), Fraction(60000, 1001), Fraction(60),
 )
 
+
 class Layout(NamedTuple):
     bits: int  # per component
     hsub: int  # chroma subsampling, horizontal and vertical
     vsub: int
+    rgb: bool = False  # planar G, B, R (FFmpeg gbrp*): converted to Y'CbCr before measuring
+    full_range: bool = False  # the pixel format itself says full range (FFmpeg yuvj*)
 
 
-# Decoded pixel formats the measurement code reads (FFmpeg names): planar Y'CbCr, 8, 10 or 12 bits,
-# 4:2:0, 4:2:2 or 4:4:4. An alpha plane (yuva*) is ignored by the measurements and reported.
+# Decoded pixel formats the measurement code reads (FFmpeg names): planar Y'CbCr or R'G'B', 8, 10
+# or 12 bits, 4:2:0, 4:2:2 or 4:4:4. An alpha plane (yuva*, gbrap*) is ignored and reported.
 LAYOUTS: dict[str, Layout] = {
+    "yuvj420p": Layout(8, 2, 2, full_range=True), "yuvj422p": Layout(8, 2, 1, full_range=True),
+    "yuvj444p": Layout(8, 1, 1, full_range=True),
+    "gbrp": Layout(8, 1, 1, rgb=True), "gbrp10le": Layout(10, 1, 1, rgb=True), "gbrp12le": Layout(12, 1, 1, rgb=True),
+    "gbrap10le": Layout(10, 1, 1, rgb=True), "gbrap12le": Layout(12, 1, 1, rgb=True),
     "yuv420p": Layout(8, 2, 2), "yuv422p": Layout(8, 2, 1), "yuv444p": Layout(8, 1, 1),
     "yuv420p10le": Layout(10, 2, 2), "yuv422p10le": Layout(10, 2, 1), "yuv444p10le": Layout(10, 1, 1),
     "yuv420p12le": Layout(12, 2, 2), "yuv422p12le": Layout(12, 2, 1), "yuv444p12le": Layout(12, 1, 1),
@@ -40,7 +47,11 @@ MEASURABLE_PIX_FMTS: tuple[str, ...] = tuple(LAYOUTS)
 # Codec families known to decode to a measurable pixel format (shown by the interface).
 FAMILIES: tuple[str, ...] = ("ProRes (Proxy à 4444 XQ)", "DNxHD / DNxHR (LB à 444)", "H.264 / AVC-Intra / XAVC")
 
-CONTAINERS: tuple[str, ...] = ("MOV", "MXF")
+CONTAINERS: tuple[str, ...] = ("MOV", "MP4", "MXF")
+
+# Luma coefficients (Kr, Kb) of the colour matrices: definitions, not thresholds.
+# ITU-R BT.709-6, part 2, item 3.2: « E'Y = 0.2126 E'R + 0.7152 E'G + 0.0722 E'B ».
+MATRICES: dict[str, tuple[float, float]] = {"bt709": (0.2126, 0.0722)}
 
 
 def rate_label(fps: Fraction) -> str:

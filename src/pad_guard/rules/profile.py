@@ -57,6 +57,8 @@ EVENT_TYPES = (
     "format_frame_rate",
     "integrity",
     "alpha_channel",
+    "range_content_mismatch",
+    "range_tag_suspect",
     "delivery_conversion_required",
     "scan_flag_mismatch",
     "scan_interlaced",
@@ -238,6 +240,13 @@ class ScanDetection(_Model):
         return self
 
 
+class RangeDetection(_Model):
+    """Coding range of the content against its tag (Phase 6): luma at the ends of the video data
+    range, 4 and 1019 (ITU-R BT.709-6 item 4.7), in a file tagged narrow range."""
+
+    reserved_min_frames_pct: float = Field(ge=0, le=100)
+
+
 class Video(_Model):
     bit_depth: Literal[10]
     y_min_legal: int
@@ -252,6 +261,7 @@ class Video(_Model):
     prefilter_taps: Literal[3, 5] | None = None
     measure_spaces: list[Literal["ycbcr", "rgb"]] | None = None
     scan_detection: ScanDetection | None = None
+    range_detection: RangeDetection | None = None
 
     @model_validator(mode="after")
     def _prefilter(self) -> Video:
@@ -638,7 +648,10 @@ _DESCRIPTIONS: dict[type[BaseModel], dict[str, str]] = {
         "prefilter_taps": "Nombre de coefficients du filtre horizontal avant mesure (3 ou 5)",
         "measure_spaces": "Espaces dans lesquels mesurer les niveaux : ycbcr, rgb",
         "scan_detection": "Paramètres de la détection de peignage (PAD Guard, pas une valeur de diffuseur)",
+        "range_detection": "Paramètres de la détection d'un contenu en plage pleine (PAD Guard, pas une valeur de diffuseur)",
     },
+    RangeDetection: {"reserved_min_frames_pct": "Part des images du programme atteignant les bornes de la plage "
+                                                "numérique (4 et 1019) à partir de laquelle le contenu est en plage pleine"},
     ScanDetection: {"comb_ratio_min": "Rapport de peignage à partir duquel une image est peignée",
                     "motion_min": "Différence moyenne entre images à partir de laquelle une image bouge",
                     "interlaced_min_pct": "Part d'images peignées au-delà de laquelle le fichier est entrelacé",

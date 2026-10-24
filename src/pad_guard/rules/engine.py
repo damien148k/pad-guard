@@ -27,6 +27,7 @@ from pad_guard.probe.models import ProbeResult
 from pad_guard.profiles import from_json
 from pad_guard.profiles.resolve import capped_norm_values
 from pad_guard.rules import delivery, expr
+from pad_guard.decode.video import picture_of
 from pad_guard.rules import scan as scan_rule
 from pad_guard.rules.models import Event, Events, Verdict
 from pad_guard.rules.profile import (
@@ -130,6 +131,7 @@ def severity_types(profile: Profile, groups: list[AudioGroup]) -> set[str]:
         types.add("delivery_conversion_required")
     if profile.format.field_order == "progressive":
         types |= {"scan_flag_mismatch", "scan_interlaced"}
+    types |= {"range_content_mismatch", "range_tag_suspect"}
     return types
 
 
@@ -165,6 +167,8 @@ def depends_on(d: Draft, loudness_set: str) -> tuple[str, ...]:
         "letterbox": ("format.letterbox",),
         "delivery_conversion_required": ("format.delivery",),
         "scan_flag_mismatch": ("format.field_order", "video.scan_detection"),
+        "range_content_mismatch": ("video.range_detection",),
+        "range_tag_suspect": ("video.range_detection",),
         "scan_interlaced": ("format.field_order", "video.scan_detection"),
     }
     paths = by_type.get(d.type, ())
@@ -311,6 +315,44 @@ class Engine:
                 self.add(type="integrity", title=f"Erreur de décodage audio : {key}", source="integrity",
                          scope="file", frame_start=0, frame_end=self.last, value_text=f"{n} occurrence(s)",
                          threshold_text="aucune erreur", occurrences=n)
+
+    def coding_range(self) -> None:
+        """Content against the range tag. Narrow range: the codes 0-3 and 1020-1023 are reserved and
+        the video data is 4 to 1019 (BT.709-6 item 4.7); a picture that reaches the ends of that range
+        in many frames is full-range content (ProRes and DNxHR clip to 4-1019, so the reserved codes
+        themselves never show). Full range (converted to narrow by the decoder): content that never
+        leaves 64-940 was narrow."""
+        rd = require(self.p, "video.range_detection", "la détection de la plage de codage")
+        v = self.probe.video
+        programme = ~self.bars
+        if not programme.any():
+            return
+        y_min, y_max = self.v["y_min"][programme], self.v["y_max"][programme]
+        picture = picture_of(v.pix_fmt, v.color_range, self.p.format.color_space)
+        if picture is None:
+            reached = (y_min <= 4) | (y_max >= 1019)
+            share = 100.0 * float(reached.sum()) / reached.size
+            if reached.any() and share >= rd.reserved_min_frames_pct:
+                self.add(type="range_content_mismatch", title=type_label("range_content_mismatch"), source="measure",
+                         scope="file", frame_start=0, frame_end=self.last, worst_value=round(share, 2),
+                         threshold=rd.reserved_min_frames_pct,
+                         value_text=f"{number(share, 1)} % des images aux bornes de la plage numérique",
+                         threshold_text=f"moins de {number(rd.reserved_min_frames_pct, 1)} % des images",
+                         detail=f"balise {v.color_range or 'absente'} ; luminance à 4 ou moins, ou à 1019 ou plus "
+                                "(bornes des données vidéo en plage légale, UIT-R BT.709-6 §4.7) : contenu "
+                                "probablement en plage pleine, à vérifier sur un moniteur forme d'onde")
+        elif not picture.full_range or (v.sampling == "rgb"):
+            return
+        else:
+            # 64 and 940 of the full range, once converted to narrow range: 64 + 876 * D / 1023.
+            low, high = 64 + 876 * 64 / 1023, 64 + 876 * 940 / 1023
+            if float(y_min.min()) >= low and float(y_max.max()) <= high:
+                self.add(type="range_tag_suspect", title=type_label("range_tag_suspect"), source="measure",
+                         scope="file", frame_start=0, frame_end=self.last,
+                         value_text=f"luminance entre {number(float(y_min.min()), 1)} et {number(float(y_max.max()), 1)}",
+                         threshold_text="plage pleine : contenu au-delà de 64-940",
+                         detail="fichier annoncé en plage pleine dont la luminance reste dans 64-940 : la balise "
+                                "est peut-être fausse (contenu en plage légale)")
 
     def scan(self) -> None:
         """Scan of the pictures against the profile (rules/scan.py); the flag alone does not decide."""
@@ -600,6 +642,7 @@ class Engine:
             )
         self.probe_checks()
         self.scan()
+        self.coding_range()
         self.integrity()
         self.structure_checks()
         self.structure_findings()

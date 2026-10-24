@@ -258,6 +258,28 @@ if need fmt_prores4444_alpha.mov; then
         -c:v prores_ks -profile:v 4 -pix_fmt yuva444p10le -timecode 10:00:00:00 "$HERE/fmt_prores4444_alpha.mov"
     echo "  fmt_prores4444_alpha.mov"
 fi
+# Coding range: full range tagged as such (H.264 yuvj420p, pc), full-range content tagged narrow
+# (ProRes cannot carry the range: the levels are full, the tag says tv), and an R'G'B' file.
+BOXES="drawbox=x=0:y=0:w=96:h=96:color=white:t=fill,drawbox=x=96:y=0:w=96:h=96:color=black:t=fill"
+FULL="$BOXES,scale=out_color_matrix=bt709:out_range=pc"
+if need fmt_h264_full.mp4; then
+    "${FF[@]}" -f lavfi -i "testsrc2=s=640x360:r=25:d=2" \
+        -vf "$FULL,format=yuvj420p,setparams=field_mode=prog:range=pc:color_primaries=bt709:color_trc=bt709:colorspace=bt709" \
+        -c:v libx264 -pix_fmt yuvj420p -color_range pc -g 25 -timecode 10:00:00:00 "$HERE/fmt_h264_full.mp4"
+    echo "  fmt_h264_full.mp4"
+fi
+if need fmt_full_as_tv.mov; then
+    "${FF[@]}" -f lavfi -i "testsrc2=s=640x360:r=25:d=2" \
+        -vf "$FULL,format=yuv422p10le,setparams=field_mode=prog:range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709" \
+        "${PRORES_HQ[@]}" -timecode 10:00:00:00 "$HERE/fmt_full_as_tv.mov"
+    echo "  fmt_full_as_tv.mov"
+fi
+if need fmt_dnxhr444_rgb.mov; then
+    "${FF[@]}" -f lavfi -i "testsrc2=s=640x360:r=25:d=2" \
+        -vf "format=gbrp10le,setparams=field_mode=prog:range=pc:color_primaries=bt709:color_trc=bt709:colorspace=gbr" \
+        -c:v dnxhd -profile:v dnxhr_444 -pix_fmt gbrp10le -timecode 10:00:00:00 "$HERE/fmt_dnxhr444_rgb.mov"
+    echo "  fmt_dnxhr444_rgb.mov"
+fi
 
 # Timecode fixtures: FFmpeg writes the base (tmcd number of frames, MXF rounded timecode base)
 # and the drop frame flag from the rate and the separator of -timecode.

@@ -85,7 +85,8 @@ def preflight(profile: Profile, groups: list[AudioGroup]) -> list[str]:
     if profile.format.letterbox is not None and profile.format.letterbox.check:
         needs.append(("format.letterbox.tolerance_lines", "le format d'image"))
     needs += [("audio.silence_max_seconds", "les silences"), ("audio.phase_min_seconds", "la phase"),
-              ("video.scan_detection", "la détection du balayage")]
+              ("video.scan_detection", "la détection du balayage"),
+              ("video.range_detection", "la détection de la plage de codage")]
     if profile.format.delivery is not None:
         needs += [("format.delivery.scan", "la comparaison au format de livraison"),
                   ("format.delivery.fps", "la comparaison au format de livraison")]
