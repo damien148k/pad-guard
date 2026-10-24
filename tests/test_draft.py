@@ -408,6 +408,19 @@ def test_cli_releases_the_model(doc_pdf, tmp_path, monkeypatch, extra, code) -> 
     assert ("Contexte :" in text) if code == 0 else ("trop petit" in text)
 
 
+def test_draft_progress_json(doc_pdf, tmp_path, monkeypatch) -> None:
+    import pad_guard.cli as cli
+
+    monkeypatch.setattr(cli, "_ollama_or_exit", lambda model: _ReleasingClient())
+    progress = tmp_path / "progression.jsonl"
+    result = CliRunner().invoke(app, ["draft-profile", str(doc_pdf), "--name", "chaine_test", "--out-dir",
+                                      str(tmp_path), "--progress-json", str(progress)])
+    assert result.exit_code == 0, result.output
+    lines = [json.loads(x) for x in progress.read_text(encoding="utf-8").splitlines()]
+    assert list(dict.fromkeys(x["stage"] for x in lines)) == ["read", "extract", "done"]
+    assert lines[-1]["draft"] == str(tmp_path / "chaine_test.yaml")
+
+
 def test_quote_normalisation() -> None:
     page = "Le niveau ne doit pas dé-\npasser −1 dB TP en PCM. L’amorce est interdite."
     assert verify.quote_in("ne doit pas dépasser -1 dB TP", page)

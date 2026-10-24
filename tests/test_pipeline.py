@@ -316,3 +316,45 @@ def test_integrity_errors_deduplicated(fixtures_dir, tmp_path) -> None:
     md = (out / wd.REPORT_MD).read_text(encoding="utf-8")
     table = md[md.index("### Erreurs de décodage (dédoublonnées)"):md.index("## 5. Audio")]
     assert table.count("prores: invalid frame header") == 1
+
+
+# --- Phase 5: what the local interface reads ----------------------------------------------------
+
+
+def test_progress_json_and_report_json(fixtures_dir, tmp_path) -> None:
+    out = tmp_path / "work"
+    progress = out / wd.PROGRESS
+    result = invoke("analyze", str(fixtures_dir / "bad_levels.mov"), "--profile", str(CLASSIC), "--out", str(out),
+                    "--progress-json", str(progress))
+    assert result.exit_code == EXIT_NON_CONFORME, result.output
+    lines = [json.loads(x) for x in progress.read_text(encoding="utf-8").splitlines()]
+    stages = [x["stage"] for x in lines if x["stage"] != "log"]
+    firsts = list(dict.fromkeys(stages))
+    assert firsts == ["probe", "measure_video", "measure_audio", "structure", "rules", "report", "done"]
+    frames = [x for x in lines if x["stage"] == "measure_video"]
+    assert frames[-1]["done"] == frames[-1]["total"] > 0
+    assert lines[-1]["status"] == "NON-CONFORME" and lines[-1]["msg"] == "NON-CONFORME"
+    run = json.loads((out / wd.RUN).read_text(encoding="utf-8"))
+    assert run["finished_at"] >= run["analyzed_at"]
+
+    view = json.loads((out / wd.REPORT_JSON).read_text(encoding="utf-8"))
+    ev = events(out)
+    assert view["verdict"]["status"] == verdict(out)["status"] and view["verdict"]["label"] == "NON-CONFORME"
+    assert [e["key"] for e in view["events"]] == [f"{e['type']}@{e['frame_start']}@{e['group'] or ''}" for e in ev]
+    assert view["duplicate_keys"] == []
+    thumbs = [e for e in view["events"] if e["thumbnail"]]
+    assert thumbs and all((out / e["thumbnail"]).is_file() for e in thumbs)
+    assert view["synthesis"]["by_ai"] is False and "gabarit" in view["synthesis"]["note"]
+    assert view["timeline"]["ticks"][0]["pct"] == 0 and view["timeline"]["ticks"][-1]["pct"] == 100
+    assert view["checks"] and all({"label", "expected", "actual", "status"} <= set(c) for c in view["checks"])
+
+
+def test_probe_preview_skips_the_hash(fixtures_dir) -> None:
+    from pad_guard.probe import probe_file
+    from pad_guard.profiles import resolve_profile
+
+    prof = resolve_profile(CLASSIC).profile
+    preview = probe_file(fixtures_dir / "ok_prores.mov", prof, CLASSIC, hash_source=False)
+    full = probe_file(fixtures_dir / "ok_prores.mov", prof, CLASSIC)
+    assert preview.source.sha256 == "" and len(full.source.sha256) == 64
+    assert preview.model_copy(update={"source": full.source}) == full

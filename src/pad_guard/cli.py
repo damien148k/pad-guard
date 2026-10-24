@@ -22,6 +22,7 @@ from pad_guard.draft.write import CAPPED
 from pad_guard.labels import SEVERITY_LABELS, SEVERITY_ORDER, status_label
 from pad_guard.measure import scan as scan_mod
 from pad_guard.measure.models import Measurements
+from pad_guard.progress import ProgressFile
 from pad_guard.probe import ProbeError, probe_file
 from pad_guard.probe.models import ProbeResult
 from pad_guard.profiles import ResolvedProfile, is_norm, load_norm, resolve_profile
@@ -53,6 +54,11 @@ _STATUS = {"ok": "[green]OK[/green]", "fail": "[red]ÉCHEC[/red]", "unknown": "[
 class LlmBackend(str, Enum):
     none = "none"
     ollama = "ollama"
+
+
+def _progress_option():
+    return typer.Option(None, "--progress-json",
+                        help="Écrit aussi la progression en JSON Lines dans ce fichier (pour l'interface locale).")
 
 
 class StepName(str, Enum):
@@ -100,8 +106,10 @@ def analyze(
         0, "--workers", min=0, help="Processus de mesure vidéo (0 = automatique). Sans effet sur les résultats.",
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Affiche la progression détaillée."),
+    progress_json: Path | None = _progress_option(),
 ) -> None:
     """Analyse un fichier et produit mesures, événements, verdict et rapport."""
+    pf = ProgressFile(progress_json)
     resolved = _load_profile_or_exit(profile)
     prof = resolved.profile
     mapping = _audio_map_or_exit(audio_map, prof)
@@ -118,6 +126,7 @@ def analyze(
                        *(("--audio-map", audio_map) if audio_map else ()), *_thumbnail_flag(thumbnails),
                        *((f"--workers", str(workers)) if workers else ()), *_llm_flags(ai))
 
+    pf.emit("probe", "Lecture du fichier et empreinte SHA-256")
     try:
         result = probe_file(file, prof, profile, mapping)
     except ProbeError as exc:
@@ -139,11 +148,13 @@ def analyze(
         _benchmark(file, result)
         return
 
-    measurements = _measure(result, prof, out, workers)
+    measurements = _measure(result, prof, out, workers, pf)
     _print_measurements(measurements, out)
-    _steps(lambda: pipeline.run_steps(out, prof, "structure", thumbnails, _progress(verbose), ai))
+    _steps(lambda: pipeline.run_steps(out, prof, "structure", thumbnails, _progress(verbose, pf), ai,
+                                      on_step=pf.emit))
+    pipeline.finish_run(out)
     _print_ai(ai)
-    _finish(out)
+    _finish(out, pf)
 
 
 @app.command()
@@ -168,8 +179,10 @@ def rerun(
     llm_refresh: bool = typer.Option(
         False, "--llm-refresh", help=f"Rappelle le modèle même si {wd.LLM_SYNTHESIS} correspond aux entrées."),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Affiche la progression détaillée."),
+    progress_json: Path | None = _progress_option(),
 ) -> None:
     """Relance structure, règles et rapport à partir des JSON existants, sans refaire les mesures."""
+    pf = ProgressFile(progress_json)
     if profile is not None:
         prof = _load_profile_or_exit(profile).profile
         problems = pipeline.preflight(prof, prof.audio.groups)
@@ -181,9 +194,10 @@ def rerun(
     ai = _ai_options(llm_backend, llm_model, llm_refresh)
     command = _command("rerun", str(workdir), "--from", from_step.value, *(("--profile", str(profile)) if profile else ()),
                        *_thumbnail_flag(thumbnails), *_llm_flags(ai))
-    _steps(lambda: pipeline.rerun(workdir, from_step.value, profile, command, thumbnails, _progress(verbose), ai))
+    _steps(lambda: pipeline.rerun(workdir, from_step.value, profile, command, thumbnails, _progress(verbose, pf), ai,
+                                  on_step=pf.emit))
     _print_ai(ai)
-    _finish(workdir)
+    _finish(workdir, pf)
 
 
 @app.command()
@@ -253,8 +267,14 @@ def _command(*args: str) -> str:
     return subprocess.list2cmdline(["pad-guard", *args])
 
 
-def _progress(verbose: bool):
-    return (lambda msg: err_console.print(f"[dim]{msg}[/dim]")) if verbose else None
+def _progress(verbose: bool, pf: ProgressFile | None = None):
+    def show(msg: str) -> None:
+        if verbose:
+            err_console.print(f"[dim]{msg}[/dim]")
+        if pf is not None:
+            pf.log(msg)
+
+    return show if verbose or (pf is not None and pf.path is not None) else None
 
 
 _STEP_ERRORS = (
@@ -275,8 +295,11 @@ def _steps(action) -> None:
         raise typer.Exit(EXIT_REFUSED) from None
 
 
-def _finish(out: Path) -> None:
+def _finish(out: Path, pf: ProgressFile | None = None) -> None:
     verdict = jsonio.read(out / wd.VERDICT, Verdict)
+    if pf is not None:
+        pf.emit("done", status_label(verdict.status, verdict.indicative), status=verdict.status,
+                indicative=verdict.indicative)
     colour = "red" if verdict.status != "CONFORME" else "yellow" if verdict.indicative else "green"
     counts = ", ".join(f"{verdict.counts[s]} {SEVERITY_LABELS[s]}" for s in SEVERITY_ORDER)
     if verdict.indicative:
@@ -334,7 +357,7 @@ def _print_probe(result: ProbeResult) -> None:
     console.print(table)
 
 
-def _measure(result: ProbeResult, prof: Profile, out: Path, workers: int) -> Measurements:
+def _measure(result: ProbeResult, prof: Profile, out: Path, workers: int, pf: ProgressFile | None = None) -> Measurements:
     total = result.video.nb_frames
     start = time.perf_counter()
     try:
@@ -343,7 +366,15 @@ def _measure(result: ProbeResult, prof: Profile, out: Path, workers: int) -> Mea
             console=err_console, transient=True,
         ) as bar:
             task = bar.add_task("images", total=total)
-            m = measure.run(result, prof, out, workers or None, progress=lambda done: bar.update(task, completed=done))
+            pf = pf or ProgressFile(None)
+            pf.emit("measure_video", done=0, total=total)
+
+            def on_frames(done: int) -> None:
+                bar.update(task, completed=done)
+                pf.counter("measure_video", done, total)
+
+            m = measure.run(result, prof, out, workers or None, progress=on_frames,
+                            on_audio=lambda: pf.emit("measure_audio", "Mesures audio : loudness, true peak, silences"))
     except measure.MeasureSetupError as exc:
         err_console.print(f"[red]Profil inutilisable pour les mesures : {exc}[/red]")
         raise typer.Exit(EXIT_USAGE) from None
@@ -531,8 +562,11 @@ def draft_profile(
     repeat_penalty: float | None = typer.Option(
         llm.REPEAT_PENALTY, "--repeat-penalty", min=1.0,
         help="Pénalité de répétition d'Ollama (1.0 : aucune ; enregistrée dans le .llm.jsonl)."),
+    progress_json: Path | None = _progress_option(),
 ) -> None:
     """Propose un profil brouillon à partir du PDF d'un diffuseur, avec le modèle local (Ollama)."""
+    pf = ProgressFile(progress_json)
+    pf.emit("read", "Lecture du PDF")
     client = _ollama_or_exit(model)
     client.num_ctx = num_ctx
     client.repeat_penalty = repeat_penalty
@@ -547,11 +581,13 @@ def draft_profile(
             console.print(f"{doc.path.name} : {len(doc.pages)} pages, {images} rendue(s) en image, "
                           f"SHA-256 {doc.sha256}")
             bar.update(task, description="Extraction (lots de pages)")
+            pf.emit("extract", f"{len(doc.pages)} pages lues, extraction par le modèle local", pages=len(doc.pages))
 
         def on_progress(done: int, total: int) -> None:
             if done == 0:
                 console.print(f"Contexte : {client.num_ctx} jetons" + ("" if num_ctx else " (calculé)"))
             bar.update(task, completed=done, total=total)
+            pf.counter("extract", done, total)
 
         try:
             x, files = draft.make_draft(pdf_file, name, client, out_dir, broadcaster, progress=on_progress,
@@ -576,6 +612,7 @@ def draft_profile(
     console.print(f"meta.extends proposé : {', '.join(draft.proposed_extends(list(cited)))}", highlight=False)
     console.print(f"Brouillon : {files['yaml']}\n  détail : {files['findings']}\n  réponses du modèle : {files['log']}")
     console.print(f"À relire avec : pad-guard review-profile {files['yaml']}")
+    pf.emit("done", "Brouillon écrit", draft=str(files["yaml"]))
 
 
 def _ollama_or_exit(model: str | None) -> llm.OllamaClient:

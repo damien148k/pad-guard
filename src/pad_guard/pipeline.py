@@ -55,6 +55,15 @@ def start_run(workdir: Path, profile_path: Path, command: str, resolved: Resolve
     jsonio.write(workdir / wd.RUN, RunInfo(analyzed_at=now(), command=command, profile_file=str(profile_path)))
 
 
+def finish_run(workdir: Path) -> None:
+    """Record in run.json the end of ``analyze`` (the interface shows how long it took)."""
+    run_file = workdir / wd.RUN
+    if run_file.is_file():
+        info = jsonio.read(run_file, RunInfo)
+        info.finished_at = now()
+        jsonio.write(run_file, info)
+
+
 def preflight(profile: Profile, groups: list[AudioGroup]) -> list[str]:
     """Profile values and severity chains the analysis will need, checked before measuring (French).
 
@@ -94,16 +103,22 @@ def preflight(profile: Profile, groups: list[AudioGroup]) -> list[str]:
 
 
 def run_steps(workdir: Path, profile: Profile, first: Step = "structure", thumbnails: bool | None = None,
-              progress: Progress | None = None, ai: report.ai.Options | None = None) -> None:
+              progress: Progress | None = None, ai: report.ai.Options | None = None,
+              on_step: Callable[[Step], None] | None = None) -> None:
+    """``on_step`` is called with the name of each step before it starts (--progress-json)."""
     progress = progress or (lambda _msg: None)
+    on_step = on_step or (lambda _step: None)
     todo = STEPS[STEPS.index(first):]
     if "structure" in todo:
+        on_step("structure")
         progress("Structure : mire, noirs, timecode, images figées, PSE, format d'image")
         structure.run(workdir, profile, progress)
     if "rules" in todo:
+        on_step("rules")
         progress("Règles : événements, gravité, verdict")
         engine.run(workdir, profile)
     if "report" in todo:
+        on_step("report")
         progress("Rapport")
         report.run(workdir, profile, thumbnails=thumbnails, progress=progress, ai=ai)
 
@@ -138,7 +153,8 @@ def measurement_differences(workdir: Path, probe: ProbeResult, m: Measurements, 
 
 
 def rerun(workdir: Path, first: Step, profile_path: Path | None, command: str, thumbnails: bool | None = None,
-          progress: Progress | None = None, ai: report.ai.Options | None = None) -> None:
+          progress: Progress | None = None, ai: report.ai.Options | None = None,
+          on_step: Callable[[Step], None] | None = None) -> None:
     probe = wd.load(workdir, wd.PROBE, ProbeResult, "analyze")
     m = wd.load(workdir, wd.MEASUREMENTS, Measurements, "analyze")
     stored = workdir / wd.PROFILE
@@ -182,4 +198,4 @@ def rerun(workdir: Path, first: Step, profile_path: Path | None, command: str, t
         analyzed_at="inconnue", command="inconnue", profile_file=str(profile_path))
     info.reruns.append(Rerun(at=now(), command=command, from_step=first, profile_file=str(profile_path)))
     jsonio.write(run_file, info)
-    run_steps(workdir, profile, first, thumbnails, progress, ai)
+    run_steps(workdir, profile, first, thumbnails, progress, ai, on_step)

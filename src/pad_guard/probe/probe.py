@@ -285,11 +285,11 @@ def _check_audio(
               ", ".join(f"{d} bits" for d in depths), len(depths) == 1)
 
 
-def _source(path: Path, known: SourceInfo | None) -> SourceInfo:
+def _source(path: Path, known: SourceInfo | None, hash_source: bool = True) -> SourceInfo:
     resolved, size = str(path.resolve()), path.stat().st_size
     if known is not None and known.path == resolved and known.size_bytes == size:
         return known
-    return SourceInfo(path=resolved, size_bytes=size, sha256=sha256_file(path))
+    return SourceInfo(path=resolved, size_bytes=size, sha256=sha256_file(path) if hash_source else "")
 
 
 def _refusal(ch: Check) -> str:
@@ -301,13 +301,16 @@ def _refusal(ch: Check) -> str:
 
 def probe_file(
     path: str | Path, profile: Profile, profile_path: str | Path, audio_map: AudioMap | None = None,
-    known: SourceInfo | None = None,
+    known: SourceInfo | None = None, hash_source: bool = True,
 ) -> ProbeResult:
     """``audio_map`` overrides the profile track groups (``--audio-map``); None = profile default.
 
     ``known``: source identity from a previous probe of the same file (``rerun`` with another
     profile). Its SHA-256 is kept when the path and size are unchanged, instead of reading the
     whole file again (a feature master is 100+ GB).
+
+    ``hash_source`` False: preview of the interface before the analysis, the SHA-256 of the source is
+    left empty (never written to probe.json).
     """
     path = Path(path)
     mapping = audio_map or amap.from_profile(profile)
@@ -339,7 +342,7 @@ def probe_file(
         tool_version=__version__,
         profile=ProfileRef(name=profile.meta.name, version=profile.meta.version, sha256=sha256_file(profile_path),
                            status=profile.meta.status, effective_sha256=fingerprint(profile)),
-        source=_source(path, known),
+        source=_source(path, known, hash_source),
         container=container,
         video=video,
         audio_streams=audio,

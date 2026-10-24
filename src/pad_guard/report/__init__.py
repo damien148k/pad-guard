@@ -398,6 +398,63 @@ class _Builder:
                      "est une interprétation à confirmer.")
         return notes
 
+    def view(self, sections: dict, names: dict[int, str], outcome: ai_mod.Outcome | None) -> dict:
+        """rapport.json: what rapport.md shows, as data, for the local interface (Phase 5). The
+        interface displays it as is and computes nothing. Anomalies are named by ``Event.key``."""
+        v = self.verdict
+        keys = [e.key for e in self.events]
+        duplicates = sorted({k for k in keys if keys.count(k) > 1})
+        frames = self.st.frames
+        events = []
+        for e, row in zip(self.events, self.event_rows(names, outcome)):
+            q = outcome.qualifications.get(e.id) if outcome else None
+            events.append(dict(
+                key=e.key, id=e.id, type=e.type, label=row["type"], title=e.title, severity=e.severity,
+                severity_label=row["severity"], severity_source=e.severity_source, scope=e.scope,
+                frame_start=e.frame_start, frame_end=e.frame_end, tc_start=row["tc_start"], tc_end=row["tc_end"],
+                duration=row["duration"], value=e.value_text, threshold=e.threshold_text, area=row["area"],
+                group=e.group, detail=e.detail,
+                thumbnail=f"{wd.THUMBNAILS}/{names[e.id]}" if e.id in names else None,
+                qualification=q.value if q else None, qualification_justification=q.justification if q else None,
+                qualification_empty_reason=outcome.rejected.get(e.id) if outcome else None,
+            ))
+        ticks = 6
+        layers = []
+        path = self.dir / wd.EFFECTIVE_PROFILE
+        if path.is_file():
+            resolved = from_json(json.loads(path.read_text(encoding="utf-8")), path)
+            layers = [layer.document.split(" — ")[0] for layer in resolved.layers if layer.kind == "norm"]
+        h = dict(sections["h"], reruns=[r.model_dump(mode="json") for r in sections["h"]["reruns"]])
+        return {
+            "schema_version": 1,
+            "tool_version": v.tool_version,
+            "header": h,
+            "profile": {"name": self.p.meta.name, "version": self.p.meta.version, "status": self.p.meta.status,
+                        "broadcaster": self.p.meta.broadcaster, "norms": layers},
+            "verdict": {"status": v.status, "indicative": v.indicative, "label": sections["status"],
+                        "score": v.score, "score_text": sections["score"], "score_formula": v.score_formula,
+                        "counts": v.counts, "counts_labels": {s: SEVERITY_LABELS[s] for s in SEVERITY_ORDER},
+                        "max_major": v.max_major, "reasons": v.reasons},
+            "synthesis": {"text": sections["synthesis"], "note": sections["synthesis_note"],
+                          "by_ai": bool(outcome and outcome.paragraphs is not None),
+                          "warnings": sections["ai_warnings"]},
+            "delivery": sections["delivery"],
+            "checks": sections["checks"],
+            "integrity_errors": sections["integrity_errors"],
+            "audio": sections["audio"],
+            "timeline": {"frames": frames, "tc_start": self.clock.tc(0), "tc_end": self.clock.tc(frames - 1),
+                         "ticks": [{"pct": round(100 * i / ticks, 3),
+                                    "label": self.clock.tc(min(frames - 1, round((frames - 1) * i / ticks)))[:5]}
+                                   for i in range(ticks + 1)]},
+            "events": events,
+            "duplicate_keys": duplicates,
+            "thumbnails_note": sections["thumbnails_note"],
+            "charts": sections["charts"],
+            "parameters": sections["parameters"],
+            "norm_gaps": sections["norm_gaps"],
+            "notes": sections["notes"],
+        }
+
 
 def ai_note(outcome: ai_mod.Outcome) -> str:
     """« Méthodes et limites » line of the AI layer (French)."""
@@ -479,9 +536,8 @@ def run(workdir: Path, profile: Profile, thumbnails: bool | None = None, progres
     env = Environment(loader=FileSystemLoader(Path(__file__).parent), undefined=StrictUndefined,
                       keep_trailing_newline=True, autoescape=False)
     env.filters["cell"] = _cell
-    text = env.get_template("rapport.md.j2").render(
+    sections = dict(
         h=b.header(),
-        v=b.verdict,
         status=status_label(b.verdict.status, b.verdict.indicative),
         score=number(b.verdict.score, 0 if b.verdict.score.is_integer() else 1),
         delivery=b.delivery(),
@@ -490,7 +546,6 @@ def run(workdir: Path, profile: Profile, thumbnails: bool | None = None, progres
         ai_warnings=ai_warnings,
         checks=b.checks(),
         integrity_errors=b.integrity_errors(),
-        letterbox_changes=b.st.letterbox.changes if b.st.letterbox else [],
         audio=b.audio(),
         event_tables=b.event_tables(names, outcome),
         thumbnails=b.thumbnail_rows(names),
@@ -501,8 +556,13 @@ def run(workdir: Path, profile: Profile, thumbnails: bool | None = None, progres
         norm_gaps=b.norm_gaps(),
         notes=b.notes(outcome),
     )
+    text = env.get_template("rapport.md.j2").render(
+        v=b.verdict, letterbox_changes=b.st.letterbox.changes if b.st.letterbox else [], **sections)
     md_path = workdir / wd.REPORT_MD
     md_path.write_text(text, encoding="utf-8", newline="\n")
+    view = b.view(sections, names, outcome)
+    (workdir / wd.REPORT_JSON).write_text(json.dumps(view, indent=2, ensure_ascii=False) + "\n", encoding="utf-8",
+                                          newline="\n")
     progress("PDF")
     pdf.write(text, workdir, workdir / wd.REPORT_PDF, f"Rapport PAD Guard — {Path(b.probe.source.path).name}")
     return md_path

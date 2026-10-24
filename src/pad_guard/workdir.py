@@ -22,6 +22,8 @@ PROFILE = "profile.yaml"  # byte copy of the profile file used
 EFFECTIVE_PROFILE = "effective_profile.json"  # profile + inherited norms, read by ``rerun`` (SPEC §12.3)
 REPORT_MD = "rapport.md"
 REPORT_PDF = "rapport.pdf"
+REPORT_JSON = "rapport.json"  # what rapport.md shows, as data, for the local interface
+PROGRESS = "progression.jsonl"  # --progress-json: steps and counters of a running command
 THUMBNAILS = "vignettes"
 CHARTS = "annexes"
 LLM_SYNTHESIS = "llm_synthese.json"  # answers of the local model, replayed while the inputs are the same
@@ -43,6 +45,7 @@ class RunInfo(BaseModel):
     analyzed_at: str
     command: str
     profile_file: str
+    finished_at: str | None = None  # end of analyze (None: interrupted, or older run.json)
     reruns: list[Rerun] = []
 
 

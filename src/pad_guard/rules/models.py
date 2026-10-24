@@ -38,6 +38,11 @@ class Event(BaseModel):
     detail: str = ""
     occurrences: int | None = None  # integrity: number of decoding errors merged into this event
 
+    @property
+    def key(self) -> str:
+        """Stable name of the anomaly across reruns (the id is a rank, it moves): type, first frame, group."""
+        return f"{self.type}@{self.frame_start}@{self.group or ''}"
+
 
 class Events(BaseModel):
     schema_version: int = SCHEMA_VERSION

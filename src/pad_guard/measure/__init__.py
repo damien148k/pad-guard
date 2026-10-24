@@ -60,6 +60,7 @@ def run(
     out_dir: Path,
     workers: int | None = None,
     progress: Progress | None = None,
+    on_audio: Callable[[], None] | None = None,
 ) -> Measurements:
     limits = VideoLimits.from_profile(profile)
     scan_settings = scan_detection(profile)
@@ -80,6 +81,8 @@ def run(
                 progress(len(y_p99))
     integrity = decoder.integrity
 
+    if on_audio and probe.audio_tracks:
+        on_audio()
     audio = _measure_audio(probe, profile, out_dir, y_p99, len(y_p99)) if probe.audio_tracks else None
     if audio is None:
         (out_dir / AUDIO_FILE).unlink(missing_ok=True)
