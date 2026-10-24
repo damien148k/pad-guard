@@ -225,6 +225,8 @@ def text_problems(text: str, allowed: Allowed) -> list[str]:
 
 def opening(verdict: dict) -> str:
     """First sentence the synthesis is asked to start with."""
+    if verdict.get("technique"):
+        return "Rapport technique, sans verdict de conformité."
     if not verdict["indicatif"]:
         return f"Verdict : {verdict['statut']}."
     shown = "NON-CONFORME" if verdict["statut"] == "NON-CONFORME" else "sans anomalie bloquante"
@@ -237,6 +239,12 @@ def verdict_problems(text: str, verdict: dict) -> list[str]:
     low = t.lower()
     status, indicative, label = verdict["statut"], verdict["indicatif"], verdict["affiche"]
     out = []
+    if verdict.get("technique"):  # no broadcaster: neither CONFORME nor NON-CONFORME may be written
+        if "rapport technique" not in low:
+            out.append("la mention « Rapport technique » manque")
+        if re.search(r"(?i)conform", t):
+            out.append("« conforme » ou « non conforme » écrit dans un rapport technique (aucun verdict)")
+        return out
     if status == "NON-CONFORME":
         if "NON-CONFORME" not in t:
             out.append("le verdict NON-CONFORME n'est pas écrit")

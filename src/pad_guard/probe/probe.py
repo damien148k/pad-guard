@@ -24,7 +24,7 @@ from pad_guard.probe.models import (
     VideoInfo,
 )
 from pad_guard.profiles import fingerprint
-from pad_guard.rules.profile import Profile
+from pad_guard.rules.profile import ANY, Profile
 from pad_guard.timecode import TimecodeFormat
 
 _UNKNOWN = {None, "", "unknown", "unspecified", "N/A"}
@@ -257,44 +257,66 @@ def _check_measurable(c: _Checks, v: VideoInfo) -> None:
           f"{v.r_frame_rate} / {v.avg_frame_rate}", not variable, refusal=True)
 
 
-def _check_format(c: _Checks, p: Profile, container: ContainerInfo, v: VideoInfo) -> None:
-    f = p.format
-    c.add("container", "Conteneur", "format_container", " ou ".join(f.containers), container_label(container),
-          _container_ok(container, f.containers))
+ANY_LABEL = "tout (contrôle technique)"
 
-    accepted = [(spec.codec_name, spec.profile) for spec in f.codecs]
-    labels = list(dict.fromkeys(spec.label or f"{spec.codec_name} {spec.profile}" for spec in f.codecs))
+
+def _check_format(c: _Checks, p: Profile, container: ContainerInfo, v: VideoInfo) -> None:
+    """Format of the file against the profile. A value "any" (technical profile) accepts everything:
+    the check is listed with what the file holds, never failed."""
+    f = p.format
+
+    def add(id_: str, label: str, type_: str, wanted, expected: str, actual: str, ok: bool | None) -> None:
+        if wanted == ANY:
+            c.add(id_, label, type_, ANY_LABEL, actual, True)
+        else:
+            c.add(id_, label, type_, expected, actual, ok)
+
+    containers = f.containers
+    add("container", "Conteneur", "format_container", containers,
+        " ou ".join(containers) if containers != ANY else "", container_label(container),
+        containers == ANY or _container_ok(container, containers))
+
     found_codec = f"{v.codec_name} {v.profile or '(profil inconnu)'}"
-    c.add("codec", "Codec et profil", "format_codec", ", ".join(labels), found_codec,
-          (v.codec_name, v.profile) in accepted)
+    if f.codecs == ANY:
+        add("codec", "Codec et profil", "format_codec", ANY, "", found_codec, True)
+    else:
+        accepted = [(spec.codec_name, spec.profile) for spec in f.codecs]
+        labels = list(dict.fromkeys(spec.label or f"{spec.codec_name} {spec.profile}" for spec in f.codecs))
+        add("codec", "Codec et profil", "format_codec", f.codecs, ", ".join(labels), found_codec,
+            (v.codec_name, v.profile) in accepted)
     if f.pix_fmt is not None:  # older form of the profile
         c.add("pix_fmt", "Format de pixel", "format_picture", f.pix_fmt, v.pix_fmt or "inconnu", v.pix_fmt == f.pix_fmt)
     else:
-        c.add("bit_depth", "Profondeur", "format_picture", " ou ".join(f"{b} bits" for b in f.bit_depth_allowed),
-              f"{v.bit_depth} bits" if v.bit_depth else v.pix_fmt or "inconnue", v.bit_depth in f.bit_depth_allowed)
-        c.add("chroma", "Échantillonnage de la chrominance", "format_picture",
-              " ou ".join("RVB" if x == "rgb" else x for x in f.chroma_allowed),
-              ("RVB" if v.sampling == "rgb" else v.sampling) or v.pix_fmt or "inconnu", v.sampling in f.chroma_allowed)
+        depths, chroma = f.bit_depth_allowed, f.chroma_allowed
+        add("bit_depth", "Profondeur", "format_picture", depths,
+            " ou ".join(f"{b} bits" for b in depths) if depths != ANY else "",
+            f"{v.bit_depth} bits" if v.bit_depth else v.pix_fmt or "inconnue", depths == ANY or v.bit_depth in depths)
+        add("chroma", "Échantillonnage de la chrominance", "format_picture", chroma,
+            " ou ".join("RVB" if x == "rgb" else x for x in chroma) if chroma != ANY else "",
+            ("RVB" if v.sampling == "rgb" else v.sampling) or v.pix_fmt or "inconnu",
+            chroma == ANY or v.sampling in chroma)
     if v.alpha:
         c.add("alpha", "Canal alpha", "alpha_channel", "aucun", "présent, ignoré par les mesures", False)
-    c.add("resolution", "Résolution", "format_resolution", f"{f.width}x{f.height}", f"{v.width}x{v.height}",
-          (v.width, v.height) == (f.width, f.height))
+    size = ANY if ANY in (f.width, f.height) else (f.width, f.height)
+    add("resolution", "Résolution", "format_resolution", size, f"{f.width}x{f.height}", f"{v.width}x{v.height}",
+        (v.width, v.height) == size)
 
-    allowed = {_fps(r) for r in f.fps_allowed}
     r, avg = _fps(v.r_frame_rate), _fps(v.avg_frame_rate)
-    c.add("frame_rate", "Cadence", "format_frame_rate", " ou ".join(f.fps_allowed), v.r_frame_rate, r in allowed)
+    rates = f.fps_allowed
+    add("frame_rate", "Cadence", "format_frame_rate", rates, " ou ".join(rates) if rates != ANY else "",
+        v.r_frame_rate, rates == ANY or r in {_fps(x) for x in rates})
     c.add("frame_rate_constant", "Cadence constante", "format_frame_rate", "r_frame_rate = avg_frame_rate",
           f"{v.r_frame_rate} / {v.avg_frame_rate}", r is not None and r == avg)
     psf = f.field_order == "psf" and v.field_order in ("progressive", *_INTERLACED)  # PsF is flagged either way
-    c.add("field_order", "Balayage", "format", f.field_order, v.field_order or "absent",
-          psf or v.field_order == f.field_order)
+    add("field_order", "Balayage", "format", f.field_order, f.field_order, v.field_order or "absent",
+        psf or v.field_order == f.field_order)
 
     for key, label in (("color_primaries", "Primaires"), ("color_transfer", "Transfert"), ("color_space", "Matrice")):
         expected, actual = getattr(f, key), getattr(v, key)
         c.add(key, f"Colorimétrie : {label.lower()}", "format", expected, actual or "non renseigné",
               None if actual is None else actual == expected)
-    c.add("color_range", "Plage", "format", f.color_range, v.color_range or "non renseignée",
-          None if v.color_range is None else v.color_range == f.color_range)
+    add("color_range", "Plage", "format", f.color_range, f.color_range, v.color_range or "non renseignée",
+        None if v.color_range is None else v.color_range == f.color_range)
 
 
 def _check_duration(c: _Checks, v: VideoInfo) -> None:
@@ -321,7 +343,10 @@ def _check_timecode(c: _Checks, p: Profile, tc: str | None, fmt: TimecodeFormat 
           tc is not None)
     if tc is None:
         return
-    c.add("timecode_start", "Timecode de départ", "structure_timecode", rules.file_start, tc, tc == rules.file_start)
+    if rules.file_start == ANY:
+        c.add("timecode_start", "Timecode de départ", "structure_timecode", ANY_LABEL, tc, True)
+    else:
+        c.add("timecode_start", "Timecode de départ", "structure_timecode", rules.file_start, tc, tc == rules.file_start)
     drop = fmt.drop_frame if fmt is not None else timecode.is_drop_frame(tc)
     if not rules.drop_frame_allowed:
         c.add("timecode_drop_frame", "Timecode non drop frame", "structure_timecode", "non drop frame",

@@ -51,8 +51,14 @@ VIDEO_TYPES = frozenset({
 })
 
 
-def status_label(status: str, indicative: bool) -> str:
-    """Verdict as shown to the user. A draft profile never yields CONFORME (CLAUDE.md principle 7)."""
+TECHNICAL_LABEL = "Rapport technique"
+
+
+def status_label(status: str, indicative: bool, technical: bool = False) -> str:
+    """Verdict as shown to the user. A draft profile never yields CONFORME (CLAUDE.md principle 7);
+    a technical profile never yields CONFORME nor NON-CONFORME."""
+    if technical:
+        return TECHNICAL_LABEL
     if not indicative:
         return status
     return "INDICATIF : NON-CONFORME" if status == "NON-CONFORME" else "INDICATIF : sans anomalie bloquante"

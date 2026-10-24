@@ -66,3 +66,6 @@ class Verdict(BaseModel):
     # Profile in meta.status draft: the status above is computed as usual, but the report shows
     # it only as indicative and never says CONFORME (CLAUDE.md principle 7).
     indicative: bool = False
+    # Technical profile (meta.purpose technical, no broadcaster): the report is a « Rapport
+    # technique » listing the anomalies; the status above is never shown.
+    technical: bool = False

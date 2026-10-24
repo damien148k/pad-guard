@@ -51,6 +51,8 @@ def tone(verdict: dict | None) -> str:
     """Colour of a verdict written by the rules: green CONFORME, red NON-CONFORME, amber indicative."""
     if not verdict:
         return "none"
+    if verdict.get("technical"):  # technical profile: no verdict, neutral colour
+        return "tech"
     if verdict.get("indicative"):
         return "draft"
     return "ok" if verdict.get("status") == "CONFORME" else "nc"
@@ -80,7 +82,7 @@ def run_item(path: Path, root: Path) -> dict:
     ui_job = _read(path / "ui_job.json") or {}
     prof = (verdict or probe).get("profile") or {}
     if verdict:
-        label = status_label(verdict["status"], verdict.get("indicative", False))
+        label = status_label(verdict["status"], verdict.get("indicative", False), verdict.get("technical", False))
     else:
         label = {"running": "en cours", "cancelled": "annulée", "failed": "échec"}.get(ui_job.get("state"), "incomplète")
     source = (probe.get("source") or {}).get("path")

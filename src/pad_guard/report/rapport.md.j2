@@ -27,13 +27,19 @@
 
 ## 2. Statut
 
+{% if v.technical -%}
+**{{ status }}** — fichier de travail contrôlé sans diffuseur : les anomalies sont listées, sans verdict de conformité.
+{%- else -%}
 **{{ status }}** — score {{ score }}/100
+{%- endif %}
 
 | Bloquant | Majeur | Mineur | Info |
 |---|---|---|---|
 | {{ v.counts.blocking }} | {{ v.counts.major }} | {{ v.counts.minor }} | {{ v.counts.info }} |
 
-{% if v.reasons -%}
+{% if v.technical -%}
+Profil technique Lumiris : aucune exigence de diffuseur n'est appliquée.
+{%- elif v.reasons -%}
 Motifs : {{ v.reasons | join(" ; ") }} (règle : NON-CONFORME dès une anomalie bloquante ou plus de {{ v.max_major }} anomalie(s) majeure(s)).
 {%- else -%}
 Aucune anomalie bloquante, et pas plus de {{ v.max_major }} anomalie(s) majeure(s).

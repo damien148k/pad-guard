@@ -109,7 +109,8 @@ def severity_types(profile: Profile, groups: list[AudioGroup]) -> set[str]:
         types.add("structure_bars")
     elif s.bars.forbidden:
         types.add("structure_bars_present")
-    types.add("structure_black" if s.leaders == "classic" else "structure_black_too_long")
+    if s.leaders != "unchecked":
+        types.add("structure_black" if s.leaders == "classic" else "structure_black_too_long")
     if profile.format.letterbox is not None and profile.format.letterbox.check:
         types.add("letterbox")
     if groups:
@@ -687,7 +688,7 @@ class Engine:
             tool_version=__version__, profile=self.probe.profile, source_sha256=self.m.source.sha256,
             status="NON-CONFORME" if reasons else "CONFORME", score=round(min(max(score, 0.0), 100.0), 1),
             score_formula=self.p.rules.score_formula, counts=counts, max_major=max_major, reasons=reasons,
-            indicative=self.p.meta.status != "validated",
+            indicative=self.p.meta.status != "validated", technical=self.p.meta.purpose == "technical",
         )
 
 

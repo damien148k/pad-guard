@@ -102,9 +102,11 @@ export function Report({ runId, job, setJob, goRun }) {
       <div class="left"><span class="kicker">${kicker}</span><span class=${'word' + (wordLong ? ' long' : '')}>${v.label}</span><${Synthesis} s=${r.synthesis} /></div>
       <div class="right">
         <div class="counts">${COUNT_LABELS.map(([k, label]) => html`<div><b style=${{ color: v.counts[k] && (k === 'blocking' || k === 'major') ? SEV_COLOR[k] : 'var(--ink)' }}>${v.counts[k]}</b><span>${label}</span></div>`)}
-          <div><b>${v.score_text}</b><span>score</span></div></div>
-        ${v.reasons.length > 0 && html`<ul class="bullets">${v.reasons.map(x => html`<li>${x}</li>`)}</ul>`}
-        <span class="fine">Verdict calculé par les règles du profil effectif (${[...r.profile.norms, `${r.profile.name} v${r.profile.version}`].join(' + ')}). Score = ${v.score_formula}. Aucune IA n'intervient dans le verdict.</span>
+          ${!v.technical && html`<div><b>${v.score_text}</b><span>score</span></div>`}</div>
+        ${!v.technical && v.reasons.length > 0 && html`<ul class="bullets">${v.reasons.map(x => html`<li>${x}</li>`)}</ul>`}
+        ${v.technical
+          ? html`<span class="fine">Contrôle technique sans diffuseur : anomalies listées selon les règles du profil effectif (${[...r.profile.norms, `${r.profile.name} v${r.profile.version}`].join(' + ')}), sans verdict de conformité.</span>`
+          : html`<span class="fine">Verdict calculé par les règles du profil effectif (${[...r.profile.norms, `${r.profile.name} v${r.profile.version}`].join(' + ')}). Score = ${v.score_formula}. Aucune IA n'intervient dans le verdict.</span>`}
       </div></div>
 
     <div class="panel">

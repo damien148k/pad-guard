@@ -311,10 +311,14 @@ def _steps(action) -> None:
 def _finish(out: Path, pf: ProgressFile | None = None) -> None:
     verdict = jsonio.read(out / wd.VERDICT, Verdict)
     if pf is not None:
-        pf.emit("done", status_label(verdict.status, verdict.indicative), status=verdict.status,
-                indicative=verdict.indicative)
-    colour = "red" if verdict.status != "CONFORME" else "yellow" if verdict.indicative else "green"
+        pf.emit("done", status_label(verdict.status, verdict.indicative, verdict.technical), status=verdict.status,
+                indicative=verdict.indicative, technical=verdict.technical)
     counts = ", ".join(f"{verdict.counts[s]} {SEVERITY_LABELS[s]}" for s in SEVERITY_ORDER)
+    if verdict.technical:  # no broadcaster: the anomalies are listed, no verdict
+        console.print(f"[bold cyan]{status_label(verdict.status, False, True)}[/bold cyan] ({counts})")
+        console.print(f"Rapport : {out / wd.REPORT_MD} et {out / wd.REPORT_PDF}")
+        return
+    colour = "red" if verdict.status != "CONFORME" else "yellow" if verdict.indicative else "green"
     if verdict.indicative:
         console.print("[bold yellow]PROFIL NON VALIDÉ — résultat indicatif[/bold yellow]")
     label = status_label(verdict.status, verdict.indicative)

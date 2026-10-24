@@ -1,0 +1,129 @@
+# Profil « contrôle technique Lumiris » : fichiers de travail sans diffuseur (scans, intermédiaires de
+# restauration). Décision de Damien du 24 octobre 2026 (Phase 6), contenu validé le même jour.
+#
+# Il mesure tout et liste les anomalies selon les règles maison, sans verdict : le rapport porte
+# « Rapport technique », jamais CONFORME ni NON-CONFORME (meta.purpose: technical).
+#
+# Aucun seuil de diffuseur. Les valeurs de comparaison du format sont « any » (tout est accepté,
+# explicitement) : le format du fichier est relevé dans le rapport, il n'est jamais une anomalie.
+# Les niveaux viennent de EBU R 103 et le loudness de EBU R 128 (normes héritées) : ce sont des
+# recommandations, plafonnées à « mineur » (CLAUDE.md, principe 2). Les règles maison
+# (normes/lumiris_maison.yaml) gardent leur gravité : intégrité, PSE, plage de codage, balayage.
+
+meta:
+  name: lumiris_controle_technique
+  version: "1.0"
+  broadcaster: "Lumiris Production (contrôle technique, sans diffuseur)"
+  source_document: "Règles internes Lumiris : contrôle technique des fichiers de travail (décision de Damien, 24/10/2026)"
+  notes: >
+    Pour un scan ou un intermédiaire de restauration, avant tout profil de diffuseur. Les groupes
+    audio ne sont pas connus d'avance : une paire VO facultative par défaut, à préciser par fichier
+    avec --audio-map.
+  purpose: technical
+  extends: [ebu_r103, ebu_r128, itu_bt709, lumiris_maison]
+  status: validated
+  validated_by: Damien
+  validated_at: 2026-10-24
+
+format:
+  codecs: any
+  containers: any
+  bit_depth_allowed: any
+  chroma_allowed: any
+  width: any
+  height: any
+  fps_allowed: any
+  field_order: any
+  color_range: any
+  unknown_color_tags_severity: info
+  letterbox:
+    check: true
+    formats: []                                      # zone active relevée, rien n'est comparé
+    tolerance_lines: 2
+
+video:
+  bit_depth: 10
+  prefilter_taps: 3
+
+audio:
+  sample_rate: 48000
+  bit_depth: 24
+  bit_depth_allowed: [16, 24, 32]
+  groups:
+    - {name: "VO", tracks: [1, 2], layout: stereo, required: false}
+  silence_dbfs: -60.0
+  silence_max_seconds: 3.0
+  phase_min_correlation: -0.3
+  phase_min_seconds: 2.0
+  exclude_head_tail: false
+
+structure:
+  leaders: unchecked
+  timecode:
+    file_start: any
+    program_start: any
+    tolerance_frames: 0
+    drop_frame_allowed: true
+  bars:
+    required: false
+    forbidden: false
+    tolerance: 12
+  black:
+    y_max: 68
+    silence_dbfs: -60.0
+  freeze:
+    threshold: 0.5
+    min_seconds: 2.0
+
+rules:
+  min_event_frames:
+    white_clip: 1
+    black_crush: 1
+    gamut: 1
+  max_major: 0
+  score_formula: "100 - 40*blocking - 10*major - 2*minor"
+  severity:
+    white_clip:
+      - {else: minor, source: "Lumiris : contrôle technique, niveaux EBU R 103 en recommandation"}
+    black_crush:
+      - {else: minor, source: "Lumiris : contrôle technique, niveaux EBU R 103 en recommandation"}
+    gamut:
+      - {else: minor, source: "Lumiris : contrôle technique, gamut EBU R 103 en recommandation"}
+    freeze:
+      - {else: minor, source: "Lumiris : contrôle technique"}
+    isolated_black_frame:
+      - {else: minor, source: "Lumiris : contrôle technique"}
+    duplicate_frame:
+      - {else: minor, source: "Lumiris : contrôle technique (conversions 24 -> 25 i/s)"}
+    letterbox:
+      - {else: info, source: "Lumiris : contrôle technique, zone active relevée"}
+    format:
+      - {else: info, source: "Lumiris : contrôle technique, format relevé sans exigence"}
+    structure_timecode:
+      - {else: info, source: "Lumiris : contrôle technique, timecode relevé sans exigence"}
+    audio_loudness:
+      - {else: info, source: "Lumiris : contrôle technique, loudness mesuré sans cible de diffuseur"}
+    audio_true_peak:
+      - {else: info, source: "Lumiris : contrôle technique, true peak mesuré sans cible de diffuseur"}
+    audio_silence:
+      - {else: info, source: "Lumiris : contrôle technique"}
+    audio_phase:
+      - {else: info, source: "Lumiris : contrôle technique"}
+
+llm:
+  backend: ollama
+  model: "qwen3-vl:32b-instruct"
+  fallback_model: "qwen3-vl:8b-instruct"
+  num_ctx: 8192
+  temperature: 0.1
+  language: fr
+
+sources:
+  meta.purpose: "Lumiris : rapport technique sans verdict pour les fichiers de travail (décision de Damien, 24/10/2026)"
+  format: "Lumiris : aucun format imposé, le format du fichier est relevé (décision de Damien, 24/10/2026)"
+  video.bit_depth: "PAD Guard : valeurs du JSON en codes 10 bits (CLAUDE.md)"
+  video.prefilter_taps: "Lumiris : [1 2 1]/4 horizontal, comme les autres profils ; EBU R 103 recommande un filtre que PAD Guard n'applique pas encore"
+  audio: "Lumiris : contrôle technique ; groupes à préciser par fichier (--audio-map)"
+  structure: "Lumiris : pas d'amorce imposée, mire et noirs relevés sans exigence"
+  rules: "Lumiris : contrôle technique, gravités des règles maison ; les autres anomalies en mineur ou information"
+  llm: "Lumiris : couche IA locale (CLAUDE.md), désactivée par défaut"

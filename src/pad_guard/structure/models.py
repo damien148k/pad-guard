@@ -91,7 +91,7 @@ class Structure(BaseModel):
     # unusable, timecodes count from 00:00:00:00).
     timecode_start: str | None
     timecode_format: TimecodeFormat | None = None  # None: older structure.json, deduced from the rate
-    leaders: Literal["classic", "none"]
+    leaders: Literal["classic", "none", "unchecked"]
     bars: list[BarsRange]
     tone: list[ToneMeasure]
     head_black: FrameRange | None

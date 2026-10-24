@@ -23,6 +23,11 @@ from pad_guard.rules import expr
 
 Severity = Literal["blocking", "major", "minor", "info"]
 
+# Explicit « anything is accepted » for the comparison values of a technical profile (no
+# broadcaster): never implied by an absent value (CLAUDE.md, null in a profile).
+ANY = "any"
+Any_ = Literal["any"]
+
 # Anomaly types known to the rules engine (SPEC §5-§7). A severity table or a
 # min_event_frames entry for any other name is a typo.
 EVENT_TYPES = (
@@ -78,12 +83,14 @@ class _Model(BaseModel):
 
 
 def _check_tc(value: str | None) -> str | None:
-    if value is not None and not timecode.is_valid(value, 60):
+    if value is not None and value != ANY and not timecode.is_valid(value, 60):
         raise ValueError(f"timecode invalide {value!r}, format attendu HH:MM:SS:FF")
     return value
 
 
 def _check_rates(v: list[str] | None) -> list[str] | None:
+    if v == ANY:
+        return v
     for fps in v or []:
         num, _, den = fps.partition("/")
         if not (num.isdigit() and den.isdigit() and int(den) > 0):
@@ -124,6 +131,9 @@ class ProfileMeta(_Model):
     validated_at: dt.date | None = None
     source_pdf: str | None = None  # broadcaster document, in diffuseurs/
     source_pdf_sha256: str | None = None
+    # technical: a Lumiris check of a working file, no broadcaster: the report is a « Rapport
+    # technique », never CONFORME or NON-CONFORME.
+    purpose: Literal["delivery", "technical"] = "delivery"
 
     @field_validator("source_pdf_sha256")
     @classmethod
@@ -189,23 +199,24 @@ class Delivery(_Model):
 
 
 class Format(_Model):
-    codecs: list[CodecSpec] = Field(min_length=1)
+    # "any": a technical profile accepts every value (explicit, never implied).
+    codecs: list[CodecSpec] | Any_ = Field(min_length=1)
     # mxf: any operational pattern; mxf_op1a / mxf_opatom: that pattern only.
-    containers: list[Literal["mov", "mp4", "mxf", "mxf_op1a", "mxf_opatom"]] = Field(min_length=1)
+    containers: list[Literal["mov", "mp4", "mxf", "mxf_op1a", "mxf_opatom"]] | Any_ = Field(min_length=1)
     # The decoded picture: bit depth and chroma sampling ("rgb" for an RGB file), or the older
     # form, one FFmpeg pixel format (pix_fmt). One of the two forms, not both.
-    bit_depth_allowed: list[int] | None = Field(default=None, min_length=1)
-    chroma_allowed: list[Literal["4:2:0", "4:2:2", "4:4:4", "rgb"]] | None = Field(default=None, min_length=1)
+    bit_depth_allowed: list[int] | Any_ | None = Field(default=None, min_length=1)
+    chroma_allowed: list[Literal["4:2:0", "4:2:2", "4:4:4", "rgb"]] | Any_ | None = Field(default=None, min_length=1)
     pix_fmt: str | None = None
-    width: int
-    height: int
-    fps_allowed: list[str] = Field(min_length=1)
+    width: int | Any_
+    height: int | Any_
+    fps_allowed: list[str] | Any_ = Field(min_length=1)
     # psf: progressive pictures carried as two fields (the flag may be interlaced or progressive).
-    field_order: Literal["progressive", "psf", "tt", "bb", "tb", "bt"]
+    field_order: Literal["progressive", "psf", "tt", "bb", "tb", "bt", "any"]
     color_primaries: str
     color_transfer: str
     color_space: str
-    color_range: Literal["tv", "pc"]
+    color_range: Literal["tv", "pc", "any"]
     unknown_color_tags_severity: Severity
     letterbox: Letterbox | None = None
     delivery: Delivery | None = None
@@ -446,7 +457,8 @@ class SafeAreas(_Model):
 
 
 class Structure(_Model):
-    leaders: Literal["classic", "none"]
+    # unchecked: a technical profile; the file is the programme, head and tail are not checked.
+    leaders: Literal["classic", "none", "unchecked"]
     timecode: TimecodeRules
     bars: Bars
     black: Black

@@ -80,7 +80,7 @@ def preflight(profile: Profile, groups: list[AudioGroup]) -> list[str]:
         needs.append(("structure.bars.tolerance", "la recherche de mire"))
     if s.leaders == "classic":
         needs += [("structure.black.head_min_seconds", "le noir de tête"), ("structure.black.tail_min_seconds", "le noir de queue")]
-    else:
+    elif s.leaders == "none":
         needs += [("structure.black.head_max_seconds", "le noir de tête"), ("structure.black.tail_max_seconds", "le noir de queue")]
     if profile.format.letterbox is not None and profile.format.letterbox.check:
         needs.append(("format.letterbox.tolerance_lines", "le format d'image"))

@@ -114,7 +114,10 @@ class _Builder:
         name = Path(self.probe.source.path).name
         prof = self.probe.profile
         n = v.counts
-        if v.indicative:
+        if v.technical:
+            parts = [f"Rapport technique du fichier « {name} » (profil {prof.name} v{prof.version}, sans diffuseur) : "
+                     "les anomalies sont listées selon les règles Lumiris, sans verdict de conformité."]
+        elif v.indicative:
             outcome = "est NON-CONFORME" if v.status == "NON-CONFORME" else "ne présente aucune anomalie bloquante"
             parts = [f"Résultat indicatif, le profil {prof.name} v{prof.version} ({self.p.meta.broadcaster}) n'étant "
                      f"pas validé : le fichier « {name} » {outcome}, avec un score de {number(v.score, 0)}/100."]
@@ -244,7 +247,8 @@ class _Builder:
             "fichier": Path(self.probe.source.path).name,
             "profil": {"nom": prof.name, "version": prof.version, "diffuseur": self.p.meta.broadcaster,
                        "statut": "validé" if self.p.meta.status == "validated" else "brouillon, non validé"},
-            "verdict": {"statut": v.status, "affiche": status_label(v.status, v.indicative), "indicatif": v.indicative,
+            "verdict": {"statut": v.status, "affiche": status_label(v.status, v.indicative, v.technical),
+                        "indicatif": v.indicative, "technique": v.technical,
                         "score": number(v.score, 0 if v.score.is_integer() else 1),
                         "anomalies_par_gravite": {SEVERITY_LABELS[k]: v.counts[k] for k in SEVERITY_ORDER},
                         "motifs": v.reasons},
@@ -435,7 +439,8 @@ class _Builder:
             "header": h,
             "profile": {"name": self.p.meta.name, "version": self.p.meta.version, "status": self.p.meta.status,
                         "broadcaster": self.p.meta.broadcaster, "norms": layers},
-            "verdict": {"status": v.status, "indicative": v.indicative, "label": sections["status"],
+            "verdict": {"status": v.status, "indicative": v.indicative, "technical": v.technical,
+                        "label": sections["status"],
                         "score": v.score, "score_text": sections["score"], "score_formula": v.score_formula,
                         "counts": v.counts, "counts_labels": {s: SEVERITY_LABELS[s] for s in SEVERITY_ORDER},
                         "max_major": v.max_major, "reasons": v.reasons},
@@ -543,7 +548,7 @@ def run(workdir: Path, profile: Profile, thumbnails: bool | None = None, progres
     env.filters["cell"] = _cell
     sections = dict(
         h=b.header(),
-        status=status_label(b.verdict.status, b.verdict.indicative),
+        status=status_label(b.verdict.status, b.verdict.indicative, b.verdict.technical),
         score=number(b.verdict.score, 0 if b.verdict.score.is_integer() else 1),
         delivery=b.delivery(),
         synthesis=synthesis,

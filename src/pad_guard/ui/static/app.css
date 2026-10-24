@@ -230,6 +230,7 @@ h2 { margin: 0; font: 600 40px/1 var(--cond); }
 .verdict { --v: var(--red); border: 1px solid var(--v); display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 6fr); }
 .verdict.ok { --v: var(--green); background: oklch(0.72 0.17 150 / .07); }
 .verdict.nc { background: oklch(0.64 0.21 27 / .08); }
+.verdict.tech { --v: var(--ink); }
 .verdict.draft { --v: var(--amber); background: repeating-linear-gradient(135deg, oklch(0.8 0.14 75 / .06) 0 10px, transparent 10px 20px); }
 .verdict > i.c { --m: var(--v); }
 .verdict .left { padding: 28px 32px; display: flex; flex-direction: column; gap: 14px; border-right: 1px solid rgba(230, 232, 234, .1); }

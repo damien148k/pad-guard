@@ -395,8 +395,11 @@ def analyse(probe: ProbeResult, m: Measurements, profile: Profile, workdir: Path
 
     if s.leaders == "classic":
         program, head, tail = _classic_layout(ctx, bars_mask)
-    else:
+    elif s.leaders == "none":
         program, head, tail = _no_leaders_layout(ctx)
+    else:  # unchecked (technical profile): the whole file is the programme, head and tail only measured
+        head, tail = _range(detect.leading_run(ctx.black)), _range(detect.trailing_run(ctx.black))
+        program = FrameRange(frame_start=0, frame_end=ctx.frames - 1)
 
     excluded = bars_mask | ctx.black_video
     _sequence_findings(ctx, excluded, bars_mask)
