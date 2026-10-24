@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from pad_guard.probe.models import CheckStatus, ProfileRef
+from pad_guard.timecode import TimecodeFormat
 
 SCHEMA_VERSION = 1
 
@@ -88,6 +89,7 @@ class Structure(BaseModel):
     # Start timecode used for every timecode of the analysis (None: file timecode absent or
     # unusable, timecodes count from 00:00:00:00).
     timecode_start: str | None
+    timecode_format: TimecodeFormat | None = None  # None: older structure.json, deduced from the rate
     leaders: Literal["classic", "none"]
     bars: list[BarsRange]
     tone: list[ToneMeasure]

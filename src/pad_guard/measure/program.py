@@ -21,10 +21,6 @@ from pad_guard.probe.models import ProbeResult
 from pad_guard.rules.profile import Profile
 
 
-def _tc_fps(fps: Fraction) -> int:
-    return round(fps)
-
-
 def frame_to_sample(frame: int, fps: Fraction, sample_rate: int) -> int:
     return round(frame * Fraction(sample_rate) / fps)
 
@@ -33,20 +29,18 @@ def program_range(
     probe: ProbeResult, profile: Profile, y_p99: Sequence[int], frames: int, sample_rate: int
 ) -> ProgramRange:
     fps = Fraction(probe.video.r_frame_rate)
-    tc_fps = _tc_fps(fps)
+    clock = timecode.Clock(fps, probe.timecode, probe.timecode_format)
     s = profile.structure
     start, start_method = 0, "file"
     end, end_method = frames - 1, "file"
 
     if s.leaders != "none" and profile.audio.exclude_head_tail:
-        program = timecode.to_frames(s.timecode.program_start, tc_fps)
-        offset = None
-        if probe.timecode and timecode.is_valid(probe.timecode, tc_fps) and not timecode.is_drop_frame(probe.timecode):
-            offset = program - timecode.to_frames(probe.timecode, tc_fps)
+        program = clock.absolute(s.timecode.program_start)
+        offset = clock.frame(s.timecode.program_start) if clock.start_tc else None
         if offset is not None and 0 <= offset < frames:
             start, start_method = offset, "timecode"
         else:
-            expected = program - timecode.to_frames(s.timecode.file_start, tc_fps)
+            expected = program - clock.absolute(s.timecode.file_start)
             start, start_method = min(max(expected, 0), frames - 1), "profile"
         last = frames - 1
         while last > start and y_p99[last] < s.black.y_max:
@@ -57,16 +51,11 @@ def program_range(
     return ProgramRange(
         frame_start=start,
         frame_end=end,
-        tc_start=_tc(probe.timecode, start, tc_fps),
-        tc_end=_tc(probe.timecode, end, tc_fps),
+        tc_start=clock.tc(start) if clock.start_tc else None,
+        tc_end=clock.tc(end) if clock.start_tc else None,
         sample_start=frame_to_sample(start, fps, sample_rate),
         sample_end=frame_to_sample(end + 1, fps, sample_rate),
         start_method=start_method,
         end_method=end_method,
     )
 
-
-def _tc(file_tc: str | None, frame: int, fps: int) -> str | None:
-    if not file_tc or not timecode.is_valid(file_tc, fps) or timecode.is_drop_frame(file_tc):
-        return None
-    return timecode.from_frames(timecode.to_frames(file_tc, fps) + frame, fps)

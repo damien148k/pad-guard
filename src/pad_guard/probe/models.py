@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from pad_guard.audio_map import AudioMap
+from pad_guard.timecode import TimecodeFormat
 
 SCHEMA_VERSION = 1
 
@@ -98,6 +99,8 @@ class ProbeResult(BaseModel):
     audio_map: AudioMap
     timecode: str | None
     timecode_source: str | None
+    # How the timecode counts (base, drop frame, frames per count): read in the file, else deduced.
+    timecode_format: TimecodeFormat | None = None
     checks: list[Check]
     accepted: bool
     refusal_reasons: list[str]

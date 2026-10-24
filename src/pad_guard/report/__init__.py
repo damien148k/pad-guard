@@ -67,7 +67,7 @@ class _Builder:
         if not (self.m.source.sha256 == self.st.source_sha256 == self.verdict.source_sha256):
             raise ReportError("les JSON du dossier ne viennent pas du même fichier source : relancer les étapes")
         self.fps = Fraction(self.m.source.fps)
-        self.clock = timecode.Clock(round(self.fps), self.st.timecode_start)
+        self.clock = timecode.Clock(self.fps, self.st.timecode_start, self.st.timecode_format)
 
     def seconds(self, frames: int) -> str:
         return f"{number(frames / self.fps, 2)} s"
@@ -95,9 +95,10 @@ class _Builder:
             "path": self.probe.source.path,
             "sha256": self.probe.source.sha256,
             "size": f"{number(size / 1e9, 2)} Go ({size} octets)",
-            "duration": f"{timecode.from_frames(frames, self.clock.fps)} ({frames} images à {self.m.source.fps} i/s)",
+            "duration": f"{self.clock.duration(frames)} ({frames} images à {self.m.source.fps} i/s)",
             "timecode": (f"{self.clock.tc(0)} → {self.clock.tc(frames - 1)}" if self.st.timecode_start
                          else "absent ou inutilisable (temps compté depuis 00:00:00:00)"),
+            "timecode_format": timecode.describe(self.clock.format) if self.st.timecode_start else None,
             "video": f"{v.codec_name} {v.profile or ''}, {v.width}x{v.height}, {v.pix_fmt}, balayage {v.field_order or 'inconnu'}",
             "profile": f"{prof.name} v{prof.version} ({meta.broadcaster}){inherits}",
             "source_document": self.p.meta.source_document,
@@ -250,7 +251,7 @@ class _Builder:
                       "image": f"{video.width}x{video.height}", "cadence": self.m.source.fps,
                       "drapeau_de_balayage": video.field_order or "absent",
                       "balayage_detecte": scan_mod.SCAN_LABELS[s.detected],
-                      "duree": timecode.from_frames(self.st.frames, self.clock.fps)},
+                      "duree": self.clock.duration(self.st.frames)},
             "anomalies_par_type": [{"type": t, "libelle": label, "groupe": g, "gravite": sev, "nombre": len(ids),
                                     "anomalies": ids} for (label, t, g, sev), ids in families.items()],  # by severity
         }

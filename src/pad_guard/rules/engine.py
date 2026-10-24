@@ -201,7 +201,7 @@ class Engine:
         # Value path -> norm file, for the values that only an international norm gives (not the client).
         self.norm_values = norm_values or {}
         self.fps = Fraction(m.source.fps)
-        self.clock = timecode.Clock(round(self.fps), structure.timecode_start)
+        self.clock = timecode.Clock(self.fps, structure.timecode_start, structure.timecode_format)
         self.frames = video.frames
         self.drafts: list[Draft] = []
         self.bars = np.zeros(self.frames, dtype=bool)

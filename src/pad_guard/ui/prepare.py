@@ -182,7 +182,8 @@ def probe_preview(ctx: Context, master: str, profile: str) -> dict:
         raise ApiError(f"fichier refusé : {exc}") from None
     v = r.video
     fps = Fraction(v.r_frame_rate) if v.r_frame_rate and v.r_frame_rate != "0/0" else None
-    duration = (timecode.from_frames(v.nb_frames, round(fps)) if fps and v.nb_frames else
+    clock = timecode.Clock(fps, r.timecode, r.timecode_format) if fps else None
+    duration = (clock.duration(v.nb_frames) if clock and v.nb_frames else
                 f"{number(r.container.duration_s or 0, 2)} s")
     rate = f"{number(float(fps), 3).rstrip('0').rstrip(',')} i/s ({v.r_frame_rate})" if fps else v.r_frame_rate
     colour = " · ".join(x or "non renseigné" for x in (v.color_primaries, v.color_transfer, v.color_space, v.color_range))
@@ -202,6 +203,7 @@ def probe_preview(ctx: Context, master: str, profile: str) -> dict:
                  ["Cadence", rate], ["Balayage (drapeau)", v.field_order or "absent"], ["Colorimétrie", colour],
                  ["Durée", f"{duration} ({v.nb_frames} images)" if v.nb_frames else duration],
                  ["Timecode de départ", f"{r.timecode} ({r.timecode_source})" if r.timecode else "absent"],
+                 *([["Format du timecode", timecode.describe(r.timecode_format)]] if r.timecode_format else []),
                  ["Audio", audio]],
         "checks": [{"label": c.label, "expected": c.expected, "actual": c.actual, "status": c.status} for c in r.checks],
         "tracks": [t.track for t in r.audio_tracks],

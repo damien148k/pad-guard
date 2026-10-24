@@ -67,7 +67,8 @@ CHANGED = ("| Profil |", "- Préfiltre avant mesure des niveaux :", "| Balayage 
            "| Document de référence |")
 NORM_GAPS = "### Écarts entre le profil et les normes (information)"
 ADDED = ("| Statut du profil |", "| Empreinte du profil effectif |", "| Cadence prise en charge par PAD Guard |",
-         "| Décodeur disponible |", "| Format de pixel mesurable par PAD Guard |", "| Cadence fixe |")
+         "| Décodeur disponible |", "| Format de pixel mesurable par PAD Guard |", "| Cadence fixe |",
+         "| Format du timecode |")
 
 
 def _lines(md: str) -> list[str]:

@@ -23,8 +23,11 @@
 #   interlaced_prores.mov  ok_prores made interlaced: the same segments rendered at 50p, then
 #                      FFmpeg tinterlace (two successive images -> the two fields of one frame),
 #                      25 frames/s, flagged interlaced. Moving pictures show combing.
-#   rate24_prores.mov  2 s of testsrc2 at 24 frames/s (FFmpeg -r 24), TC 10:00:00:00, no audio:
-#                      refused until Phase 6 (only 25 frames/s are measured).
+#   rate24_prores.mov  2 s of testsrc2 at 24 frames/s (FFmpeg -r 24), TC 10:00:00:00, no audio.
+#   tc_*.mov / tc_*.mxf  2 s of testsrc2 at 320x180, no audio, to read how the timecode counts:
+#                      tc_50p.mov / tc_50p.mxf (50p, TC 10:00:00:30, base 50), tc_5994df.mov (59.94p,
+#                      10:00:59;58 drop frame), tc_2997df.mxf (29.97p, 10:00:59;28 drop frame),
+#                      tc_23976.mov (23.976p, 10:00:00:23, base 24).
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -205,6 +208,19 @@ if need rate24_prores.mov; then
         -r 24 "${PRORES_HQ[@]}" -timecode 10:00:00:00 "$HERE/rate24_prores.mov"
     echo "  rate24_prores.mov"
 fi
+
+# Timecode fixtures: FFmpeg writes the base (tmcd number of frames, MXF rounded timecode base)
+# and the drop frame flag from the rate and the separator of -timecode.
+tc_fixture() {  # tc_fixture <out> <rate> <timecode> <codec args...>
+    local out=$1 rate=$2 tc=$3; shift 3
+    "${FF[@]}" -f lavfi -i "testsrc2=s=320x180:r=$rate:d=2"         -vf "format=yuv422p10le,setparams=field_mode=prog:range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709"         "$@" -timecode "$tc" "$HERE/$out"
+    echo "  $out"
+}
+need tc_50p.mov && tc_fixture tc_50p.mov 50 10:00:00:30 "${PRORES_HQ[@]}"
+need tc_50p.mxf && tc_fixture tc_50p.mxf 50 10:00:00:30 "${DNXHR_HQX[@]}"
+need tc_5994df.mov && tc_fixture tc_5994df.mov 60000/1001 "10:00:59;58" "${PRORES_HQ[@]}"
+need tc_2997df.mxf && tc_fixture tc_2997df.mxf 30000/1001 "10:00:59;28" "${DNXHR_HQX[@]}"
+need tc_23976.mov && tc_fixture tc_23976.mov 24000/1001 10:00:00:23 "${PRORES_HQ[@]}"
 
 rm -rf "$WORK"
 echo "Terminé."

@@ -12,6 +12,7 @@ from typing import Any
 
 from pad_guard import __version__, audio_map as amap, formats, timecode
 from pad_guard.audio_map import AudioMap
+from pad_guard.probe import tc_reader
 from pad_guard.probe.models import (
     AudioStreamInfo,
     AudioTrack,
@@ -24,6 +25,7 @@ from pad_guard.probe.models import (
 )
 from pad_guard.profiles import fingerprint
 from pad_guard.rules.profile import Profile
+from pad_guard.timecode import TimecodeFormat
 
 _UNKNOWN = {None, "", "unknown", "unspecified", "N/A"}
 
@@ -246,16 +248,25 @@ def _check_duration(c: _Checks, v: VideoInfo) -> None:
           abs(from_duration - v.nb_frames) <= 1)
 
 
-def _check_timecode(c: _Checks, p: Profile, tc: str | None) -> None:
+def timecode_format(path: Path, container: ContainerInfo, v: VideoInfo, tc: str | None) -> TimecodeFormat | None:
+    """Format of the start timecode: read in the file (tc_reader), else deduced from the frame rate."""
+    fps = _fps(v.r_frame_rate)
+    if tc is None or fps is None:
+        return None
+    return tc_reader.read_format(path, container.kind, fps, tc) or timecode.default_format(fps, tc)
+
+
+def _check_timecode(c: _Checks, p: Profile, tc: str | None, fmt: TimecodeFormat | None) -> None:
     rules = p.structure.timecode
     c.add("timecode_present", "Timecode de départ présent", "structure_timecode", "présent", tc or "absent",
           tc is not None)
     if tc is None:
         return
     c.add("timecode_start", "Timecode de départ", "structure_timecode", rules.file_start, tc, tc == rules.file_start)
+    drop = fmt.drop_frame if fmt is not None else timecode.is_drop_frame(tc)
     if not rules.drop_frame_allowed:
         c.add("timecode_drop_frame", "Timecode non drop frame", "structure_timecode", "non drop frame",
-              "drop frame" if timecode.is_drop_frame(tc) else "non drop frame", not timecode.is_drop_frame(tc))
+              "drop frame" if drop else "non drop frame", not drop)
 
 
 def _check_audio(
@@ -341,6 +352,7 @@ def probe_file(
     audio = [_audio(s) for s in streams if s.get("codec_type") == "audio"]
     tracks = audio_tracks(audio)
     tc, tc_source = _timecode(info)
+    tc_format = timecode_format(path, container, video, tc)
 
     c = _Checks()
     if len(videos) > 1:
@@ -348,7 +360,7 @@ def probe_file(
     _check_measurable(c, video)
     _check_format(c, profile, container, video)
     _check_duration(c, video)
-    _check_timecode(c, profile, tc)
+    _check_timecode(c, profile, tc, tc_format)
     _check_audio(c, profile, mapping, audio, tracks)
 
     refusals = [ch for ch in c.items if ch.refusal and ch.status != "ok"]
@@ -365,6 +377,7 @@ def probe_file(
         audio_map=mapping,
         timecode=tc,
         timecode_source=tc_source,
+        timecode_format=tc_format,
         checks=c.items,
         accepted=not refusals,
         refusal_reasons=[_refusal(ch) for ch in refusals],

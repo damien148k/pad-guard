@@ -67,7 +67,7 @@ class _Context:
         self.probe, self.m, self.profile, self.v, self.audio = probe, m, profile, video, audio
         self.progress = progress or (lambda _msg: None)
         self.fps = Fraction(m.source.fps)
-        self.clock = timecode.Clock(round(self.fps), probe.timecode)
+        self.clock = timecode.Clock(self.fps, probe.timecode, probe.timecode_format)
         self.frames = video.frames
         self.source = Path(probe.source.path)
         self.checks: list[StructureCheck] = []
@@ -146,8 +146,7 @@ def _check_bars_classic(ctx: _Context, bars: list[BarsRange]) -> list[ToneMeasur
     if ctx.clock.start_tc:
         expected = ctx.clock.frame(start_tc)
     else:  # no usable file timecode: position expected by the profile layout
-        expected = timecode.to_frames(start_tc, ctx.clock.fps) - timecode.to_frames(
-            p.structure.timecode.file_start, ctx.clock.fps)
+        expected = ctx.clock.absolute(start_tc) - ctx.clock.absolute(p.structure.timecode.file_start)
     min_frames = int(round(min_seconds * ctx.fps))
     want = f"{pattern} à {start_tc}, au moins {_fmt(min_seconds)} s"
     match = [r for r in bars if r.pattern == pattern]
@@ -381,6 +380,11 @@ def analyse(probe: ProbeResult, m: Measurements, profile: Profile, workdir: Path
             f"Fichier entrelacé ({probe.video.field_order}) : images figées, images dupliquées et PSE sont "
             "analysés sur des images entières (deux trames ensemble), pas trame par trame."
         )
+    if probe.timecode and ctx.clock.format.source == "cadence":
+        limitations.append(
+            f"Base du timecode non lue dans le fichier : déduite de la cadence ({ctx.clock.format.base} images "
+            "par seconde de timecode)."
+        )
     if not ctx.audio:
         limitations.append("Aucun groupe audio mesuré : le noir de tête et de queue est détecté sur l'image seule.")
 
@@ -391,6 +395,7 @@ def analyse(probe: ProbeResult, m: Measurements, profile: Profile, workdir: Path
         fps=m.source.fps,
         frames=ctx.frames,
         timecode_start=ctx.clock.start_tc,
+        timecode_format=ctx.clock.format,
         leaders=s.leaders,
         bars=bars,
         tone=tones,

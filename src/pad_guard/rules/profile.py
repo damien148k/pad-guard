@@ -64,7 +64,7 @@ class _Model(BaseModel):
 
 
 def _check_tc(value: str | None) -> str | None:
-    if value is not None and not timecode.is_valid(value, fps=60):
+    if value is not None and not timecode.is_valid(value, 60):
         raise ValueError(f"timecode invalide {value!r}, format attendu HH:MM:SS:FF")
     return value
 

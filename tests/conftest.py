@@ -23,6 +23,11 @@ FIXTURE_FILES = (
     "arte_bad.mov",
     "interlaced_prores.mov",
     "rate24_prores.mov",
+    "tc_50p.mov",
+    "tc_50p.mxf",
+    "tc_5994df.mov",
+    "tc_2997df.mxf",
+    "tc_23976.mov",
 )
 
 

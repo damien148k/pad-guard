@@ -12,7 +12,8 @@
 | Taille | {{ h.size }} |
 | Durée | {{ h.duration }} |
 | Timecode | {{ h.timecode }} |
-| Vidéo | {{ h.video | cell }} |
+{% if h.timecode_format %}| Format du timecode | {{ h.timecode_format }} |
+{% endif %}| Vidéo | {{ h.video | cell }} |
 | Profil | {{ h.profile | cell }} |
 | Statut du profil | {{ h.profile_status | cell }} |
 | Empreinte du profil effectif | `{{ h.fingerprint }}` |
