@@ -49,12 +49,12 @@ pad-guard analyze <fichier> --profile <yaml> --out <dossier>
     [--audio-map "VO:1-2,VF:3-4"]   groupes de pistes pour cette analyse (remplace audio.groups du profil)
     [--workers N]                   processus de mesure vidéo (défaut : automatique, sans effet sur les résultats)
     [--llm none|ollama]             défaut : none
-    [--thumbnails]                  extraire une vignette par événement
+    [--no-thumbnails]               sans vignettes (par défaut : une vignette par anomalie image)
     [--quick]                       aperçu rapide sans verdict (1 image sur 25)
 pad-guard rerun <dossier>         relance structure, règles et rapport à partir des JSON, sans refaire les mesures
     [--from structure|rules|report] première étape relancée (défaut : structure)
     [--profile <yaml>]              autre profil ; refusé s'il change un paramètre de mesure
-    [--thumbnails]
+    [--no-thumbnails]
 pad-guard report <dossier>        régénère le rapport à partir des JSON (= rerun --from report)
 pad-guard validate-profile <yaml>
 ```
@@ -320,7 +320,7 @@ Fichier `rapport.md` puis `rapport.pdf`, en français, sections dans cet ordre :
 6. **Tableaux chronologiques des anomalies** (deux tableaux : bloquantes et majeures, qui font le verdict ; puis « À vérifier » pour les mineures et les informations ; chaque ligne de détail cite la règle de gravité appliquée et sa source) : `TC début`, `TC fin`, `durée`, `type`, `valeur max`, `seuil`, `surface`, `gravité`, `qualification suggérée` (vide sans LLM), `vignette` (si `--thumbnails`).
 7. **Annexe :** graphique de `y_p99` et `y_p01` dans le temps (matplotlib, PNG), graphique de loudness momentané, paramètres du profil appliqués.
 
-**Choix de mise en œuvre (Phase 3) :** PDF produit localement par `markdown-it-py` (Markdown → HTML) et PyMuPDF (mise en page A4). WeasyPrint demande GTK sous Windows ; `markdown-pdf` dépend de `plantuml` (rendu par un serveur distant) et de `requests`, ce qui contredit le principe de confidentialité. Les vignettes (`--thumbnails`, dossier `vignettes/`) montrent l'image la plus mauvaise de chaque événement image ; pour les niveaux et le gamut, une deuxième moitié peint les pixels comptés par la mesure (même préfiltre, mêmes seuils). Les graphiques d'annexe sont dans `annexes/`. `run.json` garde la date et la ligne de commande de l'analyse et des relances ; `profile.yaml` est la copie du profil appliqué.
+**Choix de mise en œuvre (Phase 3) :** PDF produit localement par `markdown-it-py` (Markdown → HTML) et PyMuPDF (mise en page A4). WeasyPrint demande GTK sous Windows ; `markdown-pdf` dépend de `plantuml` (rendu par un serveur distant) et de `requests`, ce qui contredit le principe de confidentialité. Les vignettes (`--thumbnails`, dossier `vignettes/`) montrent l'image la plus mauvaise de chaque événement image ; pour les niveaux et le gamut, une deuxième moitié peint les pixels comptés par la mesure (même préfiltre, mêmes seuils). Les graphiques d'annexe sont dans `annexes/`. Une image n'est jamais réduite pour tenir en bas de page : chaque image, avec sa légende, passe entière à la page suivante si elle ne tient pas (décision du 23 octobre 2026) ; la légende du masque de pixels n'accompagne que les vignettes des anomalies de niveaux et de gamut. `run.json` garde la date et la ligne de commande de l'analyse et des relances ; `profile.yaml` est la copie du profil appliqué.
 
 ### 8.1 Couche IA (optionnelle, locale uniquement)
 

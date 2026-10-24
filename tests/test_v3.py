@@ -38,7 +38,9 @@ def analysed(fixtures_dir, tmp_path_factory):
         key = (name, str(profile))
         if key not in cache:
             out = tmp_path_factory.mktemp(name.replace(".", "_"))
-            result = invoke("analyze", str(fixtures_dir / name), "--profile", str(profile), "--out", str(out))
+            # Without thumbnails: the reports are compared with the Phase 3 ones, made without them.
+            result = invoke("analyze", str(fixtures_dir / name), "--profile", str(profile), "--out", str(out),
+                            "--no-thumbnails")
             assert result.exception is None or isinstance(result.exception, SystemExit), result.output
             cache[key] = (result.exit_code, result.output, out)
         return cache[key]

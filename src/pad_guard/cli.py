@@ -81,7 +81,10 @@ def analyze(
         help="Groupes de pistes audio pour cette analyse, ex. « VO:1-2,VF:3-4 » (remplace audio.groups du profil).",
     ),
     llm: LlmBackend = typer.Option(LlmBackend.none, "--llm", help="Synthèse rédigée par un LLM local."),
-    thumbnails: bool = typer.Option(False, "--thumbnails", help="Extraire une vignette par événement."),
+    thumbnails: bool | None = typer.Option(
+        None, "--thumbnails/--no-thumbnails",
+        help="Vignette de chaque anomalie image (par défaut : oui ; sautées avec un avertissement si le fichier source est introuvable lors d'une relance).",
+    ),
     quick: bool = typer.Option(False, "--quick", help="Aperçu rapide (1 image sur 25), sans verdict."),
     benchmark: bool = typer.Option(False, "--benchmark", help="Mesure la vitesse de décodage seule."),
     workers: int = typer.Option(
@@ -103,7 +106,7 @@ def analyze(
             err_console.print(f"  - {msg}")
         raise typer.Exit(EXIT_USAGE)
     command = _command("analyze", str(file), "--profile", str(profile), "--out", str(out),
-                       *(("--audio-map", audio_map) if audio_map else ()), *(("--thumbnails",) if thumbnails else ()),
+                       *(("--audio-map", audio_map) if audio_map else ()), *_thumbnail_flag(thumbnails),
                        *((f"--workers", str(workers)) if workers else ()))
 
     try:
@@ -143,7 +146,10 @@ def rerun(
         None, "--profile", "-p",
         help="Autre profil (par défaut : la copie profile.yaml du dossier). Refusé s'il change les mesures.",
     ),
-    thumbnails: bool = typer.Option(False, "--thumbnails", help="Extraire une vignette par événement image."),
+    thumbnails: bool | None = typer.Option(
+        None, "--thumbnails/--no-thumbnails",
+        help="Vignette de chaque anomalie image (par défaut : oui ; sautées avec un avertissement si le fichier source est introuvable lors d'une relance).",
+    ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Affiche la progression détaillée."),
 ) -> None:
     """Relance structure, règles et rapport à partir des JSON existants, sans refaire les mesures."""
@@ -156,7 +162,7 @@ def rerun(
                 err_console.print(f"  - {msg}")
             raise typer.Exit(EXIT_USAGE)
     command = _command("rerun", str(workdir), "--from", from_step.value, *(("--profile", str(profile)) if profile else ()),
-                       *(("--thumbnails",) if thumbnails else ()))
+                       *_thumbnail_flag(thumbnails))
     _steps(lambda: pipeline.rerun(workdir, from_step.value, profile, command, thumbnails, _progress(verbose)))
     _finish(workdir)
 
@@ -164,13 +170,20 @@ def rerun(
 @app.command()
 def report(
     workdir: Path = typer.Argument(..., help="Dossier produit par « analyze »."),
-    thumbnails: bool = typer.Option(False, "--thumbnails", help="Extraire une vignette par événement image."),
+    thumbnails: bool | None = typer.Option(
+        None, "--thumbnails/--no-thumbnails",
+        help="Vignette de chaque anomalie image (par défaut : oui ; sautées avec un avertissement si le fichier source est introuvable lors d'une relance).",
+    ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Affiche la progression détaillée."),
 ) -> None:
     """Régénère le rapport à partir des JSON d'un dossier d'analyse (= rerun --from report)."""
-    command = _command("report", str(workdir), *(("--thumbnails",) if thumbnails else ()))
+    command = _command("report", str(workdir), *_thumbnail_flag(thumbnails))
     _steps(lambda: pipeline.rerun(workdir, "report", None, command, thumbnails, _progress(verbose)))
     _finish(workdir)
+
+
+def _thumbnail_flag(thumbnails: bool | None) -> tuple[str, ...]:
+    return () if thumbnails is None else ("--thumbnails",) if thumbnails else ("--no-thumbnails",)
 
 
 def _command(*args: str) -> str:

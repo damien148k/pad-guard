@@ -119,7 +119,8 @@ def test_arte_bad(analysed) -> None:
     assert silent == ["piste 3 (VF)", "piste 4 (VF)"]
     assert {e["severity_source"] for e in events(out) if e["type"] == "audio_silent_track"} == {"Arte §3.2.2.1"}
     md = (out / wd.REPORT_MD).read_text(encoding="utf-8")
-    later = md[md.index("### À vérifier"):md.index("## 7. Annexe")]
+    end = md.index("### Vignettes") if "### Vignettes" in md else md.index("## 7. Annexe")  # thumbnails by default
+    later = md[md.index("### À vérifier"):end]
     assert "Mire présente" not in later  # blocking: main table only
 
 

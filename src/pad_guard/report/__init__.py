@@ -34,6 +34,8 @@ from pad_guard.structure.models import Structure
 Progress = Callable[[str], None]
 
 KERNELS = {3: "[1 2 1]/4", 5: "[1 4 6 4 1]/16"}
+MASK_LEGENDS = {"y_above": "en rouge, Y au-dessus de la tolérance", "y_below": "en bleu, Y en dessous de la tolérance",
+                "rgb_out": "en magenta, R, V ou B hors limites"}
 _STATUS = {"ok": "OK", "fail": "ÉCHEC", "unknown": "non renseigné"}
 
 
@@ -255,7 +257,10 @@ class _Builder:
             if e.id not in names:
                 continue
             frame = e.worst_frame if e.worst_frame is not None else e.frame_start
-            rows.append(dict(id=e.id, path=f"{wd.THUMBNAILS}/{names[e.id]}",
+            masks = thumbs.MASKS_BY_TYPE.get(e.type, ())
+            legend = ("À gauche l'image, à droite les pixels comptés par la mesure, sur l'image assombrie : "
+                      + ", ".join(MASK_LEGENDS[m] for m in masks) + ".") if masks else ""
+            rows.append(dict(id=e.id, path=f"{wd.THUMBNAILS}/{names[e.id]}", legend=legend,
                              caption=f"{type_label(e.type)}, image {frame} ({self.clock.tc(frame)})"))
         return rows
 
@@ -340,14 +345,21 @@ class _Builder:
         return notes
 
 
-def run(workdir: Path, profile: Profile, thumbnails: bool = False, progress: Progress | None = None) -> Path:
+def run(workdir: Path, profile: Profile, thumbnails: bool | None = None, progress: Progress | None = None) -> Path:
+    """``thumbnails``: True asked for (the source file is required), None by default (made if the
+    source file is there, else left out with a note), False not made."""
     progress = progress or (lambda _msg: None)
     b = _Builder(workdir, profile)
     names: dict[int, str] = {}
-    if thumbnails:
+    missing_source = None
+    if thumbnails is not False:
         source = Path(b.probe.source.path)
         if not source.is_file():
-            raise ReportError(f"fichier source introuvable : {source} (nécessaire pour --thumbnails)")
+            if thumbnails:
+                raise ReportError(f"fichier source introuvable : {source} (nécessaire pour --thumbnails)")
+            missing_source = source
+            progress(f"Vignettes non produites : fichier source introuvable ({source})")
+    if thumbnails is not False and missing_source is None:
         count = sum(e.type in VIDEO_TYPES and e.scope == "range" for e in b.events)
         progress(f"Vignettes : {count} anomalie(s) image")
         names = thumbs.make(source, b.probe.video.stream_index, b.events, b.m.video_settings,
@@ -368,8 +380,8 @@ def run(workdir: Path, profile: Profile, thumbnails: bool = False, progress: Pro
         audio=b.audio(),
         event_tables=b.event_tables(names),
         thumbnails=b.thumbnail_rows(names),
-        thumbnails_legend=("À gauche l'image, à droite les pixels comptés par la mesure : rouge = Y au-dessus de "
-                           "la tolérance, bleu = Y en dessous, magenta = R, V ou B hors limites (image assombrie)."),
+        thumbnails_note=(f"Vignettes non produites : fichier source introuvable ({missing_source})."
+                         if missing_source else ""),
         charts=b.charts(),
         parameters=b.parameters(),
         norm_gaps=b.norm_gaps(),

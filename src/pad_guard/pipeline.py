@@ -93,7 +93,7 @@ def preflight(profile: Profile, groups: list[AudioGroup]) -> list[str]:
     return problems
 
 
-def run_steps(workdir: Path, profile: Profile, first: Step = "structure", thumbnails: bool = False,
+def run_steps(workdir: Path, profile: Profile, first: Step = "structure", thumbnails: bool | None = None,
               progress: Progress | None = None) -> None:
     progress = progress or (lambda _msg: None)
     todo = STEPS[STEPS.index(first):]
@@ -137,7 +137,7 @@ def measurement_differences(workdir: Path, probe: ProbeResult, m: Measurements, 
     return out
 
 
-def rerun(workdir: Path, first: Step, profile_path: Path | None, command: str, thumbnails: bool = False,
+def rerun(workdir: Path, first: Step, profile_path: Path | None, command: str, thumbnails: bool | None = None,
           progress: Progress | None = None) -> None:
     probe = wd.load(workdir, wd.PROBE, ProbeResult, "analyze")
     m = wd.load(workdir, wd.MEASUREMENTS, Measurements, "analyze")

@@ -23,10 +23,10 @@ uv run pad-guard draft-profile "diffuseurs/doc.pdf" --name nom   # profil brouil
 uv run pad-guard review-profile profiles/drafts/nom.yaml      # relecture champ par champ, écrit profiles/nom.yaml validé
 uv run pad-guard compare-profiles profiles/a.yaml profiles/b.yaml
 uv run pad-guard analyze film.mov --profile profiles/arte_hd_sdr.yaml --out ./out/
-uv run pad-guard analyze film.mov --profile profiles/arte_hd_sdr.yaml --out ./out/ --audio-map "VO:1-2,VF:3-4" --thumbnails
+uv run pad-guard analyze film.mov --profile profiles/arte_hd_sdr.yaml --out ./out/ --audio-map "VO:1-2,VF:3-4"
 uv run pad-guard rerun ./out/                          # structure + règles + rapport, sans refaire les mesures
 uv run pad-guard rerun ./out/ --from rules --profile autre.yaml   # autres règles sur les mêmes mesures
-uv run pad-guard report ./out/ --thumbnails            # rapport seul (+ vignettes)
+uv run pad-guard report ./out/                         # rapport seul (vignettes comprises)
 ```
 
 `analyze` enchaîne probe, mesures, structure, règles et rapport. Le code de retour vaut 0 pour CONFORME, 4 pour NON-CONFORME, 1 pour une erreur d'usage ou un profil incomplet (détecté avant les mesures), 2 pour un fichier refusé.
@@ -35,7 +35,7 @@ Un profil hérite des normes de `normes/` citées dans `meta.extends` (SPEC §12
 
 `rerun` repart des JSON du dossier : il réutilise le profil effectif `effective_profile.json` écrit par `analyze` (même si une norme a changé depuis), ou le profil donné par `--profile`. Un autre profil n'est accepté que s'il ne change aucun paramètre de mesure (seuils convertis en valeurs de code, préfiltre, seuil de flash, détection du balayage, plage programme, groupes audio) ; sinon il faut relancer `analyze`. Le fichier source n'est relu que pour la recherche de mire, le format d'image, le 1 kHz et les vignettes (quelques centaines d'images, par accès direct).
 
-`--thumbnails` écrit une vignette par anomalie image (`vignettes/`) : l'image la plus mauvaise de l'événement, et pour les niveaux et le gamut une deuxième moitié où les pixels comptés par la mesure sont peints (rouge : Y au-dessus de la tolérance, bleu : en dessous, magenta : RVB hors limites).
+Les vignettes sont produites par défaut (`--no-thumbnails` pour s'en passer ; lors d'une relance sans le fichier source, elles sont sautées avec un avertissement, sauf `--thumbnails` explicite qui fait échouer) : une vignette par anomalie image (`vignettes/`) : l'image la plus mauvaise de l'événement, et pour les niveaux et le gamut une deuxième moitié où les pixels comptés par la mesure sont peints (rouge : Y au-dessus de la tolérance, bleu : en dessous, magenta : RVB hors limites).
 
 `--audio-map` remplace, pour cette analyse, les groupes de pistes `audio.groups` du profil : `NOM:PISTES[:LAYOUT]` séparés par des virgules, avec des pistes en plage (`1-2`, `5-10`), seules (`7`) ou en liste (`1+3`). Le layout est repris du groupe du profil de même nom s'il a le même nombre de pistes, sinon déduit du nombre de pistes (1 `mono`, 2 `stereo`, 6 `5.1`) ; `dual_mono` se précise explicitement (`VO:1-2:dual_mono`). Tous les groupes donnés en ligne de commande sont obligatoires. Le mapping utilisé et sa source (profil ou ligne de commande) sont écrits dans `probe.json`.
 

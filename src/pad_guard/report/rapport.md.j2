@@ -126,14 +126,18 @@ Aucune.
 {% endfor %}
 {% if thumbnails %}
 ### Vignettes
-
-{{ thumbnails_legend }}
 {% for t in thumbnails %}
 **Anomalie {{ t.id }}** — {{ t.caption }}
-
+{% if t.legend %}
+{{ t.legend }}
+{% endif %}
 ![Anomalie {{ t.id }}]({{ t.path }})
 {% endfor %}
 {%- endif %}
+{%- if thumbnails_note %}
+
+{{ thumbnails_note }}
+{% endif %}
 
 ## 7. Annexe
 
