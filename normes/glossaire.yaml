@@ -50,10 +50,10 @@ normes:
     titre: "Ofcom, lignes directrices sur les images photosensibles (PSE)"
     alias: ["Ofcom", "ITU-R BT.1702", "BT.1702"]
   cst_rt017:
-    titre: "CST-RT-017 (loudness, usage français)"
+    titre: "CST-RT-017"
     alias: ["CST-RT-017", "CST RT 017", "RT-017", "RT 017"]
   cst_rt040:
-    titre: "CST-RT-040 (PAD, usage français)"
+    titre: "CST-RT-040"
     alias: ["CST-RT-040", "CST RT 040", "RT-040", "RT 040"]
   ebu_tech3264:
     titre: "EBU Tech 3264 (sous-titres STL)"

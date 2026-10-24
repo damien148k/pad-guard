@@ -30,6 +30,7 @@ from pad_guard.draft.extract import (
 from pad_guard.draft.schema import SECTIONS, catalogue, response_schema
 from pad_guard.llm import LLMClient, LLMError, LLMRequest
 from pad_guard.profiles import resolve_profile
+from pad_guard.profiles.resolve import capped_norm_values
 from pad_guard.rules.profile import Profile
 
 from conftest import ROOT, TEST_PROFILES
@@ -326,7 +327,7 @@ def test_reference_to_a_norm_gives_no_value(doc_pdf, tmp_path) -> None:
     assert data["meta"]["extends"] == ["ebu_r103", "ebu_r128", "lumiris_maison"]  # the cited norm after the others
     text = files["yaml"].read_text(encoding="utf-8")
     assert "EBU R 128 (normes/ebu_r128.yaml) : p. 1" in text
-    assert "CST-RT-017 (loudness, usage français) (absente de normes/" in text
+    assert "CST-RT-017 (absente de normes/" in text
     assert "audio.loudness.long.integrated_lufs -> ebu_r128 (p. 1)" in text
     saved = json.loads(files["findings"].read_text(encoding="utf-8"))
     assert [(n["norm"], n["available"]) for n in saved["cited_norms"]] == [("cst_rt017", False), ("ebu_r128", True)]
@@ -481,6 +482,33 @@ def test_review_flags_implausible_and_learns_terms(review_lab, tmp_path) -> None
     learnt = glossary.load(tmp_path / "normes" / "glossaire.yaml")
     assert "plafond numérique" in learnt.champs["audio.true_peak_max_dbtp"].fr
     assert "plafond numérique" not in glossary.load().champs["audio.true_peak_max_dbtp"].fr  # repository untouched
+
+
+def test_review_confirms_references_to_norms(review_lab, doc_pdf) -> None:
+    _, base, out = review_lab
+    client = FakeClient({1: [finding("audio.loudness.long.integrated_lufs", None, 1, R128_QUOTE,
+                                     source_type="client_refers_to_norm", norm="EBU R128")]})
+    _, files = draft(doc_pdf, base.parent.parent / "drafts_ref", client)
+    # The field is left empty: inherited from EBU R 128. Reference refused: audio_loudness (blocking) would
+    # rest on a norm only, so the red warning comes, and the reviewer stops.
+    result = _review(files["yaml"], base, out, ["v", "n", "n"])
+    text = " ".join(result.output.split())
+    assert result.exit_code != 0 and not out.exists()
+    assert "Le document renvoie à EBU R 128 (p. 1)" in text
+    assert "rules.severity.audio_loudness (blocking) : audio.loudness.long.integrated_lufs" in text
+    # Reference confirmed: the R 128 value is the client's requirement, no warning, no cap.
+    result = _review(files["yaml"], base, out, ["v", "o", "Vincent"])
+    assert result.exit_code == 0, result.output
+    assert "rules.severity.audio_loudness" not in " ".join(result.output.split())
+    r = resolve_profile(out)
+    assert [x.norm for x in r.profile.meta.refers_to] == ["ebu_r128"]
+    o = r.origins["audio.loudness.long.integrated_lufs"]
+    assert o.file == "normes/ebu_r128.yaml" and o.referred_by.startswith("chaine_test.pdf p. 1 : « Les mesures de loudness")
+    assert ", par renvoi à EBU R 128" in o.source
+    assert r.origins["audio.true_peak_max_dbtp"].file == "profiles/chaine_test.yaml"  # the client's -3 wins
+    assert "audio.loudness.long.integrated_lufs" not in capped_norm_values(r)
+    saved = json.loads(files["yaml"].with_name("chaine_test.review.json").read_text(encoding="utf-8"))
+    assert [x["norm"] for x in saved["references"]] == ["ebu_r128"]
 
 
 def test_review_shows_norm_only_blocking_rules(review_lab) -> None:

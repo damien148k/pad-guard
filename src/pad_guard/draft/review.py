@@ -7,6 +7,10 @@ inherited from a norm, as a recommendation capped at minor). Values the PDF did 
 taken from the base profile (by default the existing ``profiles/<name>.yaml``, else the template
 ``profiles/modeles/gabarit_diffuseur.yaml``) and flagged A VERIFIER when uncited.
 
+The norms the document explicitly refers to (« conforme à EBU R 128 ») are confirmed one by one:
+a confirmed reference goes to ``meta.refers_to`` and the values of that norm the client does not
+write become requirements of the client, not capped (CLAUDE.md principle 2).
+
 Implausible values (out of the glossary range, or cited with a unit the field does not accept)
 are shown in red. When the reviewer corrects or completes a value, the term the broadcaster uses
 may be added to the glossary (normes/glossaire.yaml), after confirmation.
@@ -36,6 +40,7 @@ from pad_guard.draft.write import dump, one_line, scalar
 from pad_guard.profiles.resolve import (
     HOUSE,
     ResolvedProfile,
+    capped_norm_values,
     leaves,
     load_norm,
     norms_dir_for,
@@ -72,6 +77,8 @@ class Review:
     base: Path
     decisions: list[Decision] = field(default_factory=list)
     glossary: glossary_mod.Glossary | None = None
+    cited_norms: list[dict] = field(default_factory=list)  # findings.json "cited_norms"
+    references: list[dict] = field(default_factory=list)  # confirmed: {norm, source} for meta.refers_to
 
 
 def load(draft: Path, base: Path | None) -> Review:
@@ -88,7 +95,8 @@ def load(draft: Path, base: Path | None) -> Review:
         g = glossary_mod.load(terms) if terms.is_file() else None
     except glossary_mod.GlossaryError as exc:
         raise ReviewError(str(exc)) from None
-    return Review(draft=draft, meta=meta, fields=data["fields"], base=base, glossary=g)
+    return Review(draft=draft, meta=meta, fields=data["fields"], base=base, glossary=g,
+                  cited_norms=data.get("cited_norms", []))
 
 
 def norm_values(extends: list[str], norms_dir: Path) -> dict[str, tuple[Any, str]]:
@@ -172,8 +180,8 @@ def ask_fields(review: Review, ask: Ask, say: Say, everything: bool = False, ale
             ref = next(x for x in f["findings"] if x["status"] == NORM_REF)
             say(f"  Le document renvoie à {ref['norm']} sans écrire la valeur (p. {ref['page']}) "
                 f"« {one_line(ref['quote'], 200)} »")
-            alert("  Laissé vide, le champ sera hérité de la norme et plafonné à mineur. Pour en faire une valeur du "
-                  "client, corriger [c] avec la citation du renvoi.")
+            alert("  Laissé vide, le champ est hérité de la norme : exigence du client si le renvoi est confirmé à "
+                  "la fin de la relecture, sinon recommandation plafonnée à mineur.")
         else:
             say(f"  Statut : {f['status']}")
             for k, x in enumerate(f["findings"], start=1):
@@ -211,6 +219,26 @@ def ask_fields(review: Review, ask: Ask, say: Say, everything: bool = False, ale
             review.decisions.append(_correct(path, specs.get(path), doc, ask, say))
             learn(review.glossary, path, ask, say)
     return skipped
+
+
+def ask_references(review: Review, ask: Ask, say: Say, alert: Say | None = None) -> None:
+    """Confirm, one by one, the references of the document to a norm of normes/ (meta.refers_to)."""
+    alert = alert or say
+    norms_dir = norms_dir_for(review.base)
+    doc = review.meta.get("source_document", "document")
+    extends = review.meta.get("extends", [])
+    cited = [n for n in review.cited_norms if n.get("available") and n["norm"] in extends and n["norm"] != HOUSE]
+    for i, n in enumerate(cited, start=1):
+        norm = load_norm(norms_dir / f"{n['norm']}.yaml")
+        title = norm.meta.document.title.split(" — ")[0]
+        say(f"\n[renvoi {i}/{len(cited)}] Le document renvoie à {title} (p. {n['page']}) « {one_line(n['quote'], 200)} »")
+        values = leaves({k: v for k, v in norm.raw.items() if k != "sources"})
+        say("  Valeurs de la norme : " + "; ".join(f"{p} = {one_line(scalar(v), 60)}" for p, v in values))
+        alert("  Confirmé, ces valeurs deviennent des exigences du client (sans plafonnement), sauf celles que le "
+              "client chiffre lui-même. Non confirmé, ce sont des recommandations plafonnées à mineur.")
+        answer = ask(f"  Confirmer le renvoi à {title} ? [o/N]").strip().lower()
+        if answer in ("o", "oui", "y", "yes"):
+            review.references.append({"norm": n["norm"], "source": f"{doc} p. {n['page']} : « {one_line(n['quote'], 300)} »"})
 
 
 def learn(g: glossary_mod.Glossary | None, path: str, ask: Ask, say: Say) -> None:
@@ -270,7 +298,8 @@ def build(review: Review) -> tuple[dict[str, Any], dict[str, str]]:
     meta = {"name": m["name"], "version": base_meta.get("version", m.get("version", "1.0")),
             "broadcaster": base_meta.get("broadcaster", m.get("broadcaster")), "source_document": m["source_document"],
             "notes": f"Profil relu champ par champ depuis le brouillon {review.draft.name}.",
-            "extends": m.get("extends", []), "status": "validated", "validated_by": None, "validated_at": None,
+            "extends": m.get("extends", []), "refers_to": _references(base_meta, review),
+            "status": "validated", "validated_by": None, "validated_at": None,
             "source_pdf": m.get("source_pdf"), "source_pdf_sha256": m.get("source_pdf_sha256")}
     data = {"meta": meta, **data, "sources": dict(sorted(sources.items()))}
     cited = set(sources)
@@ -279,6 +308,14 @@ def build(review: Review) -> tuple[dict[str, Any], dict[str, str]]:
         if not any(path == c or path.startswith(c + ".") for c in cited) and not path.startswith("rules.severity."):
             comments[path] = f"A VERIFIER : sans citation de {m['source_document']} (valeur de {review.base.name})"
     return data, comments
+
+
+def _references(base_meta: dict[str, Any], review: Review) -> list[dict]:
+    """References of the base profile, then those confirmed now (one per norm), for norms of extends."""
+    extends = review.meta.get("extends", [])
+    out = {r["norm"]: r for r in base_meta.get("refers_to") or [] if isinstance(r, dict) and "norm" in r}
+    out.update({r["norm"]: r for r in review.references})
+    return [r for r in out.values() if r["norm"] in extends]
 
 
 _MISSING = re.compile(r"champ obligatoire manquant « ([\w.]+) »")
@@ -316,8 +353,9 @@ def complete(data: dict[str, Any], comments: dict[str, str], missing: list[str],
 
 
 def norm_only_rules(resolved: ResolvedProfile) -> list[str]:
-    """Blocking or major rules whose value would come from an international norm only (capped at minor)."""
-    norms = {layer.file for layer in resolved.layers if layer.kind == "norm" and layer.name != HOUSE}
+    """Blocking or major rules whose value would come from an international norm only (capped at minor):
+    not from the client, not from a norm the client refers to."""
+    capped = capped_norm_values(resolved)
     out = []
     for event_type, chain in resolved.profile.rules.severity.items():
         levels = [r.severity for r in chain if r.severity in ("blocking", "major")]
@@ -326,8 +364,7 @@ def norm_only_rules(resolved: ResolvedProfile) -> list[str]:
         probe = Draft(type=event_type, title="", source="", scope="file", frame_start=0, frame_end=0,
                       value_text="", threshold_text="")
         deps = {d for kind in ("long", "short") for d in depends_on(probe, kind)}
-        hits = sorted({p for p, o in resolved.origins.items() if o.file in norms
-                       for d in deps if p == d or p.startswith(d + ".")})
+        hits = sorted({p for p in capped for d in deps if p == d or p.startswith(d + ".")})
         if hits:
             files = sorted({resolved.origins[p].file for p in hits})
             worst = "blocking" if "blocking" in levels else "major"
@@ -359,8 +396,8 @@ def finish(tmp: Path, out: Path) -> None:
 
 def save_answers(review: Review) -> Path:
     path = review.draft.with_name(review.draft.stem + ".review.json")
-    path.write_text(json.dumps([vars(d) for d in review.decisions], indent=2, ensure_ascii=False) + "\n",
-                    encoding="utf-8", newline="\n")
+    data = {"decisions": [vars(d) for d in review.decisions], "references": review.references}
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
     return path
 
 

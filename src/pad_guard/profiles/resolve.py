@@ -48,6 +48,23 @@ class Origin:
     file: str
     source: str | None
     replaced: list[dict[str, Any]] = field(default_factory=list)  # earlier definitions: {file, value}
+    # Value of a norm the client's document explicitly refers to (meta.refers_to): the citation of the
+    # reference. Such a value is a requirement of the client, not capped (CLAUDE.md principle 2).
+    referred_by: str | None = None
+
+    def to_json(self) -> dict[str, Any]:
+        data = vars(self).copy()
+        if data["referred_by"] is None:
+            del data["referred_by"]  # same effective_profile.json as before for profiles without reference
+        return data
+
+
+def capped_norm_values(resolved: ResolvedProfile | Merged) -> dict[str, str]:
+    """Values that come from an international norm only (not the client's profile, not the house
+    rules, not a norm the client refers to): {path: norm file}. Anomalies resting on them are
+    capped at minor."""
+    norms = {layer.file for layer in resolved.layers if layer.kind == "norm" and layer.name != HOUSE}
+    return {p: o.file for p, o in resolved.origins.items() if o.file in norms and o.referred_by is None}
 
 
 @dataclass
@@ -86,7 +103,7 @@ class ResolvedProfile:
             "fingerprint_sha256": self.fingerprint,
             "layers": [vars(layer) for layer in self.layers],
             "values": self.values,
-            "origins": {path: vars(o) for path, o in self.origins.items()},
+            "origins": {path: o.to_json() for path, o in self.origins.items()},
             "conflicts": [vars(c) for c in self.conflicts],
         }
 
@@ -386,9 +403,38 @@ def merge_layers(path: str | Path, norms_dir: Path | None = None) -> Merged:
     merge.apply(body, shown, sources)
     layers.append(Layer(kind="profile", name=str(meta.get("name", path.stem)), file=shown,
                         document=str(meta.get("source_document", "")), sha256=file_sha256(path)))
+    _mark_references(meta, meta_key, extends, {n.name: n for n in order}, merge.origins, path)
 
     return Merged(values={"meta": {"status": "draft", **meta}, **merge.values}, profile_file=shown, layers=layers,
                   origins=merge.origins, conflicts=merge.conflicts)
+
+
+def _mark_references(meta: dict[str, Any], meta_key: str, extends: list[str], norms: dict[str, _Norm],
+                     origins: dict[str, Origin], path: Path) -> None:
+    """Values still coming from a norm of ``meta.refers_to`` (the client wrote no value of its own,
+    no later layer replaced it) cite the client's reference: « <citation>, par renvoi à <norme> »."""
+    refs = meta.get("refers_to") or []
+    if not isinstance(refs, list) or not all(isinstance(r, dict) for r in refs):
+        raise ProfileError(path, [f"« {meta_key}.refers_to » : liste de {{norm, source}} attendue"])
+    errors = []
+    for r in refs:
+        name, source = r.get("norm"), r.get("source")
+        if name == HOUSE:
+            errors.append(f"« {meta_key}.refers_to » : {HOUSE} (règles maison) n'est pas une norme du client")
+        elif name not in extends:
+            errors.append(f"« {meta_key}.refers_to » : la norme « {name} » doit figurer dans {meta_key}.extends")
+        elif not isinstance(source, str) or not source.strip():
+            errors.append(f"« {meta_key}.refers_to » : renvoi à « {name} » sans citation du document du client")
+    if errors:
+        raise ProfileError(path, errors)
+    for r in refs:
+        norm = norms[r["norm"]]
+        title = norm.meta.document.title.split(" — ")[0]
+        file = f"{NORMS_DIR}/{norm.name}.yaml"
+        for o in origins.values():
+            if o.file == file and o.referred_by is None:
+                o.referred_by = r["source"]
+                o.source = f"{r['source']}, par renvoi à {title}" + (f" (norme : {o.source})" if o.source else "")
 
 
 def resolve_profile(path: str | Path, norms_dir: Path | None = None) -> ResolvedProfile:

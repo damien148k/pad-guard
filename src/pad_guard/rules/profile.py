@@ -84,6 +84,15 @@ ProfileStatus = Literal["draft", "validated"]
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
+class NormReference(_Model):
+    """An explicit reference of the client's document to a norm (« conforme à EBU R 128 »), confirmed
+    by a human: the values that norm gives are the client's requirements, not capped (CLAUDE.md
+    principle 2, decision of 24 October 2026). A value the client writes always wins."""
+
+    norm: str = Field(description="Nom de la norme dans normes/ (doit figurer dans meta.extends)")
+    source: str = Field(description="Citation du renvoi dans le document du client (paragraphe ou page, phrase)")
+
+
 class ProfileMeta(_Model):
     name: str
     version: str
@@ -93,6 +102,8 @@ class ProfileMeta(_Model):
     kind: Literal["profile"] = "profile"
     # Norms of normes/ (file names without extension) merged under this profile, in this order.
     extends: list[str] = []
+    # Norms of extends the client's document explicitly refers to: their values are not capped.
+    refers_to: list[NormReference] = []
     # draft: usable, but the report is only indicative and never says CONFORME (CLAUDE.md principle 7).
     status: ProfileStatus = "draft"
     validated_by: str | None = None

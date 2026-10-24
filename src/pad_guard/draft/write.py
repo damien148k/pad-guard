@@ -134,7 +134,7 @@ def draft_text(x: Extraction, meta: dict[str, Any], norms: Norms | None = None) 
         *([_norm_line(k, *v) for k, v in norms.items()] or ["  (aucune)"]),
         "",
         "Champs pour lesquels le document renvoie à une norme sans écrire la valeur (absents : hérités de la",
-        "norme, donc plafonnés à minor, sauf si le relecteur saisit la valeur avec la citation du renvoi) :",
+        "norme : exigences du client si review-profile confirme le renvoi, sinon recommandations plafonnées à minor) :",
         *([f"  - {r.path} -> {_ref(r)}" for r in refs] or ["  (aucun)"]),
         "",
         "Champs non trouvés dans le document (absents : hérités d'une norme, donc plafonnés à minor, ou à fixer) :",

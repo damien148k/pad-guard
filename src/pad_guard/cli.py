@@ -544,6 +544,9 @@ def review_profile(
         console.print(f"\n{len(skipped)} champ(s) dont toutes les propositions ont été rejetées n'ont pas été "
                       "relus : ils gardent la valeur du profil de base (A VERIFIER). Les relire avec --tous :")
         console.print(", ".join(f["path"] for f in skipped), markup=False, highlight=False)
+    review.ask_references(rv, ask=lambda text: typer.prompt(text, default="", show_default=False),
+                          say=lambda text: console.print(text, markup=False, highlight=False),
+                          alert=lambda text: console.print(f"[bold red]{escape(text)}[/bold red]", highlight=False))
     answers = review.save_answers(rv)
     console.print(f"Réponses enregistrées dans {answers}")
     data, comments = review.build(rv)

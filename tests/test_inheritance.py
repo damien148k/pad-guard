@@ -16,7 +16,8 @@ from pad_guard.cli import EXIT_USAGE, app
 from pad_guard.measure.scan import detect
 from pad_guard.probe.models import VideoInfo
 from pad_guard.profiles import from_json, load_norm, resolve_profile
-from pad_guard.profiles.resolve import REPO_NORMS, is_norm, leaves, read_yaml
+from pad_guard.profiles.resolve import REPO_NORMS, capped_norm_values, is_norm, leaves, read_yaml
+from pad_guard.rules.engine import norm_values as engine_norm_values
 from pad_guard.rules.profile import ProfileError, ScanDetection, null_fields
 
 from conftest import PROFILES, ROOT, TEST_PROFILES
@@ -168,6 +169,52 @@ def test_priority_last_layer_wins(lab) -> None:
     assert r.origins["audio.true_peak_max_dbtp"].file == "profiles/p.yaml"
     assert [c.replaced_file for c in r.conflicts if c.path == "audio.true_peak_max_dbtp"] == [
         "normes/a.yaml", "normes/b.yaml"]  # lumiris_maison said -3.0 too: restated, not a conflict
+
+
+def _refer(*refs: dict, drop: tuple[str, ...] = ()):
+    def mutate(raw):
+        raw["meta"]["refers_to"] = list(refs)
+        _drop(*drop)(raw)
+    return mutate
+
+
+def test_reference_to_a_norm_is_a_client_requirement(lab, tmp_path) -> None:
+    norms, profile = lab
+    _norm(norms, "r", {"audio": {"true_peak_max_dbtp": -1.0, "silence_dbfs": -50.0}})
+    _norm(norms, "s", {"audio": {"phase_min_seconds": 4.0}})
+    ref = {"norm": "r", "source": "Chaîne §4 : « conforme à la norme R »"}
+    # The client writes no true peak, refers to R, and writes its own silence level (it wins).
+    r = resolve_profile(profile(["r", "s", "lumiris_maison"], _refer(ref, drop=(
+        "audio.true_peak_max_dbtp", "audio.phase_min_seconds"))))
+    tp = r.origins["audio.true_peak_max_dbtp"]
+    assert r.profile.audio.true_peak_max_dbtp == -1.0 and tp.file == "normes/r.yaml"
+    assert tp.referred_by == ref["source"]
+    assert tp.source == "Chaîne §4 : « conforme à la norme R », par renvoi à Norme r (norme : r §1)"
+    assert r.profile.audio.silence_dbfs == -60.0 and r.origins["audio.silence_dbfs"].file == "profiles/p.yaml"
+    # Only the value of a norm without reference is capped.
+    assert capped_norm_values(r) == {"audio.phase_min_seconds": "normes/s.yaml"}
+    # effective_profile.json keeps the reference; rules read it back (engine.norm_values).
+    (tmp_path / "out").mkdir()
+    (tmp_path / "out" / "effective_profile.json").write_text(r.dumps(), encoding="utf-8")
+    assert engine_norm_values(tmp_path / "out") == {"audio.phase_min_seconds": "normes/s.yaml"}
+    assert from_json(json.loads(r.dumps()), tmp_path).origins["audio.true_peak_max_dbtp"].referred_by == ref["source"]
+    # Without the reference, the same value is a recommendation, capped.
+    r = resolve_profile(profile(["r", "s", "lumiris_maison"], _drop("audio.true_peak_max_dbtp")))
+    assert "audio.true_peak_max_dbtp" in capped_norm_values(r)
+    assert "referred_by" not in r.to_json()["origins"]["audio.true_peak_max_dbtp"]  # unchanged JSON
+
+
+@pytest.mark.parametrize("ref, message", [
+    ({"norm": "s", "source": "Chaîne §4"}, "doit figurer dans meta.extends"),
+    ({"norm": "lumiris_maison", "source": "Chaîne §4"}, "n'est pas une norme du client"),
+    ({"norm": "r", "source": " "}, "sans citation du document du client"),
+])
+def test_reference_refused(lab, ref, message) -> None:
+    norms, profile = lab
+    _norm(norms, "r", {"audio": {"true_peak_max_dbtp": -1.0}})
+    with pytest.raises(ProfileError) as exc:
+        resolve_profile(profile(["r", "lumiris_maison"], _refer(ref)))
+    assert message in " ".join(exc.value.messages)
 
 
 def test_conflict_listed_with_both_values(lab) -> None:

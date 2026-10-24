@@ -25,7 +25,7 @@ from pad_guard.measure.models import Measurements
 from pad_guard.measure.series import GroupBlocks, VideoSeries, block_frames, load_audio, load_video
 from pad_guard.probe.models import ProbeResult
 from pad_guard.profiles import from_json
-from pad_guard.profiles.resolve import HOUSE
+from pad_guard.profiles.resolve import capped_norm_values
 from pad_guard.rules import delivery, expr
 from pad_guard.rules import scan as scan_rule
 from pad_guard.rules.models import Event, Events, Verdict
@@ -628,15 +628,14 @@ class Engine:
 
 
 def norm_values(workdir: Path) -> dict[str, str]:
-    """Values of the effective profile that come from an international norm (not the client's
-    profile, not the house rules), from effective_profile.json. Empty if the file is absent."""
+    """Values of the effective profile that come from an international norm only (not the client's
+    profile, not the house rules, not a norm the client refers to), from effective_profile.json.
+    Empty if the file is absent."""
 
     path = workdir / wd.EFFECTIVE_PROFILE
     if not path.is_file():
         return {}
-    resolved = from_json(json.loads(path.read_text(encoding="utf-8")), path)
-    norms = {layer.file for layer in resolved.layers if layer.kind == "norm" and layer.name != HOUSE}
-    return {p: o.file for p, o in resolved.origins.items() if o.file in norms}
+    return capped_norm_values(from_json(json.loads(path.read_text(encoding="utf-8")), path))
 
 
 def run(workdir: Path, profile: Profile) -> tuple[Events, Verdict]:
