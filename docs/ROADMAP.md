@@ -131,12 +131,16 @@ Orientation v3 du 23 octobre 2026 : multi-diffuseurs, profils hérités de norme
 ## Phase 5 : interface locale (hors SPEC v2, après validation)
 
 **Livrables**
-- Interface web locale (Gradio ou Streamlit, au choix justifié) : glisser un fichier, choisir un profil, lancer, suivre la progression, télécharger le PDF.
-- Dépôt du PDF d'un diffuseur (appel de `draft-profile`) et écran de validation du profil brouillon (appel de `review-profile`).
-- Aucune logique métier dans l'interface : elle appelle la CLI ou les mêmes fonctions Python.
+- `pad-guard ui` : interface web locale d'après la maquette Claude Design (`design/maquette/`), servie par Starlette + uvicorn sur 127.0.0.1 seulement. Gradio et Streamlit écartés : ni l'un ni l'autre ne sert cette maquette ni ne transmet un chemin choisi dans la boîte de dialogue Windows. Fait.
+- Choisir un film (par son chemin : jamais copié par le navigateur) et un profil, vérifier le récapitulatif (format lu par probe, exigences du profil avec leur source, correspondance audio vérifiée par `audio_map`), lancer, suivre la progression, annuler, lire le rapport (`rapport.json`), télécharger le PDF. Fait.
+- Dépôt du PDF d'un diffuseur (reconnu par son SHA-256, sinon `draft-profile` en tâche) et écran de validation du profil brouillon (fonctions de `review-profile`, décision explicite par champ). Fait.
+- Aucune logique métier dans l'interface : elle lance la CLI (`--progress-json`) ou appelle les mêmes fonctions Python. Fait.
+- Reste : surbrillance de la citation sur l'aperçu de page du PDF.
+
+**Écarts acceptés avec la maquette** (24 octobre 2026) : pas de glisser-déposer du film (chemin seulement) ; pas de reconnaissance « automatique » du diffuseur hors empreinte du PDF ; pas de profil « normes seules » ; pas de forme d'onde par piste ; pourcentage = images mesurées (lecture du fichier et mesures audio sans compteur) ; graphiques du rapport (PNG) au lieu de courbes dessinées dans la page ; une vignette par anomalie image, pas de bande de 5 images ; pas de colonne de référence dans les contrôles de format (source à ajouter aux `checks` plus tard) ; textes d'exemple de la maquette remplacés par les données réelles.
 
 **Acceptation**
-- Vincent produit un rapport sans ouvrir de terminal.
+- Vincent produit un rapport sans ouvrir de terminal (à part `uv run pad-guard ui`). Test automatique : `uv run pytest -m e2e` (Chromium, fixture `bad_levels.mov`). Recette sur le vrai master Arte : à faire.
 
 ---
 

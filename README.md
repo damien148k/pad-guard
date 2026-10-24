@@ -14,6 +14,14 @@ FFmpeg 6+ et `ffprobe` doivent être dans le PATH.
 
 La commande s'appelle `pad-guard` ; l'ancien nom `pad-checker` reste disponible comme alias.
 
+## Interface locale
+
+```bash
+uv run pad-guard ui        # ouvre http://127.0.0.1:8765/ dans le navigateur
+```
+
+Choisir un film et un profil, suivre l'analyse, lire le rapport et télécharger le PDF, créer et valider le profil d'une chaîne depuis son PDF : voir `docs/GUIDE_VINCENT.md`. Le serveur n'écoute que sur 127.0.0.1, la page ne charge rien depuis Internet, les films sont lus sur place (le navigateur ne reçoit que leur chemin). Les analyses lancées depuis l'interface exécutent la CLI (`python -m pad_guard analyze … --progress-json`) et sont rangées dans `Documents\PAD Guard\analyses\` (réglable).
+
 ## Utilisation
 
 ```bash
@@ -50,7 +58,9 @@ Les vignettes sont produites par défaut (`--no-thumbnails` pour s'en passer ; l
 | `structure.json` | structure | mire, 1 kHz, noirs de tête et de queue, programme, contrôles, images figées / dupliquées / noires isolées, PSE, format d'image |
 | `events.json`, `verdict.json` | règles | événements avec gravité ; statut, score, compteurs, motifs |
 | `rapport.md`, `rapport.pdf` | rapport | rapport en français (sections SPEC §8), `annexes/` (graphiques), `vignettes/` |
-| `run.json`, `profile.yaml`, `effective_profile.json` | analyze | date et commande de l'analyse et des relances ; copie du fichier de profil ; profil effectif (valeurs, origine de chaque valeur, conflits, empreinte) |
+| `run.json`, `profile.yaml`, `effective_profile.json` | analyze | date et commande de l'analyse et des relances, heure de fin ; copie du fichier de profil ; profil effectif (valeurs, origine de chaque valeur, conflits, empreinte) |
+| `rapport.json` | rapport | ce que montre `rapport.md`, en données, pour l'interface ; anomalies nommées par leur clé `type@image@groupe` |
+| `progression.jsonl`, `ui_job.json` | interface | progression écrite par `--progress-json` ; état de la tâche lancée depuis l'interface |
 
 `measurements.json` est écrit en dernier : s'il est présent, les deux fichiers `.jsonl` sont complets. Les mesures sont au format 2 depuis la Phase 3 (différences entre images `d_mean`, `d_up_pct`, `d_down_pct`) : un dossier mesuré avant doit être réanalysé. Format 3 depuis la Phase 4a (indicateur de peignage `comb` et balayage détecté `scan`) : idem.
 
@@ -77,4 +87,6 @@ Objectif Phase 1 : ≥ 4× temps réel. À 30× temps réel, la lecture d'un Pro
 ```bash
 bash tests/fixtures/make_fixtures.sh   # génère les fichiers vidéo de test (fait aussi automatiquement par pytest)
 uv run pytest
+uv run playwright install chromium     # une fois, pour le test de l'interface dans un vrai navigateur
+uv run pytest -m e2e                   # ce test n'est pas lancé par défaut
 ```

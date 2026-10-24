@@ -32,6 +32,7 @@ La spécification complète est dans `docs/SPEC.md`. La feuille de route et les 
 - Tests avec `pytest`. Fixtures vidéo générées par `tests/fixtures/make_fixtures.sh` (FFmpeg `testsrc2`, `smptehdbars`, `color`, `sine`).
 - Couche IA : **Ollama uniquement** (bibliothèque Python `ollama`), modèle par défaut `qwen3-vl:32b-instruct`, repli `qwen3-vl:8b-instruct`, derrière une interface `LLMClient` (pour pouvoir brancher un autre moteur local plus tard). Pas d'API externe. Désactivée par défaut. Deux usages : la synthèse du rapport (Phase 4c) et l'extraction d'un profil brouillon depuis le PDF d'un diffuseur (`draft-profile`, Phase 4b), toujours en `A_VERIFIER`.
 - Lecture des PDF (Phase 4b) : `pdfplumber` (texte) et `pypdfium2` (rendu des pages). Pas de PyMuPDF pour cet usage (licence AGPL).
+- Interface locale (Phase 5) : `starlette` + `uvicorn` sur 127.0.0.1 seulement (pas FastAPI : il tire `opentelemetry-api`), page en Preact + htm copiés dans `ui/static/vendor/`, polices copiées dans `ui/static/fonts/` (OFL). Aucun CDN : la Content-Security-Policy l'interdit et un test le vérifie. Maquette de référence : `design/maquette/` (export Claude Design). Test de bout en bout avec Playwright (`-m e2e`, hors pytest par défaut).
 - pymupdf (AGPL) est utilisé pour produire rapport.pdf : acceptable pour un usage interne Lumiris ; à remplacer avant toute distribution de PAD Guard.
 
 ## Architecture
@@ -52,7 +53,9 @@ src/pad_guard/
   report/     génération Markdown / PDF ; ai.py : synthèse et qualifications IA, contrôlées, rejouées depuis llm_synthese.json
   llm/        LLMClient et OllamaClient (seule implémentation), consignes versionnées dans llm/prompts/
   draft/      draft-profile (lecture du PDF, schéma d'extraction, contrôle des citations), review-profile, compare-profiles
-  cli.py      point d'entrée `pad-guard`
+  ui/         `pad-guard ui` : serveur local, API sur les JSON et les fonctions de PAD Guard, tâches (la CLI en
+              sous-processus, --progress-json), page dans static/ ; affiche, ne décide jamais
+  cli.py      point d'entrée `pad-guard` (aussi `python -m pad_guard`)
 ```
 
 Le flux est strictement linéaire : `profil effectif -> probe -> decode+measure -> structure -> rules -> report`, avec un fichier JSON écrit entre chaque étape dans le dossier de travail (`effective_profile.json`, `probe.json`, `measurements.json`…). Chaque étape doit pouvoir être relancée seule à partir du JSON précédent.
@@ -86,7 +89,9 @@ uv run pad-guard explain-profile profiles/arte_hd_sdr.yaml    # chaque valeur, s
 uv run pad-guard draft-profile diffuseurs/doc.pdf --name nom  # brouillon dans profiles/drafts/ (Ollama local)
 uv run pad-guard review-profile profiles/drafts/nom.yaml      # relecture champ par champ -> profiles/nom.yaml validé
 uv run pad-guard compare-profiles a.yaml b.yaml               # différences entre deux profils effectifs
+uv run pad-guard ui                                           # interface locale (127.0.0.1:8765), voir docs/GUIDE_VINCENT.md
 uv run pytest
+uv run pytest -m e2e                                          # interface dans Chromium (playwright install chromium une fois)
 ```
 
 ## Décisions actées (7 octobre 2026)
@@ -97,6 +102,14 @@ uv run pytest
 - **Arte, mode `leaders: none`** : mire → `structure_bars_present` (`blocking`) ; noir de tête > `head_max_seconds` ou de queue > `tail_max_seconds` → `structure_black_too_long` (`minor`).
 - **Intégrité** : vérifiée pendant la passe de décodage/mesure (erreurs PyAV collectées, images décodées = `nb_frames`), jamais par un second décodage.
 - **Profils** : schéma commun (`format.fps_allowed`, `audio.loudness.long/short`, `structure.leaders`). Les tests des fixtures à amorce classique utilisent `tests/profiles/test_classic.yaml`, pas un profil de chaîne.
+
+## Interface locale (Phase 5)
+
+- Aucune logique métier dans `ui/` ni dans le JavaScript : verdict, score, gravités, seuils, qualifications et textes viennent des JSON de PAD Guard (`rapport.json`, écrit par le rapport à partir des mêmes sections que `rapport.md`) ou des fonctions Python existantes (`probe_file`, `audio_map.parse`, `pipeline.preflight`, `draft.review`). Une donnée que PAD Guard ne produit pas ne s'affiche pas.
+- Les films ne transitent jamais par le navigateur : la page ne reçoit que des chemins (boîte de dialogue native ouverte par le serveur, ou chemin collé).
+- Une anomalie est désignée par `Event.key` (`type@frame_start@groupe`), jamais par son numéro, pour les liens et les vignettes.
+- Les analyses et `draft-profile` lancés depuis l'interface exécutent la CLI (`python -m pad_guard … --progress-json`), une tâche à la fois.
+- Mêmes garde-fous que la CLI : profil draft, jamais « CONFORME » ; synthèse IA « à relire » ; à la validation d'un profil, décision explicite pour chaque champ et chaque renvoi, INVRAISEMBLABLE et règles plafonnées par une norme en rouge.
 
 ## Ce qu'il ne faut pas faire
 

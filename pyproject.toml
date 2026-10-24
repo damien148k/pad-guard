@@ -43,4 +43,8 @@ packages = ["src/pad_guard"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["fixtures: needs the generated video fixtures (tests/fixtures/make_fixtures.sh)"]
+addopts = "-m 'not e2e'"  # the browser test runs with: uv run pytest -m e2e
+markers = [
+    "fixtures: needs the generated video fixtures (tests/fixtures/make_fixtures.sh)",
+    "e2e: local interface in a real browser (Playwright Chromium, uv run playwright install chromium)",
+]
