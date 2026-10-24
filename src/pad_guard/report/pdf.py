@@ -38,9 +38,20 @@ CAPTION_BLOCKS = 3  # paragraphs or heading kept with the image that follows the
 _IMAGE = re.compile(r"^\s*!\[[^\]]*\]\([^)]*\)\s*$")
 
 
+_CODE = re.compile(r"<code>(.*?)</code>", re.S)
+MAX_PAGES_PER_BLOCK = 200  # a block that still does not fit is a layout error, not a long report
+
+
+def _breakable(match: re.Match) -> str:
+    # A long path or command line has no space to break at: a table cell holding it would be wider
+    # than the page and PyMuPDF would never place it. A zero-width space after each separator lets
+    # the line break there, without changing the text read.
+    return "<code>" + re.sub(r"([\\/_.=-])", "\\1\u200b", match.group(1)) + "</code>"
+
+
 def to_html(markdown: str) -> str:
     body = MarkdownIt("commonmark", {"html": False}).enable("table").render(markdown)
-    return f"<html><body>{body}</body></html>"
+    return f"<html><body>{_CODE.sub(_breakable, body)}</body></html>"
 
 
 def _is_caption(block: str) -> bool:
@@ -110,7 +121,9 @@ def write(markdown: str, base_dir: Path, path: Path, title: str) -> int:
             pages.new()  # the image keeps its size: next page
         story = pymupdf.Story(html=html, user_css=CSS, archive=archive)
         more = True
-        while more:
+        for _ in range(MAX_PAGES_PER_BLOCK):
+            if not more:
+                break
             if pages.device is None or pages.room().height < 2 * GAP:
                 pages.new()
             more, filled = story.place(pages.room())
@@ -118,6 +131,8 @@ def write(markdown: str, base_dir: Path, path: Path, title: str) -> int:
             pages.y = pymupdf.Rect(filled).y1 + GAP
             if more:
                 pages.new()
+        if more:
+            raise ValueError(f"rapport.pdf : un bloc du rapport ne tient pas dans la page ({text[:80]!r}…)")
     pages.close()
     pages.writer.close()
 

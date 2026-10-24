@@ -56,7 +56,7 @@ def _shrink_mask(mask: np.ndarray) -> np.ndarray:
 
 
 def render(frame: VideoFrame, limits: VideoLimits, event_type: str) -> np.ndarray:
-    picture = _shrink(to_rgb8(frame, limits))
+    picture = _shrink(to_rgb8(frame.as_422_10(), limits))  # the masks below use the frame as measured
     names = MASKS_BY_TYPE.get(event_type)
     if not names:
         return picture

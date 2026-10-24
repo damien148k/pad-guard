@@ -1,7 +1,10 @@
 """Frame-by-frame video decoding with PyAV (SPEC §5.1).
 
-Planes are exposed as ``uint16`` arrays (10-bit code values 0-1023) without any format
-conversion. The decoder also performs the integrity check (CLAUDE.md decision): decoding
+Planes are exposed as ``uint16`` arrays in the layout of the file (4:2:0, 4:2:2 or 4:4:4) without
+any resampling. Code values are 10-bit, except for a 12-bit file, measured in 12 bits (decision of
+Damien, 24 October 2026: the 10-bit thresholds are multiplied by 4 exactly, ``VideoFrame.scale``);
+an 8-bit file is converted to 10 bits (x 4, exact) before any comparison (CLAUDE.md). An alpha
+plane is ignored. The decoder also performs the integrity check (CLAUDE.md decision): decoding
 errors are recorded instead of aborting, and the decoded frame count is compared to the
 count announced by the container.
 """
@@ -17,7 +20,7 @@ import av.logging
 import numpy as np
 from pydantic import BaseModel
 
-EXPECTED_PIX_FMT = "yuv422p10le"
+from pad_guard.formats import LAYOUTS
 
 
 class DecoderOpenError(Exception):
@@ -49,14 +52,52 @@ class IntegrityReport(BaseModel):
 class VideoFrame:
     index: int  # absolute frame number, 0 = first frame of the file
     y: np.ndarray  # (height, width) uint16
-    cb: np.ndarray  # (height, width / 2) uint16
+    cb: np.ndarray  # (height / vsub, width / hsub) uint16
     cr: np.ndarray
+    scale: int = 1  # code values per 10-bit code value: 4 for a 12-bit file, else 1
+    hsub: int = 2  # chroma subsampling: 4:2:2 = (2, 1), 4:2:0 = (2, 2), 4:4:4 = (1, 1)
+    vsub: int = 1
+
+    def as_422_10(self) -> VideoFrame:
+        """4:2:2 10-bit view of the frame, for displays and pattern matching (thumbnails, bars).
+        The frame itself when it already is; otherwise chroma rows repeated (4:2:0), every other
+        chroma sample kept (4:4:4) and 12-bit values divided by 4 (rounded down)."""
+        if (self.scale, self.hsub, self.vsub) == (1, 2, 1):
+            return self
+        shift = self.scale.bit_length() - 1
+        h = self.y.shape[0]
+
+        def chroma(plane: np.ndarray) -> np.ndarray:
+            if self.vsub == 2:
+                plane = np.repeat(plane, 2, axis=0)[:h]
+            if self.hsub == 1:
+                plane = plane[:, 0::2]
+            return plane >> shift if shift else plane
+
+        return VideoFrame(index=self.index, y=self.y >> shift if shift else self.y, cb=chroma(self.cb),
+                          cr=chroma(self.cr))
 
 
-def _plane(plane, width: int, height: int) -> np.ndarray:
-    # line_size may include padding: view the buffer as rows, then crop. No copy.
+def _plane(plane, width: int, height: int, bits: int) -> np.ndarray:
+    # line_size may include padding: view the buffer as rows, then crop. No copy for 10 and 12 bits.
+    if bits == 8:
+        rows = np.frombuffer(plane, dtype=np.uint8).reshape(height, plane.line_size)
+        return rows[:, :width].astype(np.uint16) << 2  # 8-bit code x 4 = 10-bit code, exact
     rows = np.frombuffer(plane, dtype="<u2").reshape(height, plane.line_size // 2)
     return rows[:, :width]
+
+
+def to_frame(frame, index: int) -> VideoFrame:
+    """PyAV frame -> VideoFrame (planes in the layout of the file, see the module docstring)."""
+    layout = LAYOUTS.get(frame.format.name)
+    if layout is None:
+        raise ValueError(f"format de pixel décodé {frame.format.name} : non mesurable par PAD Guard")
+    w, h = frame.width, frame.height
+    cw, ch = -(-w // layout.hsub), -(-h // layout.vsub)
+    p = frame.planes
+    return VideoFrame(index=index, y=_plane(p[0], w, h, layout.bits), cb=_plane(p[1], cw, ch, layout.bits),
+                      cr=_plane(p[2], cw, ch, layout.bits), scale=4 if layout.bits == 12 else 1,
+                      hsub=layout.hsub, vsub=layout.vsub)
 
 
 @dataclass
@@ -112,22 +153,11 @@ class VideoDecoder:
                             self._errors.append(DecodeError(after_frame=self._decoded, message=text))
                     seen_logs = len(logs)
                 for frame in decoded:
-                    if frame.format.name != EXPECTED_PIX_FMT:
-                        raise ValueError(
-                            f"format de pixel décodé {frame.format.name}, attendu {EXPECTED_PIX_FMT}"
-                        )
                     if frame.pts is not None:
                         if last_pts is not None and step and frame.pts - last_pts != step:
                             self._pts_gaps.append(self._decoded)
                         last_pts = frame.pts
-                    w, h = frame.width, frame.height
-                    p = frame.planes
-                    yield VideoFrame(
-                        index=self._decoded,
-                        y=_plane(p[0], w, h),
-                        cb=_plane(p[1], w // 2, h),
-                        cr=_plane(p[2], w // 2, h),
-                    )
+                    yield to_frame(frame, self._decoded)
                     self._decoded += 1
 
     @property
@@ -197,12 +227,7 @@ def _scan(container, stream, wanted: list[int]) -> Iterator[VideoFrame]:
             target = next(pending, None)
 
 
-def _to_frame(frame, index: int) -> VideoFrame:
-    if frame.format.name != EXPECTED_PIX_FMT:
-        raise ValueError(f"format de pixel décodé {frame.format.name}, attendu {EXPECTED_PIX_FMT}")
-    w, h = frame.width, frame.height
-    p = frame.planes
-    return VideoFrame(index=index, y=_plane(p[0], w, h), cb=_plane(p[1], w // 2, h), cr=_plane(p[2], w // 2, h))
+_to_frame = to_frame
 
 
 def _pts_step(stream) -> int | None:

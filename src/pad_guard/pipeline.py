@@ -152,7 +152,7 @@ def measurement_differences(workdir: Path, probe: ProbeResult, m: Measurements, 
         out.append("groupes audio (audio.groups)")
     if m.audio is not None:
         video = load_video(workdir, m)
-        y_p99 = [int(x) for x in video["y_p99"]]
+        y_p99 = [float(x) for x in video["y_p99"]]
         new = program_range(probe, profile, y_p99, video.frames, m.audio.settings.sample_rate)
         if new != m.audio.program:
             out.append(f"plage programme audio : images {m.audio.program.frame_start}-{m.audio.program.frame_end} "

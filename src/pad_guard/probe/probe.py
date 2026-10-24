@@ -274,6 +274,8 @@ def _check_format(c: _Checks, p: Profile, container: ContainerInfo, v: VideoInfo
         c.add("chroma", "Échantillonnage de la chrominance", "format_picture",
               " ou ".join("RVB" if x == "rgb" else x for x in f.chroma_allowed),
               ("RVB" if v.sampling == "rgb" else v.sampling) or v.pix_fmt or "inconnu", v.sampling in f.chroma_allowed)
+    if v.alpha:
+        c.add("alpha", "Canal alpha", "alpha_channel", "aucun", "présent, ignoré par les mesures", False)
     c.add("resolution", "Résolution", "format_resolution", f"{f.width}x{f.height}", f"{v.width}x{v.height}",
           (v.width, v.height) == (f.width, f.height))
 

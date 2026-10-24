@@ -56,6 +56,7 @@ EVENT_TYPES = (
     "format_resolution",
     "format_frame_rate",
     "integrity",
+    "alpha_channel",
     "delivery_conversion_required",
     "scan_flag_mismatch",
     "scan_interlaced",

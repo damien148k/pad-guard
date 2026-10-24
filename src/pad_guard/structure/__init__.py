@@ -320,7 +320,7 @@ def _letterbox(ctx: _Context, program: FrameRange, excluded: np.ndarray) -> Lett
     ctx.progress(f"Format d'image : {len(wanted)} image(s) échantillonnée(s)")
     samples: list[LetterboxSample] = []
     for frame in read_frames(ctx.need_source("le contrôle du format d'image"), wanted, ctx.probe.video.stream_index):
-        area = lb.active_area(frame.y, frame.index, y_max)
+        area = lb.active_area(frame.y, frame.index, y_max * frame.scale)
         if area is not None:
             samples.append(area)
     dom, share = lb.dominant(samples, tolerance)

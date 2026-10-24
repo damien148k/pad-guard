@@ -35,6 +35,8 @@ FIXTURE_FILES = (
     "bad_levels_50p.mov",
     "fmt_opatom.mxf",
     "fmt_h264_intra.mp4",
+    "fmt_dnxhr_hq_2k.mov",
+    "fmt_prores4444_alpha.mov",
 )
 
 

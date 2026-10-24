@@ -51,17 +51,19 @@ PHASE6_REMOVED = {"rules.min_event_frames.freeze", "format.codecs", "format.pix_
 # Phase 6 (Arte 1.2): codecs of §3.2.2.2 (the client's document) instead of the Lumiris master codecs,
 # pix_fmt written as bit depth and chroma sampling.
 PHASE6_FORMAT = {"format.codecs", "format.bit_depth_allowed", "format.chroma_allowed", "format.pix_fmt"}
+# Severity chains of the house rules added in Phase 6 (normes/lumiris_maison.yaml).
+PHASE6_NEW = {"rules.severity.alpha_channel"}
 LEVEL_CHAINS = ("rules.severity.white_clip", "rules.severity.black_crush", "rules.severity.gamut")
 
 
 def test_arte_effective_profile_identical_to_v2() -> None:
     old = _values(TEST_PROFILES / "arte_hd_sdr_v1_flat.yaml")
     new = _values(PROFILES / "arte_hd_sdr.yaml")
-    changed = V3_ADDITIONS | set(PHASE6_CHANGES) | set(LEVEL_CHAINS) | PHASE6_FORMAT
+    changed = V3_ADDITIONS | set(PHASE6_CHANGES) | set(LEVEL_CHAINS) | PHASE6_FORMAT | PHASE6_NEW
     assert {p: v for p, v in new.items() if p not in changed} == {
         p: v for p, v in old.items() if p not in PHASE6_REMOVED | set(PHASE6_CHANGES) | set(LEVEL_CHAINS)}
     assert set(new) - set(old) == V3_ADDITIONS | set(PHASE6_CHANGES) - {"rules.merge_gap_frames"} | {
-        "format.bit_depth_allowed", "format.chroma_allowed"}
+        "format.bit_depth_allowed", "format.chroma_allowed"} | PHASE6_NEW
     assert old["format.pix_fmt"] == "yuv422p10le" and new.get("format.pix_fmt") is None
     assert (new["format.bit_depth_allowed"], new["format.chroma_allowed"]) == ([10], ["4:2:2"])
     assert [c.get("label") for c in new["format.codecs"]] == [

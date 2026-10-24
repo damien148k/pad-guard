@@ -32,6 +32,7 @@ TYPE_LABELS = {
     "format_resolution": "Résolution",
     "format_frame_rate": "Cadence",
     "integrity": "Intégrité du fichier",
+    "alpha_channel": "Canal alpha",
     "delivery_conversion_required": "Conversion pour la livraison",
     "scan_flag_mismatch": "Drapeau de balayage incorrect",
     "scan_interlaced": "Master entrelacé",

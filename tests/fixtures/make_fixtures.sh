@@ -34,6 +34,8 @@
 #   fmt_opatom.mxf     2 s of testsrc2 at 320x180 25p, DNxHR HQX in MXF OP-Atom (video only), TC 10:00:00:00.
 #   fmt_h264_intra.mp4 the arte_ok program (20 s, VO as 2 mono tracks) in H.264 High 4:2:2 Intra 10-bit
 #                      (libx264, every frame a key frame, like XAVC Intra / AVC-Intra), MP4.
+#   fmt_dnxhr_hq_2k.mov  4 s of testsrc2, DNxHR HQ 8 bits 2048x1556 23.976p, TC 00:00:00:00, stereo (like a 2K scan).
+#   fmt_prores4444_alpha.mov  2 s of testsrc2 640x360 25p, ProRes 4444 with alpha, no audio.
 #   bad_levels_50p.mov  ok_prores at 50p with white at Y=975 on frames 600-649 (1 s, 10:00:02:00-10:00:02:49)
 #                      and black at Y=40 on frames 750-774 (0.5 s, 10:00:05:00-10:00:05:24).
 set -euo pipefail
@@ -241,7 +243,20 @@ fi
 if need fmt_h264_intra.mp4; then
     [[ -s "$WORK/rate_vo.wav" ]] || audio_track "$WORK/rate_vo.wav" pink23:20:11
     make_fixture fmt_h264_intra.mp4 10:00:00:00 "prog:20" "" 1 -c:v libx264 -profile:v high422 -pix_fmt yuv422p10le \
-        -x264-params keyint=1:min-keyint=1 -b:v 50M -- "$WORK/rate_vo.wav"
+        -x264-params keyint=1:min-keyint=1 -b:v 10M -- "$WORK/rate_vo.wav"
+fi
+# A 2K full-aperture scan like the ASTERIX file of the acceptance: DNxHR HQ 8 bits 2048x1556 23.976p.
+if need fmt_dnxhr_hq_2k.mov; then
+    audio_track "$WORK/scan.wav" pink23:4:11
+    SIZE=2048x1556 FPS=24000/1001 make_fixture fmt_dnxhr_hq_2k.mov 00:00:00:00 "prog:4" "" 0 \
+        -c:v dnxhd -profile:v dnxhr_hq -pix_fmt yuv422p -- "$WORK/scan.wav"
+fi
+# ProRes 4444 with an alpha plane (decoded yuva444p12le by FFmpeg).
+if need fmt_prores4444_alpha.mov; then
+    "${FF[@]}" -f lavfi -i "testsrc2=s=640x360:r=25:d=2" \
+        -vf "format=yuva444p10le,setparams=field_mode=prog:range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709" \
+        -c:v prores_ks -profile:v 4 -pix_fmt yuva444p10le -timecode 10:00:00:00 "$HERE/fmt_prores4444_alpha.mov"
+    echo "  fmt_prores4444_alpha.mov"
 fi
 
 # Timecode fixtures: FFmpeg writes the base (tmcd number of frames, MXF rounded timecode base)

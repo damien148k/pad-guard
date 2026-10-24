@@ -79,6 +79,7 @@ def reference(pattern: str, width: int, height: int) -> np.ndarray:
 
 def bars_error(frame: VideoFrame, pattern: str) -> float:
     """Median absolute cell error against ``pattern``, worst plane, in 10-bit code values."""
+    frame = frame.as_422_10()
     h, w = frame.y.shape
     diff = np.abs(cell_means(frame.y, frame.cb, frame.cr) - reference(pattern, w, h))
     return round(float(max(np.median(diff[p]) for p in range(3))), 3)

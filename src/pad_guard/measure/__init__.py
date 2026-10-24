@@ -69,7 +69,7 @@ def run(
     (out_dir / MEASUREMENTS_FILE).unlink(missing_ok=True)
 
     decoder = VideoDecoder(source, stream_index=probe.video.stream_index, frames_expected=probe.video.nb_frames)
-    y_p99 = array("H")
+    y_p99 = array("d")  # 10-bit code values (quarters for a 12-bit file)
     comb, d_mean = array("d"), array("d")
     with (out_dir / VIDEO_FILE).open("w", encoding="utf-8", newline="\n") as f:
         for rec in measure_frames(decoder.frames(), limits, workers or default_workers()):

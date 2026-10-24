@@ -9,6 +9,7 @@ Damien, 24 October 2026).
 from __future__ import annotations
 
 from fractions import Fraction
+from typing import NamedTuple
 
 import av
 
@@ -19,11 +20,25 @@ MEASURABLE_RATES: tuple[Fraction, ...] = (
     Fraction(50), Fraction(60000, 1001), Fraction(60),
 )
 
-# Decoded pixel formats the measurement code reads (FFmpeg names).
-MEASURABLE_PIX_FMTS: tuple[str, ...] = ("yuv422p10le",)
+class Layout(NamedTuple):
+    bits: int  # per component
+    hsub: int  # chroma subsampling, horizontal and vertical
+    vsub: int
+
+
+# Decoded pixel formats the measurement code reads (FFmpeg names): planar Y'CbCr, 8, 10 or 12 bits,
+# 4:2:0, 4:2:2 or 4:4:4. An alpha plane (yuva*) is ignored by the measurements and reported.
+LAYOUTS: dict[str, Layout] = {
+    "yuv420p": Layout(8, 2, 2), "yuv422p": Layout(8, 2, 1), "yuv444p": Layout(8, 1, 1),
+    "yuv420p10le": Layout(10, 2, 2), "yuv422p10le": Layout(10, 2, 1), "yuv444p10le": Layout(10, 1, 1),
+    "yuv420p12le": Layout(12, 2, 2), "yuv422p12le": Layout(12, 2, 1), "yuv444p12le": Layout(12, 1, 1),
+    "yuva422p10le": Layout(10, 2, 1), "yuva444p10le": Layout(10, 1, 1),
+    "yuva422p12le": Layout(12, 2, 1), "yuva444p12le": Layout(12, 1, 1),
+}
+MEASURABLE_PIX_FMTS: tuple[str, ...] = tuple(LAYOUTS)
 
 # Codec families known to decode to a measurable pixel format (shown by the interface).
-FAMILIES: tuple[str, ...] = ("ProRes 422 (Proxy à HQ)", "DNxHR HQX", "DNxHD 10 bits")
+FAMILIES: tuple[str, ...] = ("ProRes (Proxy à 4444 XQ)", "DNxHD / DNxHR (LB à 444)", "H.264 / AVC-Intra / XAVC")
 
 CONTAINERS: tuple[str, ...] = ("MOV", "MXF")
 
@@ -55,6 +70,7 @@ def capabilities() -> dict:
         "containers": list(CONTAINERS),
         "rates": rates,
         "pix_fmts": list(MEASURABLE_PIX_FMTS),
+        "depths": sorted({layout.bits for layout in LAYOUTS.values()}),
         "summary": " · ".join([*FAMILIES, ", ".join(rates)]),
         "extensions": [f".{c.lower()}" for c in CONTAINERS],
     }

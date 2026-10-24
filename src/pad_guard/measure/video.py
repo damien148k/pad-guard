@@ -1,13 +1,16 @@
 """Per-frame luma / chroma / RGB gamut measurements (SPEC §5.2).
 
-All luma statistics come from one exact histogram of the 10-bit Y plane, so they are integer
-and reproducible. Thresholds are converted once from the profile percentages to 10-bit code
+All luma statistics come from one exact histogram of the Y plane, so they are exact and
+reproducible. The values are written as 10-bit code values: a 12-bit file is measured in 12 bits
+against the 10-bit thresholds multiplied by 4 exactly, and its values are written divided by 4
+(to the quarter); an 8-bit file arrives here converted to 10 bits (decode/video.py). Thresholds are converted once from the profile percentages to 10-bit code
 values, rounded outward and inclusive (CLAUDE.md decision of 7 October 2026).
 
 RGB gamut: Y'CbCr legal range -> R'G'B' with the inverse matrix of the profile colour space,
 in float32, without clipping, expressed in the luma code scale (so that the -5 % / 105 % bounds
 become code values like the Y bounds). 4:2:2 chroma is sited on the even luma samples; odd
-samples use the mean of the two neighbouring chroma samples (linear interpolation).
+samples use the mean of the two neighbouring chroma samples (linear interpolation). 4:2:0 chroma
+rows are repeated over the two luma rows they cover; 4:4:4 needs no interpolation.
 
 Prefilter (profile ``video.prefilter``): horizontal binomial low-pass on Y, Cb and Cr before
 every level measurement, as recommended by EBU R103 to ignore fleeting overshoots.
@@ -96,19 +99,19 @@ class VideoLimits:
             flash_delta_pct=profile.structure.pse.flash_min_delta_pct,
         )
 
-    def luminance(self) -> np.ndarray:
-        """Relative luminance of every 10-bit code value (float64, 1024 entries, non-decreasing)."""
+    def luminance(self, scale: int = 1) -> np.ndarray:
+        """Relative luminance of every code value (float64, 1024 x scale entries, non-decreasing)."""
         lo, hi = self.y_legal
-        return np.clip((np.arange(1024) - lo) / (hi - lo), 0.0, 1.0) ** LUMINANCE_GAMMA
+        return np.clip((np.arange(1024 * scale) - lo * scale) / ((hi - lo) * scale), 0.0, 1.0) ** LUMINANCE_GAMMA
 
-    def flash_table(self) -> np.ndarray:
+    def flash_table(self, scale: int = 1) -> np.ndarray:
         """uint16 table: ``up[p]`` is the first code value whose luminance exceeds that of ``p`` by
         more than the flash delta (1024: none).
 
         A pixel rose if ``Y >= up[P]`` and fell if ``P >= up[Y]`` (luminance is non-decreasing),
         ``P`` being its value in the previous frame.
         """
-        lum = self.luminance()
+        lum = self.luminance(scale)
         return np.searchsorted(lum, lum + self.flash_delta_pct / 100, side="right").astype(np.uint16)
 
     def rgb_coefficients(self) -> tuple[float, float, float, float]:
@@ -176,9 +179,8 @@ class _Workspace:
     reallocated (a fresh multi-megabyte temporary costs a page fault per 4 KiB).
     """
 
-    def __init__(self, rows: int, w: int, taps: int | None):
-        cw = w // 2
-        self.key = (rows, w)
+    def __init__(self, rows: int, w: int, cw: int, taps: int | None):
+        self.key = (rows, w, cw)
         if taps:
             half = taps // 2
             self.y = np.empty((rows, w), np.uint16)
@@ -213,23 +215,38 @@ class FrameMeter:
     def __init__(self, limits: VideoLimits, strip_rows: int = STRIP_ROWS):
         self.limits = limits
         self.strip_rows = strip_rows
-        self._k = tuple(np.float32(c) for c in limits.rgb_coefficients())
-        self._rgb_lo = np.float32(limits.rgb[0])
-        self._rgb_hi = np.float32(limits.rgb[1])
-        # Indexed by any uint16 value: codes above 1023 (not 10-bit) never count as rising or falling.
+        self._k = tuple(np.float32(c) for c in limits.rgb_coefficients())  # same at every scale
+        self._ws: _Workspace | None = None
+        self._scale: int | None = None
+        self._set_scale(1)
+
+    def _set_scale(self, scale: int) -> None:
+        """Bounds and tables in the code values of the file (x 4 for a 12-bit file)."""
+        if scale == self._scale:
+            return
+        lim = self.limits
+        self._scale = scale
+        self._size = 1024 * scale
+        self._rgb_lo = np.float32(lim.rgb[0] * scale)
+        self._rgb_hi = np.float32(lim.rgb[1] * scale)
+        self._chroma_zero = CHROMA_ZERO * scale
+        # Indexed by any uint16 value: codes above the range never count as rising or falling.
         self._up = np.full(1 << 16, np.iinfo(np.uint16).max, np.uint16)
-        table = limits.flash_table()
-        self._up[:1024] = table
+        table = lim.flash_table(scale)
+        self._up[: self._size] = table
         # Smallest code step that can change the luminance by more than the flash delta: pixels
         # that moved less are skipped (most of them, outside flashes and cuts).
-        reachable = np.flatnonzero(table < 1024)
+        reachable = np.flatnonzero(table < self._size)
         self._min_step = int((table[reachable] - reachable).min()) if reachable.size else 1 << 16
-        self._ws: _Workspace | None = None
 
-    def _workspace(self, width: int) -> _Workspace:
-        if self._ws is None or self._ws.key != (self.strip_rows, width):
-            self._ws = _Workspace(self.strip_rows, width, self.limits.prefilter_taps)
+    def _workspace(self, width: int, chroma_width: int) -> _Workspace:
+        if self._ws is None or self._ws.key != (self.strip_rows, width, chroma_width):
+            self._ws = _Workspace(self.strip_rows, width, chroma_width, self.limits.prefilter_taps)
         return self._ws
+
+    def _value(self, code: float, digits: int = 2) -> float | int:
+        """A code value of the file as a 10-bit code value (unchanged for 8 and 10-bit files)."""
+        return code if self._scale == 1 else round(code / self._scale, digits)
 
     def measure(self, frame: VideoFrame, previous: np.ndarray | None = None) -> dict:
         """``previous``: Y plane of the previous frame of the file (None for the first frame)."""
@@ -237,8 +254,10 @@ class FrameMeter:
         h, w = frame.y.shape
         if previous is not None and previous.shape != (h, w):
             raise ValueError(f"image {frame.index} : taille {(h, w)} différente de l'image précédente {previous.shape}")
-        full = self._workspace(w)
-        hist = np.zeros(1024, dtype=np.int64)
+        self._set_scale(frame.scale)
+        scale = frame.scale
+        full = self._workspace(w, frame.cb.shape[1])
+        hist = np.zeros(self._size, dtype=np.int64)
         cb_min = cr_min = 1 << 16
         cb_max = cr_max = -1
         sat2 = 0.0
@@ -247,7 +266,14 @@ class FrameMeter:
         across = within = 0
         for top in range(0, h, self.strip_rows):
             rows = slice(top, top + self.strip_rows)
-            y, cb, cr = frame.y[rows], frame.cb[rows], frame.cr[rows]
+            y = frame.y[rows]
+            if frame.vsub == 2:  # 4:2:0: each chroma row covers two luma rows (strips start on even rows)
+                n = y.shape[0]
+                c_rows = slice(top // 2, top // 2 + (n + 1) // 2)
+                cb = np.repeat(frame.cb[c_rows], 2, axis=0)[:n]
+                cr = np.repeat(frame.cr[c_rows], 2, axis=0)[:n]
+            else:
+                cb, cr = frame.cb[rows], frame.cr[rows]
             ws = full.view(y.shape[0])
             if previous is not None:  # before the prefilter: frame differences use the raw plane
                 s, u, d = self._diff(y, previous[rows], ws)
@@ -264,13 +290,13 @@ class FrameMeter:
             # Centred chroma in float32 (exact: small integers).
             np.copyto(ws.cbf, cb)
             np.copyto(ws.crf, cr)
-            ws.cbf -= CHROMA_ZERO
-            ws.crf -= CHROMA_ZERO
+            ws.cbf -= self._chroma_zero
+            ws.crf -= self._chroma_zero
             np.multiply(ws.cbf, ws.cbf, out=ws.tmp)
             np.multiply(ws.crf, ws.crf, out=ws.tr)
             ws.tmp += ws.tr
-            sat2 = max(sat2, float(ws.tmp.max()))  # exact: at most 2 * 512^2 < 2^24
-            rgb_out += self._rgb_out(y, ws)
+            sat2 = max(sat2, float(ws.tmp.max()))  # exact: at most 2 * 2048^2 < 2^24
+            rgb_out += self._rgb_out(y, ws, frame.hsub)
 
         n = h * w
         nz = np.flatnonzero(hist)
@@ -279,26 +305,27 @@ class FrameMeter:
         p01 = int(np.searchsorted(cum, (n + 999) // 1000))
         p99 = int(np.searchsorted(cum, (999 * n + 999) // 1000))
         total = int(hist @ np.arange(hist.size, dtype=np.int64))
-        tol_lo, tol_hi = lim.y_tolerance
-        leg_lo, leg_hi = lim.y_legal
+        tol_lo, tol_hi = (x * scale for x in lim.y_tolerance)
+        leg_lo, leg_hi = (x * scale for x in lim.y_legal)
+        v = self._value
         return {
             "f": frame.index,
-            "y_min": int(nz[0]),
-            "y_max": int(nz[-1]),
-            "y_p01": p01,
-            "y_p99": p99,
-            "y_mean": round(total / n, 3),
+            "y_min": v(int(nz[0])),
+            "y_max": v(int(nz[-1])),
+            "y_p01": v(p01),
+            "y_p99": v(p99),
+            "y_mean": round(total / n / scale, 3),
             "y_below_pct": _pct(_below(cum, tol_lo), n),
             "y_above_pct": _pct(n - _below(cum, tol_hi + 1), n),
             "y_below_legal_pct": _pct(_below(cum, leg_lo), n),
             "y_above_legal_pct": _pct(n - _below(cum, leg_hi + 1), n),
             "rgb_out_pct": _pct(rgb_out, n),
-            "cb_min": cb_min,
-            "cb_max": cb_max,
-            "cr_min": cr_min,
-            "cr_max": cr_max,
-            "sat_max": round(math.sqrt(sat2), 2),
-            "d_mean": None if previous is None else round(d_sum / n, 3),
+            "cb_min": v(cb_min),
+            "cb_max": v(cb_max),
+            "cr_min": v(cr_min),
+            "cr_max": v(cr_max),
+            "sat_max": round(math.sqrt(sat2) / scale, 2),
+            "d_mean": None if previous is None else round(d_sum / n / scale, 3),
             "d_up_pct": None if previous is None else _pct(d_up, n),
             "d_down_pct": None if previous is None else _pct(d_down, n),
             "comb": None if within == 0 or h < 3 else round((across / (h - 1)) / (within / (h - 2)), 4),
@@ -331,37 +358,45 @@ class FrameMeter:
         up = int(np.count_nonzero(yc >= self._up[pc]))
         return total, up, int(np.count_nonzero(pc >= self._up[yc]))
 
-    def _rgb_out(self, y: np.ndarray, ws: _Workspace) -> int:
+    def _rgb_out(self, y: np.ndarray, ws: _Workspace, hsub: int) -> int:
         """Pixels with R, G or B outside the profile bounds. ``ws.cbf`` / ``ws.crf`` hold centred chroma."""
         k_rr, k_gb, k_gr, k_bb = self._k
         cbf, crf, cbo, cro = ws.cbf, ws.crf, ws.cbo, ws.cro
-        # Odd luma columns: chroma interpolated between the two co-sited neighbours.
-        np.add(cbf[:, :-1], cbf[:, 1:], out=cbo[:, :-1])
-        np.add(crf[:, :-1], crf[:, 1:], out=cro[:, :-1])
-        cbo[:, :-1] *= np.float32(0.5)
-        cro[:, :-1] *= np.float32(0.5)
-        cbo[:, -1] = cbf[:, -1]
-        cro[:, -1] = crf[:, -1]
+        if hsub == 1:  # 4:4:4: one chroma sample per luma sample
+            passes = ((y, cbf, crf),)
+        else:
+            # Odd luma columns: chroma interpolated between the two co-sited neighbours.
+            np.add(cbf[:, :-1], cbf[:, 1:], out=cbo[:, :-1])
+            np.add(crf[:, :-1], crf[:, 1:], out=cro[:, :-1])
+            cbo[:, :-1] *= np.float32(0.5)
+            cro[:, :-1] *= np.float32(0.5)
+            cbo[:, -1] = cbf[:, -1]
+            cro[:, -1] = crf[:, -1]
+            passes = ((y[:, 0::2], cbf, crf), (y[:, 1::2], cbo, cro))
 
         out = 0
-        for luma, cbx, crx in ((y[:, 0::2], cbf, crf), (y[:, 1::2], cbo, cro)):
-            np.multiply(crx, k_rr, out=ws.tr)
-            np.multiply(cbx, k_gb, out=ws.tg)
-            np.multiply(crx, k_gr, out=ws.tmp)
-            ws.tg += ws.tmp
-            np.multiply(cbx, k_bb, out=ws.tb)
-            np.minimum(ws.tr, ws.tg, out=ws.tmin)
-            np.minimum(ws.tmin, ws.tb, out=ws.tmin)
-            np.maximum(ws.tr, ws.tg, out=ws.tmax)
-            np.maximum(ws.tmax, ws.tb, out=ws.tmax)
-            np.copyto(ws.luma, luma)
-            ws.tmin += ws.luma
-            ws.tmax += ws.luma
+        for luma, cbx, crx in passes:
+            m = luma.shape[1]  # odd width: one odd column less than the even ones
+            tr, tg, tb, tmp, tmin, tmax, lum, low, high = (
+                a[:, :m] for a in (ws.tr, ws.tg, ws.tb, ws.tmp, ws.tmin, ws.tmax, ws.luma, ws.low, ws.high))
+            cbx, crx = cbx[:, :m], crx[:, :m]
+            np.multiply(crx, k_rr, out=tr)
+            np.multiply(cbx, k_gb, out=tg)
+            np.multiply(crx, k_gr, out=tmp)
+            tg += tmp
+            np.multiply(cbx, k_bb, out=tb)
+            np.minimum(tr, tg, out=tmin)
+            np.minimum(tmin, tb, out=tmin)
+            np.maximum(tr, tg, out=tmax)
+            np.maximum(tmax, tb, out=tmax)
+            np.copyto(lum, luma)
+            tmin += lum
+            tmax += lum
             # Y + min(t) < lo  <=>  one of R, G, B is below the bound (same for the high bound).
-            np.less(ws.tmin, self._rgb_lo, out=ws.low)
-            np.greater(ws.tmax, self._rgb_hi, out=ws.high)
-            ws.low |= ws.high
-            out += int(np.count_nonzero(ws.low))
+            np.less(tmin, self._rgb_lo, out=low)
+            np.greater(tmax, self._rgb_hi, out=high)
+            low |= high
+            out += int(np.count_nonzero(low))
         return out
 
 
@@ -369,26 +404,33 @@ def out_of_range_masks(frame: VideoFrame, limits: VideoLimits) -> dict[str, np.n
     """Full-resolution masks of the pixels counted by ``y_above_pct``, ``y_below_pct`` and
     ``rgb_out_pct`` (same prefilter, bounds and chroma interpolation as :class:`FrameMeter`).
     For thumbnails: a few frames, not the measurement path."""
+    s = frame.scale
     y, cb, cr = frame.y, frame.cb, frame.cr
+    h, w = y.shape
+    if frame.vsub == 2:
+        cb, cr = np.repeat(cb, 2, axis=0)[:h], np.repeat(cr, 2, axis=0)[:h]
     if limits.prefilter_taps:
         y, cb, cr = (hfilter(p, limits.prefilter_taps) for p in (y, cb, cr))
     k_rr, k_gb, k_gr, k_bb = (np.float32(c) for c in limits.rgb_coefficients())
-    cbf = cb.astype(np.float32) - CHROMA_ZERO
-    crf = cr.astype(np.float32) - CHROMA_ZERO
-    h, w = y.shape
-    cbx = np.empty((h, w), np.float32)
-    crx = np.empty((h, w), np.float32)
-    cbx[:, 0::2], crx[:, 0::2] = cbf, crf
-    cbx[:, 1:-1:2] = (cbf[:, :-1] + cbf[:, 1:]) * np.float32(0.5)
-    crx[:, 1:-1:2] = (crf[:, :-1] + crf[:, 1:]) * np.float32(0.5)
-    cbx[:, -1], crx[:, -1] = cbf[:, -1], crf[:, -1]
+    cbf = cb.astype(np.float32) - CHROMA_ZERO * s
+    crf = cr.astype(np.float32) - CHROMA_ZERO * s
+    if frame.hsub == 1:
+        cbx, crx = cbf, crf
+    else:
+        cbx = np.empty((h, w), np.float32)
+        crx = np.empty((h, w), np.float32)
+        cbx[:, 0::2], crx[:, 0::2] = cbf[:, : (w + 1) // 2], crf[:, : (w + 1) // 2]
+        cbx[:, 1:-1:2] = (cbf[:, :-1] + cbf[:, 1:])[:, : (w - 1) // 2] * np.float32(0.5)
+        crx[:, 1:-1:2] = (crf[:, :-1] + crf[:, 1:])[:, : (w - 1) // 2] * np.float32(0.5)
+        if w % 2 == 0:
+            cbx[:, -1], crx[:, -1] = cbf[:, -1], crf[:, -1]
     luma = y.astype(np.float32)
     r = luma + crx * k_rr
     g = luma + cbx * k_gb + crx * k_gr
     b = luma + cbx * k_bb
-    lo, hi = np.float32(limits.rgb[0]), np.float32(limits.rgb[1])
+    lo, hi = np.float32(limits.rgb[0] * s), np.float32(limits.rgb[1] * s)
     rgb = (np.minimum(np.minimum(r, g), b) < lo) | (np.maximum(np.maximum(r, g), b) > hi)
-    return {"y_above": y > limits.y_tolerance[1], "y_below": y < limits.y_tolerance[0], "rgb_out": rgb}
+    return {"y_above": y > limits.y_tolerance[1] * s, "y_below": y < limits.y_tolerance[0] * s, "rgb_out": rgb}
 
 
 def _add_histogram(hist: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -410,26 +452,29 @@ def _add_histogram(hist: np.ndarray, y: np.ndarray) -> np.ndarray:
 _worker: dict = {}
 
 
-def _slot_views(buf, slots: int, h: int, w: int) -> list[tuple[np.ndarray, np.ndarray, np.ndarray]]:
-    cw = w // 2
-    per_slot = h * w + 2 * h * cw
+def _slot_views(buf, slots: int, h: int, w: int, ch: int, cw: int) -> list[tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    per_slot = h * w + 2 * ch * cw
     arr = np.ndarray((slots, per_slot), dtype=np.uint16, buffer=buf)
     return [
-        (s[: h * w].reshape(h, w), s[h * w: h * w + h * cw].reshape(h, cw), s[h * w + h * cw:].reshape(h, cw))
+        (s[: h * w].reshape(h, w), s[h * w: h * w + ch * cw].reshape(ch, cw), s[h * w + ch * cw:].reshape(ch, cw))
         for s in arr
     ]
 
 
-def _worker_init(shm_name: str, slots: int, h: int, w: int, limits: VideoLimits, strip_rows: int) -> None:
+def _worker_init(shm_name: str, slots: int, shapes: tuple[int, int, int, int], layout: tuple[int, int, int],
+                 limits: VideoLimits, strip_rows: int) -> None:
     shm = SharedMemory(name=shm_name)
-    _worker.update(shm=shm, views=_slot_views(shm.buf, slots, h, w), meter=FrameMeter(limits, strip_rows))
+    _worker.update(shm=shm, views=_slot_views(shm.buf, slots, *shapes), layout=layout,
+                   meter=FrameMeter(limits, strip_rows))
 
 
 def _worker_measure(slot: int, index: int, previous_slot: int | None) -> dict:
     views = _worker["views"]
     y, cb, cr = views[slot]
+    scale, hsub, vsub = _worker["layout"]
     previous = None if previous_slot is None else views[previous_slot][0]
-    return _worker["meter"].measure(VideoFrame(index=index, y=y, cb=cb, cr=cr), previous)
+    frame = VideoFrame(index=index, y=y, cb=cb, cr=cr, scale=scale, hsub=hsub, vsub=vsub)
+    return _worker["meter"].measure(frame, previous)
 
 
 def measure_frames(
@@ -454,18 +499,21 @@ def measure_frames(
     if first is None:
         return
     h, w = first.y.shape
+    ch, cw = first.cb.shape
+    layout = (first.scale, first.hsub, first.vsub)
     slots = max(2 * workers, 3)
-    shm = SharedMemory(create=True, size=slots * (h * w + 2 * h * (w // 2)) * 2)
+    shm = SharedMemory(create=True, size=slots * (h * w + 2 * ch * cw) * 2)
     try:
-        views = _slot_views(shm.buf, slots, h, w)
+        views = _slot_views(shm.buf, slots, h, w, ch, cw)
         pool = ProcessPoolExecutor(
-            max_workers=workers, initializer=_worker_init, initargs=(shm.name, slots, h, w, limits, strip_rows)
+            max_workers=workers, initializer=_worker_init,
+            initargs=(shm.name, slots, (h, w, ch, cw), layout, limits, strip_rows),
         )
         pending: deque[Future] = deque()
         try:
             for k, frame in enumerate(_chain(first, it)):
-                if frame.y.shape != (h, w):
-                    raise ValueError(f"image {frame.index} : taille {frame.y.shape} différente de la première {(h, w)}")
+                if frame.y.shape != (h, w) or frame.cb.shape != (ch, cw) or (frame.scale, frame.hsub, frame.vsub) != layout:
+                    raise ValueError(f"image {frame.index} : taille ou format différent de la première image")
                 if len(pending) == slots - 1:
                     # Slot k % slots holds frame k - slots, the previous frame of frame k - slots + 1
                     # (the oldest in flight): it can be overwritten once that frame is done.
