@@ -135,7 +135,7 @@ Orientation v3 du 23 octobre 2026 : multi-diffuseurs, profils hérités de norme
 - Choisir un film (par son chemin : jamais copié par le navigateur) et un profil, vérifier le récapitulatif (format lu par probe, exigences du profil avec leur source, correspondance audio vérifiée par `audio_map`), lancer, suivre la progression, annuler, lire le rapport (`rapport.json`), télécharger le PDF. Fait.
 - Dépôt du PDF d'un diffuseur (reconnu par son SHA-256, sinon `draft-profile` en tâche) et écran de validation du profil brouillon (fonctions de `review-profile`, décision explicite par champ). Fait.
 - Aucune logique métier dans l'interface : elle lance la CLI (`--progress-json`) ou appelle les mêmes fonctions Python. Fait.
-- Reste : surbrillance de la citation sur l'aperçu de page du PDF.
+- Surbrillance de la citation sur l'aperçu de page du PDF (position des mots par pdfplumber, même normalisation que le contrôle des citations). Fait.
 
 **Écarts acceptés avec la maquette** (24 octobre 2026) : pas de glisser-déposer du film (chemin seulement) ; pas de reconnaissance « automatique » du diffuseur hors empreinte du PDF ; pas de profil « normes seules » ; pas de forme d'onde par piste ; pourcentage = images mesurées (lecture du fichier et mesures audio sans compteur) ; graphiques du rapport (PNG) au lieu de courbes dessinées dans la page ; une vignette par anomalie image, pas de bande de 5 images ; pas de colonne de référence dans les contrôles de format (source à ajouter aux `checks` plus tard) ; textes d'exemple de la maquette remplacés par les données réelles.
 

@@ -350,6 +350,23 @@ async def page(request: Request) -> Response:
     return Response(png, media_type="image/png")
 
 
+async def highlight(request: Request) -> Response:
+    """Boxes of a quote on its page (fractions of the page), for the highlight on the preview."""
+    from starlette.concurrency import run_in_threadpool  # noqa: PLC0415
+
+    ctx = ctx_of(request)
+    s = session(ctx, request.path_params["name"])
+    path = _pdf_path(ctx, s.rv)
+    if path is None:
+        raise ApiError("PDF du brouillon introuvable (diffuseurs/)", 404)
+    try:
+        n = int(request.query_params.get("page") or 0)
+    except ValueError:
+        raise ApiError("numéro de page illisible") from None
+    boxes = await run_in_threadpool(pdf_mod.quote_boxes, path, n, request.query_params.get("quote") or "")
+    return JSONResponse({"boxes": [dict(zip(("x0", "top", "x1", "bottom"), b)) for b in boxes], "found": bool(boxes)})
+
+
 async def start_draft(request: Request) -> Response:
     """draft-profile as a job; the PDF is copied into diffuseurs/ (inventory of the documents)."""
     ctx = ctx_of(request)
@@ -386,4 +403,5 @@ def routes() -> list:
         Route("/api/drafts/{name}/check", get_check),
         Route("/api/drafts/{name}/validate", validate, methods=["POST"]),
         Route("/api/drafts/{name}/page/{n:int}", page),
+        Route("/api/drafts/{name}/highlight", highlight),
     ]

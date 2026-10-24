@@ -443,3 +443,16 @@ def test_draft_job_copies_the_pdf_and_runs_the_cli(lab, lab_client, tmp_path, mo
 def test_page_preview_of_the_draft(draft_lab, lab_client) -> None:
     r = lab_client.get("/api/drafts/chaine_test/page/1")
     assert r.status_code == 200 and r.headers["content-type"] == "image/png" and r.content[:4] == b"\x89PNG"
+
+
+def test_quote_highlighted_on_its_page(draft_lab, lab_client) -> None:
+    from pad_guard.draft.pdf import quote_boxes
+
+    doc = draft_lab.root / "diffuseurs" / "chaine_test.pdf"
+    one = quote_boxes(doc, 1, TP_QUOTE)
+    assert len(one) == 1 and all(0 <= v <= 1 for v in one[0]) and one[0][0] < one[0][2]
+    assert len(quote_boxes(doc, 1, LOUD_QUOTE + " avec une tolérance de ± 1 LU.")) == 2  # two printed lines
+    assert quote_boxes(doc, 2, "Audio | 48 kHz, 24 bits")  # table row quoted cell by cell
+    assert quote_boxes(doc, 1, "phrase absente du document") == [] and quote_boxes(doc, 9, TP_QUOTE) == []
+    r = lab_client.get("/api/drafts/chaine_test/highlight", params={"page": 1, "quote": TP_QUOTE}).json()
+    assert r["found"] and set(r["boxes"][0]) == {"x0", "top", "x1", "bottom"}

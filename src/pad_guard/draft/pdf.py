@@ -92,3 +92,39 @@ def render(path: Path, number: int, scale: float = RENDER_SCALE) -> bytes:
     buf = io.BytesIO()
     image.save(buf, format="PNG")
     return buf.getvalue()
+
+
+def quote_boxes(path: Path, number: int, quote: str) -> list[tuple[float, float, float, float]]:
+    """Where ``quote`` is printed on page ``number``: one box per line, as fractions of the page
+    (x0, top, x1, bottom), for the review screen. Matched like ``verify.quote_in`` (normalised
+    text, spaces and line-end hyphens ignored); table quotes « a | b » match cell by cell.
+    Empty when the quote is not found as such on the page."""
+    import pdfplumber
+
+    from pad_guard.draft.verify import normalise
+
+    wanted = "".join(normalise(quote.replace(" | ", " ")).strip(" .\"'…").split())
+    if not wanted:
+        return []
+    with pdfplumber.open(path) as pdf:
+        if not 1 <= number <= len(pdf.pages):
+            return []
+        page = pdf.pages[number - 1]
+        words = page.extract_words(use_text_flow=True)
+        stream, owner = [], []  # normalised characters without spaces, and the word of each
+        for i, w in enumerate(words):
+            text = "".join(normalise(w["text"]).split())
+            if text.endswith("-") and i + 1 < len(words) and words[i + 1]["top"] > w["top"] + 1:
+                text = text[:-1]  # hyphenation at the end of a line
+            stream.append(text)
+            owner += [i] * len(text)
+        start = "".join(stream).find(wanted)
+        if start < 0:
+            return []
+        hit = sorted(set(owner[start:start + len(wanted)]))
+        lines: dict[int, list[dict]] = {}
+        for i in hit:
+            lines.setdefault(round(words[i]["top"] / 3), []).append(words[i])
+        width, height = float(page.width), float(page.height)
+        return [(min(w["x0"] for w in ws) / width, min(w["top"] for w in ws) / height,
+                 max(w["x1"] for w in ws) / width, max(w["bottom"] for w in ws) / height) for ws in lines.values()]

@@ -85,7 +85,7 @@ function Finding({ x, on, onClick }) {
       ${!x.implausible && x.reason && html`<span class="fine">${x.status} : ${x.reason}</span>`}</span></button>`;
 }
 
-function Editor({ name, q, pos, total, onDecided, next, showPage }) {
+function Editor({ name, q, pos, total, onDecided, next, showPage, setQuote }) {
   const [cand, setCand] = useState(null);
   const [fix, setFix] = useState(null);
   const [error, setError] = useState('');
@@ -108,14 +108,14 @@ function Editor({ name, q, pos, total, onDecided, next, showPage }) {
       <div class="input big" style=${{ borderColor: q.implausible ? 'var(--red)' : '' }}>${q.value}</div>
       ${q.implausible && html`<div class="note red"><b>INVRAISEMBLABLE</b>${q.proposal.reason}. Jamais acceptée par défaut.</div>`}
       <div class="quote"><span class="label">Citation du cahier des charges · page ${q.proposal.page}</span><p>« ${q.proposal.quote} »</p>
-        <button class="btn link" style="align-self:flex-start;padding:0" onClick=${() => showPage(q.proposal.page)}>Voir la page ${q.proposal.page} →</button></div>
+        <button class="btn link" style="align-self:flex-start;padding:0" onClick=${() => { showPage(q.proposal.page); setQuote(q.proposal); }}>Voir la page ${q.proposal.page} →</button></div>
       ${q.rejected.length > 0 && html`<div class="note amber"><b>${q.rejected.length} autre(s) proposition(s) rejetée(s)</b>avec une autre valeur : la valeur proposée est peut-être incomplète.
         <ul class="bullets">${q.rejected.map(x => html`<li>${x.value} (p. ${x.page}, ${x.status} : ${x.reason}) « ${x.quote} »</li>`)}</ul></div>`}</div>`}
     ${q.reference && html`<div class="note amber"><b>Renvoi à ${q.reference.norm}</b>Le document renvoie à la norme sans écrire la valeur (p. ${q.reference.page}) « ${q.reference.quote} ».
       Laissé vide, le champ est hérité de la norme : exigence du client si le renvoi est confirmé, sinon recommandation plafonnée à mineur.</div>`}
     ${q.candidates.length > 0 && html`<div class="col"><span class="label">Propositions en conflit : choisissez-en une, corrigez ou laissez vide</span>
       ${q.findings.map((x, i) => q.candidates.some(c => c.n === i + 1)
-        ? html`<${Finding} x=${x} on=${cand === i + 1 || q.answer === String(i + 1)} onClick=${() => { setCand(i + 1); showPage(x.page); }} />`
+        ? html`<${Finding} x=${x} on=${cand === i + 1 || q.answer === String(i + 1)} onClick=${() => { setCand(i + 1); showPage(x.page); setQuote(x); }} />`
         : html`<div class="cand" style="cursor:default;opacity:.6"><span class="v">${x.value ?? '—'}</span><span class="q">p. ${x.page} · ${x.status}${x.reason ? ' : ' + x.reason : ''} « ${x.quote} »</span></div>`)}</div>`}
     <div class="cells">
       <div><span class="k">Profil de base</span><span class="v">${q.base_value ?? '—'}</span></div>
@@ -155,8 +155,23 @@ function References({ name, data, setData }) {
     <${ErrorLine} error=${error} /></div>`;
 }
 
+function PageImage({ name, page, quote }) {
+  const [boxes, setBoxes] = useState(null);
+  const text = quote && quote.page === page ? quote.quote : '';
+  useEffect(() => {
+    setBoxes(null);
+    if (!text) return;
+    api(`/api/drafts/${name}/highlight?page=${page}&quote=${encodeURIComponent(text)}`).then(r => setBoxes(r)).catch(() => setBoxes(null));
+  }, [name, page, text]);
+  return html`<div class="page-img"><img src=${url(`/api/drafts/${name}/page/${page}`)} alt=${'Page ' + page + ' du document'} />
+      ${boxes && boxes.boxes.map(b => html`<div class="hl" style=${{ left: `calc(${b.x0 * 100}% - 3px)`, top: `calc(${b.top * 100}% - 2px)`,
+        width: `calc(${(b.x1 - b.x0) * 100}% + 6px)`, height: `calc(${(b.bottom - b.top) * 100}% + 4px)` }}></div>`)}</div>
+    ${text && boxes && !boxes.found && html`<span class="hint">Citation non retrouvée telle quelle sur l'image de la page (tableau ou texte découpé) : la chercher à l'œil.</span>`}`;
+}
+
 function Review({ name, back, useProfile, reload }) {
   const [data, setData] = useState(null);
+  const [quote, setQuote] = useState(null);
   const [sel, setSel] = useState(0);
   const [pageN, setPageN] = useState(null);
   const [state, setState] = useState(null);
@@ -182,6 +197,7 @@ function Review({ name, back, useProfile, reload }) {
     if (nq.answer) { const nextIdx = list.findIndex((x, i) => i > sel && !x.answer); if (nextIdx >= 0) setSel(nextIdx); }
   };
   const page = pageN || (q && (q.proposal || q.reference || q.findings[0] || {}).page) || 1;
+  const shownQuote = quote && q && q.findings.some(x => x.quote === quote.quote) ? quote : (q && (q.proposal || q.reference)) || null;
   const fillMissing = async (path, value) => {
     setError('');
     try { setState(await api(`/api/drafts/${name}/missing`, { method: 'POST', body: { path, value } })); } catch (e) { setError(e.message); }
@@ -213,19 +229,19 @@ function Review({ name, back, useProfile, reload }) {
         ${data.capped.pages.length > 0 && html`<div class="note red" style="margin:8px 12px;font-size:12px"><b>Page${data.capped.pages.length > 1 ? 's' : ''} ${data.capped.pages.join(', ')}</b>${data.capped.message} : relire ${data.capped.pages.length > 1 ? 'ces pages' : 'cette page'} du document à la main.</div>`}
         ${qs.map((x, i) => { const head = x.group !== group; group = x.group; return html`
           ${head && html`<div class="fgroup">${x.group}</div>`}
-          <button class=${'field' + (i === sel ? ' on' : '') + (x.implausible ? ' red' : '')} onClick=${() => { setSel(i); setPageN(null); }}>
+          <button class=${'field' + (i === sel ? ' on' : '') + (x.implausible ? ' red' : '')} onClick=${() => { setSel(i); setPageN(null); setQuote(null); }}>
             <span class="box" style=${{ borderColor: x.answer ? 'var(--green)' : x.implausible ? 'var(--red)' : '', background: x.answer ? 'var(--green)' : 'transparent' }}></span>
             <span class="t"><span>${x.path.split('.').slice(1).join('.') || x.path}</span><span>${x.answer_label || (STATUS[x.status] || [x.status])[0]} · ${x.value ?? '—'}</span></span></button>`; })}
         ${refItem >= 0 && html`<div class="fgroup">Renvois</div><button class=${'field' + (sel === refItem ? ' on' : '')} onClick=${() => setSel(refItem)}>
           <span class="box" style=${{ background: data.references.every(r => r.confirmed !== undefined && r.confirmed !== null) ? 'var(--green)' : 'transparent' }}></span>
           <span class="t"><span>Renvois aux normes</span><span>${data.references.map(r => r.title).join(', ')}</span></span></button>`}
       </div>
-      ${q ? html`<${Editor} name=${name} q=${q} pos=${sel + 1} total=${qs.length} onDecided=${onDecided} showPage=${setPageN}
+      ${q ? html`<${Editor} name=${name} q=${q} pos=${sel + 1} total=${qs.length} onDecided=${onDecided} showPage=${setPageN} setQuote=${setQuote}
           next=${() => setSel((sel + 1) % Math.max(1, qs.length + (refItem >= 0 ? 1 : 0)))} />`
         : html`<${References} name=${name} data=${data} setData=${d => { setData(d); refresh(); }} />`}
       <div class="preview">
         <div class="split"><span class="hint">${data.source_pdf || ''}</span><span class="mono" style="font-size:11px">p. ${page}${data.pages ? ' / ' + data.pages : ''}</span></div>
-        ${data.pdf_available ? html`<div class="page-img"><img src=${url(`/api/drafts/${name}/page/${page}`)} alt=${'Page ' + page + ' du document'} /></div>
+        ${data.pdf_available ? html`<${PageImage} name=${name} page=${page} quote=${shownQuote} />
           <div class="btn-row"><button class="mini" disabled=${page <= 1} onClick=${() => setPageN(page - 1)}>← page</button>
             <button class="mini" disabled=${data.pages && page >= data.pages} onClick=${() => setPageN(page + 1)}>page →</button></div>`
           : html`<div class="empty">PDF introuvable dans diffuseurs/ : aperçu indisponible.</div>`}
