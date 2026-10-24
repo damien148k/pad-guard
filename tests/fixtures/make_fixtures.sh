@@ -280,6 +280,21 @@ if need fmt_dnxhr444_rgb.mov; then
         -c:v dnxhd -profile:v dnxhr_444 -pix_fmt gbrp10le -timecode 10:00:00:00 "$HERE/fmt_dnxhr444_rgb.mov"
     echo "  fmt_dnxhr444_rgb.mov"
 fi
+# Interlaced flashes: 50p sources, every other image darkened, then two successive images make the
+# top and bottom fields of one frame (25 frames/s, tff). Each frame looks the same (bright top field,
+# dark bottom field): no change from frame to frame, 50 changes per second from field to field.
+if need interlaced_flash.mov; then
+    audio_track "$WORK/flash.wav" pink23:4:11
+    FPS=50 FIELD_MODE=tff make_fixture interlaced_flash.mov 10:00:00:00 "prog:4" \
+        ",lutyuv=y='64+(val-64)/5':u='512+(val-512)/5':v='512+(val-512)/5':enable='mod(n,2)',tinterlace=mode=interleave_top" 1 \
+        "${PRORES_HQ[@]}" -flags +ilme+ildct -- "$WORK/flash.wav"
+fi
+# PsF: progressive pictures flagged interlaced (ProRes coded as fields).
+if need psf_prores.mov; then
+    [[ -s "$WORK/flash.wav" ]] || audio_track "$WORK/flash.wav" pink23:4:11
+    FIELD_MODE=tff make_fixture psf_prores.mov 10:00:00:00 "prog:4" "" 1 "${PRORES_HQ[@]}" -flags +ildct \
+        -- "$WORK/flash.wav"
+fi
 # Resolutions: UHD letterboxed to 2.39 (3840x1608 active), 4K DCI full frame (4096x2160), 10 frames each.
 if need fmt_uhd_239.mov; then
     "${FF[@]}" -f lavfi -i "testsrc2=s=3840x1608:r=25:d=0.4" \

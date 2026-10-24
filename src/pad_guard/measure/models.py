@@ -62,6 +62,8 @@ class VideoSection(BaseModel):
     file: str
     fields: list[str]
     frames: int
+    # First field of a file flagged interlaced: the field measures (fu1, fd1, fu2, fd2) are written.
+    first_field: Literal["top", "bottom"] | None = None
 
 
 class ProgramRange(BaseModel):

@@ -22,6 +22,15 @@ than ``structure.pse.flash_min_delta_pct``. Relative luminance is the BT.1886 di
 with a zero black level, ``((Y - 64) / 876) ** 2.4`` clipped to [0, 1]; the comparison goes
 through two integer lookup tables indexed by the previous code value, so it is exact.
 
+Fields (a file flagged interlaced, decision of Damien of 24 October 2026): the PSE needs the
+changes between successive fields, 50 per second in 50i. Two fields of opposite parity sit half a
+line apart, so the earlier field is interpolated vertically onto the lines of the later one
+(« bob », mean of the two neighbouring lines) before the comparison; ``fu1`` / ``fd1`` compare
+the last field of the previous frame with the first field of this one, ``fu2`` / ``fd2`` the
+two fields of this frame (share of the field pixels whose luminance rose / fell by more than the
+flash delta). The first field is the top one for the flags tt and tb, the bottom one for bb and
+bt (FFmpeg writes tb for a top field first ProRes in MOV).
+
 Combing (scan detection, SPEC §12.5): ``comb`` is the mean absolute difference between
 neighbouring lines (opposite fields) divided by the mean absolute difference between lines two
 apart (same field), on the unfiltered Y plane. Around 0.5-0.8 for progressive pictures, above 1
@@ -57,7 +66,30 @@ FIELDS = (
     "rgb_out_pct", "cb_min", "cb_max", "cr_min", "cr_max", "sat_max",
     "d_mean", "d_up_pct", "d_down_pct", "comb",
 )
+FIELD_FIELDS = ("fu1", "fd1", "fu2", "fd2")  # written only for a file flagged interlaced
 LUMINANCE_GAMMA = 2.4  # ITU-R BT.1886 display response (a definition, not a threshold)
+
+
+def first_field(field_order: str | None) -> str | None:
+    """'top' or 'bottom' for an interlaced flag (first letter of the FFmpeg flag), None otherwise."""
+    return {"tt": "top", "tb": "top", "bb": "bottom", "bt": "bottom"}.get(field_order or "")
+
+
+def _bob(field: np.ndarray, onto_bottom: bool, rows: int) -> np.ndarray:
+    """``field`` interpolated onto the lines of the other field (``rows`` of them): onto the bottom
+    lines, line k lies between field lines k and k + 1; onto the top lines, between k - 1 and k."""
+    f = field.astype(np.uint32)
+    out = np.empty((rows, field.shape[1]), np.uint32)
+    if onto_bottom:
+        n = min(rows, f.shape[0] - 1)
+        out[:n] = (f[:n] + f[1:n + 1]) >> 1
+        out[n:] = f[-1]
+    else:
+        out[0] = f[0]
+        n = min(rows, f.shape[0])
+        out[1:n] = (f[: n - 1] + f[1:n]) >> 1
+        out[n:] = f[-1]
+    return out.astype(np.uint16)
 
 
 class MeasureSetupError(ValueError):
@@ -249,8 +281,26 @@ class FrameMeter:
         """A code value of the file as a 10-bit code value (unchanged for 8 and 10-bit files)."""
         return code if self._scale == 1 else round(code / self._scale, digits)
 
-    def measure(self, frame: VideoFrame, previous: np.ndarray | None = None) -> dict:
-        """``previous``: Y plane of the previous frame of the file (None for the first frame)."""
+    def _field_change(self, before: np.ndarray, after: np.ndarray) -> tuple[float, float]:
+        """% of pixels whose luminance rose / fell by more than the flash delta from ``before`` to ``after``."""
+        n = after.size
+        up = int(np.count_nonzero(after >= self._up[before]))
+        return _pct(up, n), _pct(int(np.count_nonzero(before >= self._up[after])), n)
+
+    def fields(self, y: np.ndarray, previous: np.ndarray | None, first: str) -> dict:
+        top, bottom = y[0::2], y[1::2]
+        top_first = first == "top"
+        a, b = (top, bottom) if top_first else (bottom, top)
+        fu2, fd2 = self._field_change(_bob(a, top_first, b.shape[0]), b)
+        out = {"fu1": None, "fd1": None, "fu2": fu2, "fd2": fd2}
+        if previous is not None:
+            last = previous[1::2] if top_first else previous[0::2]
+            out["fu1"], out["fd1"] = self._field_change(_bob(last, not top_first, a.shape[0]), a)
+        return out
+
+    def measure(self, frame: VideoFrame, previous: np.ndarray | None = None, first: str | None = None) -> dict:
+        """``previous``: Y plane of the previous frame of the file (None for the first frame);
+        ``first``: first field of an interlaced file ('top', 'bottom'), None: no field measures."""
         lim = self.limits
         h, w = frame.y.shape
         if previous is not None and previous.shape != (h, w):
@@ -306,6 +356,7 @@ class FrameMeter:
         p01 = int(np.searchsorted(cum, (n + 999) // 1000))
         p99 = int(np.searchsorted(cum, (999 * n + 999) // 1000))
         total = int(hist @ np.arange(hist.size, dtype=np.int64))
+        field_values = self.fields(frame.y, previous, first) if first else {}
         tol_lo, tol_hi = (x * scale for x in lim.y_tolerance)
         leg_lo, leg_hi = (x * scale for x in lim.y_legal)
         v = self._value
@@ -330,6 +381,7 @@ class FrameMeter:
             "d_up_pct": None if previous is None else _pct(d_up, n),
             "d_down_pct": None if previous is None else _pct(d_down, n),
             "comb": None if within == 0 or h < 3 else round((across / (h - 1)) / (within / (h - 2)), 4),
+            **field_values,
         }
 
     @staticmethod
@@ -463,9 +515,9 @@ def _slot_views(buf, slots: int, h: int, w: int, ch: int, cw: int) -> list[tuple
 
 
 def _worker_init(shm_name: str, slots: int, shapes: tuple[int, int, int, int], layout: tuple[int, int, int],
-                 limits: VideoLimits, strip_rows: int) -> None:
+                 limits: VideoLimits, strip_rows: int, first: str | None) -> None:
     shm = SharedMemory(name=shm_name)
-    _worker.update(shm=shm, views=_slot_views(shm.buf, slots, *shapes), layout=layout,
+    _worker.update(shm=shm, views=_slot_views(shm.buf, slots, *shapes), layout=layout, first=first,
                    meter=FrameMeter(limits, strip_rows))
 
 
@@ -475,11 +527,12 @@ def _worker_measure(slot: int, index: int, previous_slot: int | None) -> dict:
     scale, hsub, vsub = _worker["layout"]
     previous = None if previous_slot is None else views[previous_slot][0]
     frame = VideoFrame(index=index, y=y, cb=cb, cr=cr, scale=scale, hsub=hsub, vsub=vsub)
-    return _worker["meter"].measure(frame, previous)
+    return _worker["meter"].measure(frame, previous, _worker["first"])
 
 
 def measure_frames(
-    frames: Iterable[VideoFrame], limits: VideoLimits, workers: int, strip_rows: int = STRIP_ROWS
+    frames: Iterable[VideoFrame], limits: VideoLimits, workers: int, strip_rows: int = STRIP_ROWS,
+    first_field: str | None = None,
 ) -> Iterator[dict]:
     """Measure every frame, yielding the results in frame order.
 
@@ -491,7 +544,7 @@ def measure_frames(
         meter = FrameMeter(limits, strip_rows)
         previous: VideoFrame | None = None
         for frame in frames:
-            yield meter.measure(frame, None if previous is None else previous.y)
+            yield meter.measure(frame, None if previous is None else previous.y, first_field)
             previous = frame
         return
 
@@ -508,7 +561,7 @@ def measure_frames(
         views = _slot_views(shm.buf, slots, h, w, ch, cw)
         pool = ProcessPoolExecutor(
             max_workers=workers, initializer=_worker_init,
-            initargs=(shm.name, slots, (h, w, ch, cw), layout, limits, strip_rows),
+            initargs=(shm.name, slots, (h, w, ch, cw), layout, limits, strip_rows, first_field),
         )
         pending: deque[Future] = deque()
         try:

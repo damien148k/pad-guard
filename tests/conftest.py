@@ -42,6 +42,8 @@ FIXTURE_FILES = (
     "fmt_dnxhr444_rgb.mov",
     "fmt_uhd_239.mov",
     "fmt_dci4k.mov",
+    "interlaced_flash.mov",
+    "psf_prores.mov",
 )
 
 

@@ -296,9 +296,18 @@ def _sequence_findings(ctx: _Context, excluded: np.ndarray, bars_mask: np.ndarra
             threshold=float(p.black.y_max), detail="image noire isolée (hors fondu)",
         ))
     if p.pse.enabled:
-        window = ctx.clock.frames_in(1.0)  # frames in one second at the rate of the file
-        for a, b, worst in detect.flash_ranges(v["d_up_pct"], v["d_down_pct"], p.pse.flash_min_area_pct,
-                                               window, p.pse.max_flashes_per_second):
+        by_field = fields_measured(ctx)
+        if by_field:  # interlaced pictures: the transitions between successive fields
+            up = np.column_stack([v["fu1"], v["fu2"]]).ravel()
+            down = np.column_stack([v["fd1"], v["fd2"]]).ravel()
+            window = round(2 * ctx.fps)  # fields in one second
+        else:
+            up, down = v["d_up_pct"], v["d_down_pct"]
+            window = ctx.clock.frames_in(1.0)  # frames in one second at the rate of the file
+        for a, b, worst in detect.flash_ranges(up, down, p.pse.flash_min_area_pct, window,
+                                               p.pse.max_flashes_per_second):
+            if by_field:
+                a, b = a // 2, b // 2
             ctx.findings.append(Finding(
                 type="pse", frame_start=a, frame_end=b, worst_value=float(worst), worst_frame=a,
                 threshold=float(p.pse.max_flashes_per_second),
@@ -306,6 +315,11 @@ def _sequence_findings(ctx: _Context, excluded: np.ndarray, bars_mask: np.ndarra
                        f"sur plus de {_fmt(p.pse.flash_min_area_pct, 0)} % de l'image) : à vérifier avec un "
                        "analyseur Harding certifié",
             ))
+
+
+def fields_measured(ctx: _Context) -> bool:
+    """Field measures are used when the pictures are interlaced and the measures were taken."""
+    return ctx.m.scan.detected == "interlaced" and "fu1" in ctx.v.columns
 
 
 # --- letterbox ----------------------------------------------------------------------------
@@ -389,7 +403,13 @@ def analyse(probe: ProbeResult, m: Measurements, profile: Profile, workdir: Path
     letterbox = _letterbox(ctx, program, excluded)
 
     limitations = []
-    if probe.video.field_order not in (None, "progressive"):
+    if fields_measured(ctx):
+        limitations.append(
+            f"Fichier entrelacé ({probe.video.field_order}) : PSE analysé trame par trame (trames successives, "
+            "la précédente interpolée sur les lignes de la suivante) ; images figées et dupliquées analysées sur "
+            "des images entières (deux trames ensemble)."
+        )
+    elif probe.video.field_order not in (None, "progressive"):
         limitations.append(
             f"Fichier entrelacé ({probe.video.field_order}) : images figées, images dupliquées et PSE sont "
             "analysés sur des images entières (deux trames ensemble), pas trame par trame."

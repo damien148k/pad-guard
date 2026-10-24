@@ -394,7 +394,7 @@ def test_measurements_reproducible(fixtures_dir, tmp_path) -> None:
     assert outputs[0] == outputs[1]
     header = json.loads(outputs[0][0])
     assert header["video"] == {"format": "jsonl", "file": "measurements_video.jsonl",
-                               "fields": list(measure.video.FIELDS), "frames": 500}
+                               "fields": list(measure.video.FIELDS), "frames": 500, "first_field": None}
     assert header["video_settings"]["y_tolerance"] == [55, 967]
 
 

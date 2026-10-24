@@ -32,7 +32,7 @@ from pad_guard.measure.models import (
 )
 from pad_guard.measure import scan as scan_mod
 from pad_guard.measure.program import program_range
-from pad_guard.measure.video import FIELDS, MeasureSetupError, VideoLimits, measure_frames
+from pad_guard.measure.video import FIELD_FIELDS, FIELDS, MeasureSetupError, VideoLimits, first_field, measure_frames
 from pad_guard.probe.models import ProbeResult
 from pad_guard.rules.profile import Profile, ProfileValueError, ScanDetection, require
 
@@ -73,7 +73,8 @@ def run(
     y_p99 = array("d")  # 10-bit code values (quarters for a 12-bit file)
     comb, d_mean = array("d"), array("d")
     with (out_dir / VIDEO_FILE).open("w", encoding="utf-8", newline="\n") as f:
-        for rec in measure_frames(decoder.frames(), limits, workers or default_workers()):
+        first = first_field(probe.video.field_order)
+        for rec in measure_frames(decoder.frames(), limits, workers or default_workers(), first_field=first):
             f.write(_line(rec))
             y_p99.append(rec["y_p99"])
             comb.append(float("nan") if rec["comb"] is None else rec["comb"])
@@ -100,7 +101,8 @@ def run(
             y_legal=limits.y_legal, y_tolerance=limits.y_tolerance, rgb=limits.rgb,
             prefilter_taps=limits.prefilter_taps, matrix=limits.matrix, flash_delta_pct=limits.flash_delta_pct,
         ),
-        video=VideoSection(file=VIDEO_FILE, fields=list(FIELDS), frames=len(y_p99)),
+        video=VideoSection(file=VIDEO_FILE, fields=list(FIELDS) + (list(FIELD_FIELDS) if first else []),
+                           frames=len(y_p99), first_field=first),
         scan=scan_mod.detect(probe.video, comb, d_mean, scan_settings),
         audio=audio,
     )

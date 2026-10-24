@@ -131,6 +131,8 @@ def severity_types(profile: Profile, groups: list[AudioGroup]) -> set[str]:
         types.add("delivery_conversion_required")
     if profile.format.field_order == "progressive":
         types |= {"scan_flag_mismatch", "scan_interlaced"}
+    elif profile.format.field_order == "psf":
+        types.add("scan_interlaced")
     types |= {"range_content_mismatch", "range_tag_suspect"}
     return types
 

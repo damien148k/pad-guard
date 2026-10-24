@@ -36,11 +36,15 @@ def evaluate(probe: ProbeResult, m: Measurements, profile: Profile) -> ScanRule:
     s, flag, flag_scan = m.scan, probe.video.field_order or "absent", probe.video.scan_flag
     actual = (f"détecté : {SCAN_LABELS[s.detected]} ({s.combed_frames} image(s) peignée(s) sur {s.moving_frames} "
               f"en mouvement) ; drapeau : {flag} ({SCAN_LABELS[flag_scan]})")
-    if profile.format.field_order != "progressive" or s.detected == "undetermined":
+    wanted = profile.format.field_order
+    if wanted not in ("progressive", "psf") or s.detected == "undetermined":
         return ScanRule(False, None, "", actual)
     if s.detected == "interlaced":
-        return ScanRule(True, "scan_interlaced", f"Master entrelacé (drapeau {flag}) : le profil attend du progressif",
+        expected = "du PsF (images progressives)" if wanted == "psf" else "du progressif"
+        return ScanRule(True, "scan_interlaced", f"Master entrelacé (drapeau {flag}) : le profil attend {expected}",
                         actual)
+    if wanted == "psf":  # progressive pictures in fields: either flag is right
+        return ScanRule(True, None, "", actual)
     if flag_scan == "interlaced":
         return ScanRule(True, "scan_flag_mismatch",
                         f"Drapeau de balayage incorrect ({flag}) sur un master progressif : "

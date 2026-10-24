@@ -285,7 +285,9 @@ def _check_format(c: _Checks, p: Profile, container: ContainerInfo, v: VideoInfo
     c.add("frame_rate", "Cadence", "format_frame_rate", " ou ".join(f.fps_allowed), v.r_frame_rate, r in allowed)
     c.add("frame_rate_constant", "Cadence constante", "format_frame_rate", "r_frame_rate = avg_frame_rate",
           f"{v.r_frame_rate} / {v.avg_frame_rate}", r is not None and r == avg)
-    c.add("field_order", "Balayage", "format", f.field_order, v.field_order or "absent", v.field_order == f.field_order)
+    psf = f.field_order == "psf" and v.field_order in ("progressive", *_INTERLACED)  # PsF is flagged either way
+    c.add("field_order", "Balayage", "format", f.field_order, v.field_order or "absent",
+          psf or v.field_order == f.field_order)
 
     for key, label in (("color_primaries", "Primaires"), ("color_transfer", "Transfert"), ("color_space", "Matrice")):
         expected, actual = getattr(f, key), getattr(v, key)

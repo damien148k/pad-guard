@@ -199,7 +199,8 @@ class Format(_Model):
     width: int
     height: int
     fps_allowed: list[str] = Field(min_length=1)
-    field_order: Literal["progressive", "tt", "bb", "tb", "bt"]
+    # psf: progressive pictures carried as two fields (the flag may be interlaced or progressive).
+    field_order: Literal["progressive", "psf", "tt", "bb", "tb", "bt"]
     color_primaries: str
     color_transfer: str
     color_space: str
@@ -613,7 +614,7 @@ _DESCRIPTIONS: dict[type[BaseModel], dict[str, str]] = {
         "width": "Largeur de l'image en pixels (ex. 1920)",
         "height": "Hauteur de l'image en lignes (ex. 1080)",
         "fps_allowed": "Cadences d'images acceptées, en fractions 'num/den' (ex. '25/1', '50/1')",
-        "field_order": "Balayage attendu : progressive, tt, bb, tb ou bt (entrelacé)",
+        "field_order": "Balayage attendu : progressive, psf (progressif en deux trames), tt, bb, tb ou bt (entrelacé)",
         "color_primaries": "Primaires colorimétriques attendues (ex. bt709)",
         "color_transfer": "Fonction de transfert attendue (ex. bt709)",
         "color_space": "Matrice de couleur attendue (ex. bt709)",
