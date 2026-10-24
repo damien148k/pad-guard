@@ -444,7 +444,7 @@ class _Builder:
             "audio": sections["audio"],
             "timeline": {"frames": frames, "tc_start": self.clock.tc(0), "tc_end": self.clock.tc(frames - 1),
                          "ticks": [{"pct": round(100 * i / ticks, 3),
-                                    "label": self.clock.tc(min(frames - 1, round((frames - 1) * i / ticks)))[:5]}
+                                    "label": self.clock.tc(min(frames - 1, round((frames - 1) * i / ticks)))[:8]}
                                    for i in range(ticks + 1)]},
             "events": events,
             "duplicate_keys": duplicates,

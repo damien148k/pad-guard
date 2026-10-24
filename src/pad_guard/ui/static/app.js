@@ -58,9 +58,11 @@ function App() {
   // The job runs on the server: on (re)opening the page, its state comes back from there.
   useEffect(() => {
     loadProfiles();
+    const shown = /(?:^#|&)run=([^&]*)/.exec(location.hash);  // a report link: #run=<folder>&a=<anomaly key>
+    if (shown) { setRunId(decodeURIComponent(shown[1])); setScreen('report'); }
     api('/api/jobs/current').then(j => {
       setJob(j);
-      if (j && j.kind === 'analyze' && j.state === 'running') setScreen('run');
+      if (j && j.kind !== 'draft' && j.state === 'running') setScreen('run');
     }).catch(e => setError(e.message));
   }, []);
 
@@ -76,9 +78,9 @@ function App() {
 
   const go = s => { setTab('analyse'); setScreen(s); };
   const stepIdx = STEPS.findIndex(s => s[2] === screen);
-  const canGo = { prep: true, recap: !!(form.master && form.profile), run: !!(job && job.kind === 'analyze'), report: !!runId };
+  const canGo = { prep: true, recap: !!(form.master && form.profile), run: !!(job && job.kind !== 'draft'), report: !!runId };
   const pendingDrafts = drafts.filter(d => !d.validated).length;
-  const openRun = id => { setRunId(id); go('report'); };
+  const openRun = id => { setRunId(id); history.replaceState(null, '', `#run=${encodeURIComponent(id)}`); go('report'); };
   const newAnalysis = () => { setForm(EMPTY_FORM); go('prep'); };
 
   let body;
@@ -94,7 +96,7 @@ function App() {
   } else if (screen === 'run') {
     body = html`<${Run} job=${job} setJob=${setJob} openRun=${openRun} newAnalysis=${newAnalysis} />`;
   } else {
-    body = html`<${Report} runId=${runId} job=${job} setJob=${setJob} goRun=${() => go('run')} />`;
+    body = html`<${Report} runId=${runId} job=${job} setJob=${j => { setJob(j); go('run'); }} />`;
   }
 
   return html`<div class="app">

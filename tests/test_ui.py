@@ -3,6 +3,7 @@ tests check what it serves, its local protections, and that the page needs no ne
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -188,7 +189,6 @@ def test_pdf_match_by_fingerprint(lab, lab_client, tmp_path) -> None:
 
 # --- background analysis ------------------------------------------------------------------------
 
-import json as _json  # noqa: E402
 
 from pad_guard import workdir as wd  # noqa: E402
 from pad_guard.ui import jobs as jobs_mod  # noqa: E402
@@ -219,14 +219,14 @@ def test_analysis_runs_the_cli_in_the_background(lab, lab_client, analyses, fixt
     assert [s["state"] for s in snap["stages"]] == ["done"] * 6
     assert snap["journal"][-1]["msg"] == "terminé · verdict calculé par les règles : NON-CONFORME"
     work = Path(snap["workdir"])
-    run = _json.loads((work / wd.RUN).read_text(encoding="utf-8"))
+    run = json.loads((work / wd.RUN).read_text(encoding="utf-8"))
     assert run["command"].startswith("pad-guard analyze") and run["finished_at"]
     assert (work / wd.REPORT_JSON).is_file() and (work / wd.REPORT_PDF).is_file()
-    assert _json.loads((work / "ui_job.json").read_text(encoding="utf-8"))["state"] == "done"
+    assert json.loads((work / "ui_job.json").read_text(encoding="utf-8"))["state"] == "done"
     # The stream sends the final state then closes.
     with lab_client.stream("GET", "/api/jobs/current/events") as r:
         data = [line for line in r.iter_lines() if line.startswith("data: ")]
-    assert _json.loads(data[-1][6:])["state"] == "done"
+    assert json.loads(data[-1][6:])["state"] == "done"
 
 
 @pytest.mark.fixtures
@@ -255,7 +255,7 @@ def test_job_found_again_after_a_restart(tmp_path) -> None:
     progress.write_text('{"t": 0, "stage": "probe", "msg": "Lecture"}\n', encoding="utf-8")
     record = dict(id="j1", kind="analyze", title="film", args=[], command="pad-guard analyze film", progress_file=str(progress),
                   log_dir=str(directory), state="running", pid=999999, started=0.0)
-    (directory / "j1.json").write_text(_json.dumps(record), encoding="utf-8")
+    (directory / "j1.json").write_text(json.dumps(record), encoding="utf-8")
     job = jobs_mod.JobManager(directory).current()
     assert job.state == "interrupted"  # its process is gone without the end line
     snap = jobs_mod.snapshot(job)
@@ -263,7 +263,7 @@ def test_job_found_again_after_a_restart(tmp_path) -> None:
     progress.write_text(progress.read_text(encoding="utf-8") + '{"t": 9, "stage": "done", "msg": "CONFORME", '
                         '"status": "CONFORME", "indicative": false}\n', encoding="utf-8")
     record["id"] = "j2"
-    (directory / "j2.json").write_text(_json.dumps(record), encoding="utf-8")
+    (directory / "j2.json").write_text(json.dumps(record), encoding="utf-8")
     assert jobs_mod.JobManager(directory).current().state == "done"
 
 
@@ -279,3 +279,68 @@ def test_launch_refused_when_preflight_fails(lab, lab_client, analyses, tmp_path
     r = lab_client.post("/api/jobs/analyze", json=body)
     assert r.status_code == 400 and "profil incomplet" in r.json()["error"]
     assert not any(analyses.glob("film_*"))
+
+
+# --- analyses already made and the report screen ------------------------------------------------
+
+from typer.testing import CliRunner  # noqa: E402
+
+from pad_guard.cli import app as cli_app  # noqa: E402
+
+
+def _analyse(root: Path, film: Path, profile: Path, name: str) -> Path:
+    out = root / name
+    result = CliRunner().invoke(cli_app, ["analyze", str(film), "--profile", str(profile), "--out", str(out)])
+    assert result.exit_code in (0, 4), result.output
+    return out
+
+
+@pytest.mark.fixtures
+def test_report_screen_reads_rapport_json(lab, lab_client, analyses, fixtures_dir, tmp_path) -> None:
+    work = _analyse(analyses, fixtures_dir / "bad_levels.mov", lab.root / "profiles" / "test_classic.yaml",
+                    "bad_levels_20261024-1000")
+    draft = lab.root / "profiles" / "brouillon.yaml"
+    draft.write_text((lab.root / "profiles" / "test_classic.yaml").read_text(encoding="utf-8")
+                     .replace("name: test_classic", "name: brouillon").replace("status: validated", "status: draft"),
+                     encoding="utf-8")
+    _analyse(analyses, fixtures_dir / "ok_prores.mov", draft, "ok_prores_20261024-1100")
+    runs = {r["id"]: r for r in lab_client.get("/api/runs").json()["runs"]}
+    assert runs["bad_levels_20261024-1000"]["label"] == "NON-CONFORME" and runs["bad_levels_20261024-1000"]["tone"] == "nc"
+    indicative = runs["ok_prores_20261024-1100"]
+    assert indicative["tone"] == "draft" and "CONFORME" not in indicative["label"].replace("NON-CONFORME", "")
+    assert indicative["label"].startswith("INDICATIF")  # a draft profile never shows CONFORME
+
+    data = lab_client.get("/api/runs/bad_levels_20261024-1000/report").json()
+    view = json.loads((work / wd.REPORT_JSON).read_text(encoding="utf-8"))
+    assert data["report"] == view and data["tone"] == "nc" and data["run"]["duration"]
+    shown = [e for e in view["events"] if e["thumbnail"]]
+    key = shown[0]["key"]
+    img = lab_client.get(f"/api/runs/bad_levels_20261024-1000/thumb/{key}")
+    assert img.status_code == 200 and img.headers["content-type"] == "image/png"
+    assert lab_client.get("/api/runs/bad_levels_20261024-1000/thumb/video_y_high@0@").status_code == 404
+    pdf = lab_client.get("/api/runs/bad_levels_20261024-1000/file/rapport.pdf?download=1")
+    assert pdf.status_code == 200 and "attachment" in pdf.headers["content-disposition"]
+    assert lab_client.get("/api/runs/bad_levels_20261024-1000/file/probe.json").status_code == 404
+    assert lab_client.get("/api/runs/..%5C..%5Cx/report").status_code == 404
+    opened = []
+    lab.extra["opener"] = opened.append
+    assert lab_client.post("/api/runs/bad_levels_20261024-1000/open-folder").status_code == 200 and opened == [work]
+
+    # The id of an anomaly is a rank: the key stays, even when the events are renumbered.
+    view["duplicate_keys"] = [key]
+    (work / wd.REPORT_JSON).write_text(json.dumps(view), encoding="utf-8")
+    assert lab_client.get(f"/api/runs/bad_levels_20261024-1000/thumb/{key}").status_code == 409
+
+
+@pytest.mark.fixtures
+def test_rerun_from_the_report(lab, lab_client, analyses, fixtures_dir) -> None:
+    work = _analyse(analyses, fixtures_dir / "bad_levels.mov", lab.root / "profiles" / "test_classic.yaml", "relance")
+    before = (work / wd.EVENTS).read_bytes()
+    snap = lab_client.post("/api/runs/relance/rerun", json={"from": "rules"}).json()
+    assert snap["kind"] == "rerun" and snap["command"].startswith("pad-guard rerun ")
+    job = lab.extra["jobs"].wait()
+    assert job.state == "done", jobs_mod.error_lines(job)
+    assert (work / wd.EVENTS).read_bytes() == before  # same JSON, same rules
+    run = json.loads((work / wd.RUN).read_text(encoding="utf-8"))
+    assert run["reruns"][-1]["from_step"] == "rules"
+    assert lab_client.post("/api/runs/relance/rerun", json={"from": "probe"}).status_code == 400

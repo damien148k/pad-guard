@@ -92,7 +92,7 @@ h2 { margin: 0; font: 600 40px/1 var(--cond); }
 .bp > i.bl { bottom: -6px; left: -6px; } .bp > i.br { bottom: -6px; right: -6px; }
 
 /* --- buttons ----------------------------------------------------------------------------- */
-.btn { font: 600 14px var(--cond); letter-spacing: .05em; text-transform: uppercase; padding: 9px 18px;
+.btn { text-decoration: none; display: inline-block; font: 600 14px var(--cond); letter-spacing: .05em; text-transform: uppercase; padding: 9px 18px;
   border: 1px solid var(--line-strong); background: transparent; color: var(--ink); cursor: pointer; }
 .btn:hover { background: rgba(230, 232, 234, .07); }
 .btn.primary { border-color: var(--steel); background: var(--steel); color: var(--bg0); }
