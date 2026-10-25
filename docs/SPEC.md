@@ -216,7 +216,7 @@ Toutes les positions attendues viennent de `profile.structure`. Deux cas selon l
 - `structure.leaders: none` : **aucune amorce** ; la première image du fichier est la première image du programme, au TC `10:00:00:00`, et le fichier se termine sur la dernière image du programme. C'est le cas d'**Arte** (« Le programme ne doit pas contenir d'amorces de début et de fin », consignes V2 §3.2.2.1). Dans ce mode, deux anomalies distinctes :
   - une mire en tête (ou ailleurs) → `structure_bars_present` (`blocking` chez Arte) ;
   - plus de `structure.black.head_max_seconds` de noir en tête, ou plus de `structure.black.tail_max_seconds` de noir en queue → `structure_black_too_long` (`minor` chez Arte : un fondu au noir est légitime, un noir d'amorce ne l'est pas).
-  - Limite du noir de tête ou de queue absente du profil (aucun document ne la fixe ; modes `classic` et `none`) : le noir est mesuré et la ligne du tableau dit « non demandé par le client » (statut `not_requested`) ; aucun événement, aucune valeur inventée (décision de Damien, 25 octobre 2026). C'est la seule exception à la règle « un champ manquant fait refuser l'analyse ».
+  - Limite du noir de tête ou de queue absente du profil (aucun document ne la fixe ; modes `classic` et `none`) : le noir est mesuré et la ligne du tableau dit « non demandé par le client » (statut `not_requested`) ; aucun événement, aucune valeur inventée (décision de Damien, 25 octobre 2026). C'est la seule exception à la règle « un champ manquant fait refuser l'analyse ». La chaîne de gravité `structure_black` (mode `classic`) ou `structure_black_too_long` (mode `none`) n'est alors exigée que si le profil fixe au moins une de ces limites.
 
 Exemple de tête PAD classique (mode `classic`) :
 

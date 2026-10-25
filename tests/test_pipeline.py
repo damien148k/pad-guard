@@ -149,23 +149,66 @@ def test_arte_bad(analysed) -> None:
     assert "Mire présente" not in later  # blocking: main table only
 
 
-def test_black_limit_not_requested_by_the_client(analysed, tmp_path) -> None:
-    """No document sets a limit for the black of head and tail: measured and shown « non demandé par le
-    client », never an anomaly, no invented value (decision of Damien, 25 October 2026)."""
-    _, _, out = analysed("arte_bad.mov", ARTE)
-    work = _copy(out, tmp_path)
-    profile = tmp_path / "sans_limite_de_noir.yaml"
+def _without_black_limits(tmp_path: Path, severity: bool = False) -> Path:
+    """The Arte profile with no limit for the black of head and tail, and (``severity``) still with its
+    chain structure_black_too_long, else without it."""
     lines = ARTE.read_text(encoding="utf-8").splitlines(keepends=True)
-    kept = [x for x in lines if not x.lstrip().startswith(("head_max_seconds:", "tail_max_seconds:"))]
-    assert len(lines) - len(kept) == 2
-    profile.write_text("".join(kept), encoding="utf-8")
-    result = invoke("rerun", str(work), "--from", "structure", "--profile", str(profile), "--no-thumbnails")
-    assert result.exception is None or isinstance(result.exception, SystemExit), result.output
-    checks = {c["id"]: c for c in json.loads((work / wd.STRUCTURE).read_text(encoding="utf-8"))["checks"]}
+    kept, skip = [], False
+    for line in lines:
+        if line.lstrip().startswith(("head_max_seconds:", "tail_max_seconds:")):
+            continue
+        if not severity and line.strip() == "structure_black_too_long:":
+            skip = True
+            continue
+        if skip and line.lstrip().startswith("- {"):
+            continue
+        skip = False
+        kept.append(line)
+    assert len(lines) - len(kept) == (2 if severity else 4)
+    path = tmp_path / "sans_limite_de_noir.yaml"
+    path.write_text("".join(kept), encoding="utf-8")
+    return path
+
+
+def test_black_limit_not_requested_by_the_client(fixtures_dir, tmp_path) -> None:
+    """No limit for the black of head and tail (no client value, no reference, no house rule): the analysis
+    runs, without the severity chain of structure_black_too_long; the black is measured and shown « non
+    demandé par le client », never an anomaly, no invented value (decision of Damien, 25 October 2026)."""
+    from pad_guard import audio_map, pipeline
+    from pad_guard.profiles import resolve_profile
+
+    profile = _without_black_limits(tmp_path)
+    resolved = resolve_profile(profile).profile
+    assert pipeline.preflight(resolved, audio_map.from_profile(resolved).groups) == []
+    out = tmp_path / "out"
+    result = invoke("analyze", str(fixtures_dir / "arte_bad.mov"), "--profile", str(profile), "--out", str(out),
+                    "--no-thumbnails")
+    assert result.exit_code == EXIT_NON_CONFORME, result.output  # the bars of the fixture, not the black
+    checks = {c["id"]: c for c in json.loads((out / wd.STRUCTURE).read_text(encoding="utf-8"))["checks"]}
     for id_ in ("head_black", "tail_black"):
         assert checks[id_]["status"] == "not_requested" and checks[id_]["expected"] == "non demandé par le client"
-    assert "structure_black_too_long" not in types(work)
-    assert "| Noir et silence de tête | non demandé par le client |" in (work / wd.REPORT_MD).read_text(encoding="utf-8")
+    assert "structure_black_too_long" not in types(out)
+    assert "| Noir et silence de tête | non demandé par le client |" in (out / wd.REPORT_MD).read_text(encoding="utf-8")
+
+
+def test_black_limit_needs_its_severity_only_when_set(tmp_path) -> None:
+    from pad_guard import audio_map, pipeline
+    from pad_guard.profiles import resolve_profile
+    from pad_guard.rules.engine import severity_types
+
+    with_limit = resolve_profile(ARTE).profile
+    groups = audio_map.from_profile(with_limit).groups
+    assert "structure_black_too_long" in severity_types(with_limit, groups)
+    no_limit = resolve_profile(_without_black_limits(tmp_path, severity=True)).profile
+    assert "structure_black_too_long" not in severity_types(no_limit, groups)
+    # A limit set without its severity chain is still refused before measuring.
+    raw = with_limit.model_dump(mode="json", by_alias=True, exclude_none=True)
+    del raw["rules"]["severity"]["structure_black_too_long"]
+    from pad_guard.rules.profile import Profile
+
+    missing = Profile.model_validate(raw)
+    assert "le profil n'a pas de gravité pour « rules.severity.structure_black_too_long »" in \
+        pipeline.preflight(missing, groups)
 
 
 def test_classic_structure_details(analysed) -> None:

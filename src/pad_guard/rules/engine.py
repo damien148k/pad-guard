@@ -118,8 +118,12 @@ def severity_types(profile: Profile, groups: list[AudioGroup]) -> set[str]:
         types.add("structure_bars")
     elif s.bars.forbidden:
         types.add("structure_bars_present")
-    if s.leaders != "unchecked":
-        types.add("structure_black" if s.leaders == "classic" else "structure_black_too_long")
+    # Black of head and tail: only when the profile sets a limit (else « non demandé par le client »).
+    b = s.black
+    if s.leaders == "classic" and (b.head_min_seconds is not None or b.tail_min_seconds is not None):
+        types.add("structure_black")
+    elif s.leaders == "none" and (b.head_max_seconds is not None or b.tail_max_seconds is not None):
+        types.add("structure_black_too_long")
     if profile.format.letterbox is not None and profile.format.letterbox.check:
         types.add("letterbox")
     if groups:
@@ -613,7 +617,9 @@ class Engine:
         """Event types this analysis can produce, whatever the content: their severity chain must exist."""
         groups = [g.group for g in self.m.audio.groups.values()] if self.m.audio is not None else []
         types = severity_types(self.p, groups)
-        return types | {c.type for c in self.probe.checks} | {c.type for c in self.st.checks}
+        # A check without a limit in the profile (« non demandé par le client ») never gives an event.
+        return types | {c.type for c in self.probe.checks} | {c.type for c in self.st.checks
+                                                              if c.status != "not_requested"}
 
     def severity(self, d: Draft) -> tuple[Severity, str]:
         """(severity, source of the rule that gave it)."""
