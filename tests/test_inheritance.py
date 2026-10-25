@@ -103,6 +103,8 @@ def test_arte_inherits_and_conflicts() -> None:
         ("video.y_tolerance_low_pct", -5.0, -1.0, "normes/ebu_r103.yaml"),
         ("video.y_tolerance_high_pct", 105.0, 103.0, "normes/ebu_r103.yaml"),
         ("audio.loudness.long.integrated_tolerance_lu", 0.2, 1.0, "normes/ebu_r128.yaml"),
+        # House method since 25/10/2026: Arte writes its own (no leaders, the whole file is measured).
+        ("audio.exclude_head_tail", True, False, "normes/lumiris_maison.yaml"),
     }
 
 
@@ -190,6 +192,21 @@ def lab(tmp_path: Path):
     return norms, profile
 
 
+def _house_without(norms: Path, *paths: str) -> None:
+    """The lab's lumiris_maison without these values (house methods since 25/10/2026), so that a test
+    can make them come from another norm."""
+    path = norms / "lumiris_maison.yaml"
+    house = yaml.safe_load(path.read_text(encoding="utf-8"))
+    for dotted in paths:
+        *parents, last = dotted.split(".")
+        node = house
+        for p in parents:
+            node = node[p]
+        del node[last]
+        del house["sources"][dotted]
+    path.write_text(yaml.safe_dump(house, allow_unicode=True), encoding="utf-8")
+
+
 def _drop(*paths: str):
     def mutate(raw):
         for dotted in paths:
@@ -206,9 +223,10 @@ def test_priority_last_layer_wins(lab) -> None:
     _norm(norms, "a", {"audio": {"true_peak_max_dbtp": -1.0, "silence_dbfs": -50.0}})
     _norm(norms, "b", {"audio": {"true_peak_max_dbtp": -2.0}})
     house = yaml.safe_load((norms / "lumiris_maison.yaml").read_text(encoding="utf-8"))
-    house["audio"] = {"true_peak_max_dbtp": -3.0}
+    house.setdefault("audio", {})["true_peak_max_dbtp"] = -3.0
     house["sources"]["audio.true_peak_max_dbtp"] = "Lumiris : test"
     (norms / "lumiris_maison.yaml").write_text(yaml.safe_dump(house, allow_unicode=True), encoding="utf-8")
+    _house_without(norms, "audio.silence_dbfs")  # a house method since 25/10/2026: here it comes from a
 
     r = resolve_profile(profile(["a", "b", "lumiris_maison"],
                                 _drop("audio.true_peak_max_dbtp", "audio.silence_dbfs")))
@@ -235,6 +253,7 @@ def test_reference_to_a_norm_is_a_client_requirement(lab, tmp_path) -> None:
     norms, profile = lab
     _norm(norms, "r", {"audio": {"true_peak_max_dbtp": -1.0, "silence_dbfs": -50.0}})
     _norm(norms, "s", {"audio": {"phase_min_seconds": 4.0}})
+    _house_without(norms, "audio.phase_min_seconds")
     ref = {"norm": "r", "source": "Chaîne §4 : « conforme à la norme R »"}
     # The client writes no true peak, refers to R, and writes its own silence level (it wins).
     r = resolve_profile(profile(["r", "s", "lumiris_maison"], _refer(ref, drop=(
@@ -301,6 +320,7 @@ def test_inherited_null_refused(lab) -> None:
     norms, profile = lab
     _norm(norms, "a", {"audio": {"silence_max_seconds": None}},
           sources={"audio.silence_max_seconds": "A VERIFIER : paragraphe à confirmer"})
+    _house_without(norms, "audio.silence_max_seconds")
     r = resolve_profile(profile(["a", "lumiris_maison"], _drop("audio.silence_max_seconds")))
     assert "audio.silence_max_seconds" in null_fields(r.profile)
     problems = pipeline.preflight(r.profile, r.profile.audio.groups)

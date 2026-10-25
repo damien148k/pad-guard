@@ -2,19 +2,25 @@
 #
 # Elles s'appliquent après les normes et avant le profil du diffuseur (dernière entrée de
 # meta.extends). Ce sont les règles marquées « source: Lumiris » dans les profils v2, plus les
-# paramètres de détection du balayage (v3).
+# paramètres de détection du balayage (v3), plus les méthodes de mesure qu'aucun document de
+# diffuseur ne fixe (25/10/2026) : elles s'appliquent quand le profil ne les écrit pas.
 
 meta:
   kind: norm
   name: lumiris_maison
   document:
     title: "Règles internes Lumiris Production pour le pré-contrôle des PAD"
-    version: "2026-10-23"
+    version: "2026-10-25"
   notes: >
     Le contrôle PSE n'est exigé par aucun diffuseur dans les profils actuels : c'est un contrôle
     interne, à confirmer avec un analyseur Harding certifié.
 
+format:
+  unknown_color_tags_severity: minor     # A VERIFIER Vincent
+
 video:
+  bit_depth: 10                          # A VERIFIER Vincent : profondeur de calcul des mesures
+  prefilter_taps: 3                      # A VERIFIER Vincent
   scan_detection:
     comb_ratio_min: 0.9
     motion_min: 1.0
@@ -24,7 +30,22 @@ video:
   range_detection:
     reserved_min_frames_pct: 1.0         # A VERIFIER avec Vincent
 
+audio:
+  silence_dbfs: -60.0                    # A VERIFIER Vincent
+  silence_max_seconds: 3.0               # A VERIFIER Vincent
+  phase_min_correlation: -0.3            # A VERIFIER : RT 040 p. 11 ne chiffre pas
+  phase_min_seconds: 2.0                 # A VERIFIER : idem
+  exclude_head_tail: true                # A VERIFIER Vincent
+
 structure:
+  timecode:
+    tolerance_frames: 0                  # A VERIFIER Vincent
+  black:
+    y_max: 68                            # A VERIFIER Vincent
+    silence_dbfs: -60.0                  # A VERIFIER Vincent
+  freeze:
+    threshold: 0.5                       # A VERIFIER Vincent
+    min_seconds: 2.0                     # A VERIFIER Vincent
   pse:
     enabled: true
     max_flashes_per_second: 3
@@ -60,6 +81,41 @@ rules:
       - {else: major, source: "Lumiris : drapeau de balayage à corriger à l'export (master progressif)"}
 
 sources:
+  format.unknown_color_tags_severity: >-
+    Lumiris : gravité d'une balise de colorimétrie absente ou « unknown » quand le profil ne la fixe pas
+    (aucun document de diffuseur ne la fixe). décision Lumiris, A VERIFIER Vincent.
+  video.bit_depth: >-
+    Lumiris : les niveaux sont mesurés en valeurs de code 10 bits (CLAUDE.md, conventions ; 8 bits converti,
+    12 bits avec les seuils x 4) : méthode de mesure, pas une exigence de diffuseur. décision Lumiris, A VERIFIER Vincent.
+  video.prefilter_taps: >-
+    Lumiris : filtre horizontal à 3 coefficients avant la mesure des niveaux, quand une norme demande un
+    préfiltre sans en fixer la longueur (EBU R 103 le demande). décision Lumiris, A VERIFIER Vincent.
+  audio.silence_dbfs: >-
+    Lumiris : seuil de détection d'un silence dans le programme, -60 dBFS, quand le document du client ne le
+    fixe pas. décision Lumiris, A VERIFIER Vincent.
+  audio.silence_max_seconds: >-
+    Lumiris : un silence est signalé au-delà de 3 s, quand le document du client ne fixe pas de durée. décision Lumiris, A VERIFIER Vincent.
+  audio.phase_min_correlation: >-
+    RT 040 p. 11 : « la phase doit être très majoritairement positive » ; seuil chiffré Lumiris (corrélation
+    -0,3), A VERIFIER.
+  audio.phase_min_seconds: >-
+    RT 040 p. 11 : « la phase doit être très majoritairement positive » ; seuil chiffré Lumiris (opposition
+    de phase signalée au-delà de 2 s), A VERIFIER.
+  audio.exclude_head_tail: >-
+    Lumiris : en mode amorce classique, la mire, son signal de 1 kHz et les noirs de tête et de queue sont
+    exclus des mesures audio du programme (sans effet en mode sans amorce). décision Lumiris, A VERIFIER Vincent.
+  structure.timecode.tolerance_frames: >-
+    Lumiris : le début du programme doit tomber sur l'image exacte du timecode attendu (tolérance 0 image).
+    décision Lumiris, A VERIFIER Vincent.
+  structure.black.y_max: >-
+    Lumiris : une image est noire si sa luminance ne dépasse pas 68 en 10 bits (noir légal 64 + 4), pour la
+    détection des noirs de tête et de queue. décision Lumiris, A VERIFIER Vincent.
+  structure.black.silence_dbfs: >-
+    Lumiris : le son est silencieux sous -60 dBFS pour la détection des noirs et silences de tête et de queue.
+    décision Lumiris, A VERIFIER Vincent.
+  structure.freeze: >-
+    Lumiris : une image est figée si sa différence moyenne avec la précédente est sous 0,5 (10 bits), signalée
+    à partir de 2 s. décision Lumiris, A VERIFIER Vincent.
   rules.merge_gap_seconds: >-
     Lumiris : deux plages en anomalie séparées de moins de 0,5 s font un seul événement (SPEC §7.1).
     A VERIFIER : à confirmer avec Vincent (décision de Damien, 24/10/2026 : durées en secondes).

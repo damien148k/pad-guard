@@ -41,7 +41,7 @@ Progress = Callable[[str], None]
 KERNELS = {3: "[1 2 1]/4", 5: "[1 4 6 4 1]/16"}
 MASK_LEGENDS = {"y_above": "en rouge, Y au-dessus de la tolérance", "y_below": "en bleu, Y en dessous de la tolérance",
                 "rgb_out": "en magenta, R, V ou B hors limites"}
-_STATUS = {"ok": "OK", "fail": "ÉCHEC", "unknown": "non renseigné"}
+_STATUS = {"ok": "OK", "fail": "ÉCHEC", "unknown": "non renseigné", "not_requested": "non demandé"}
 
 
 class ReportError(Exception):

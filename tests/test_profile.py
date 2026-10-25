@@ -124,9 +124,27 @@ def test_track_in_two_groups(tmp_path: Path) -> None:
 def test_prefilter_needs_kernel(tmp_path: Path) -> None:
     def bad(raw):
         del raw["video"]["prefilter_taps"]
+        raw["meta"]["extends"] = []  # without the house rules, which give the kernel since 25/10/2026
 
     errors = _errors(_mutated(tmp_path, bad))
     assert any("prefilter_taps" in e for e in errors)
+
+
+def test_house_rules_give_the_measurement_methods(tmp_path: Path) -> None:
+    """Methods no broadcaster's document sets come from lumiris_maison when the profile does not write them."""
+    from pad_guard.profiles import resolve_profile
+
+    def without(raw):
+        del raw["video"]["prefilter_taps"]
+        del raw["audio"]["phase_min_correlation"]
+        del raw["structure"]["freeze"]
+
+    r = resolve_profile(_mutated(tmp_path, without))
+    assert (r.profile.video.prefilter_taps, r.profile.audio.phase_min_correlation) == (3, -0.3)
+    assert (r.profile.structure.freeze.threshold, r.profile.structure.freeze.min_seconds) == (0.5, 2.0)
+    for path in ("video.prefilter_taps", "audio.phase_min_correlation", "structure.freeze.threshold"):
+        assert r.origins[path].file == "normes/lumiris_maison.yaml"
+        assert "A VERIFIER" in r.origins[path].source
 
 
 def test_cli_validate_ok() -> None:

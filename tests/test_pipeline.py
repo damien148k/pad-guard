@@ -149,6 +149,25 @@ def test_arte_bad(analysed) -> None:
     assert "Mire présente" not in later  # blocking: main table only
 
 
+def test_black_limit_not_requested_by_the_client(analysed, tmp_path) -> None:
+    """No document sets a limit for the black of head and tail: measured and shown « non demandé par le
+    client », never an anomaly, no invented value (decision of Damien, 25 October 2026)."""
+    _, _, out = analysed("arte_bad.mov", ARTE)
+    work = _copy(out, tmp_path)
+    profile = tmp_path / "sans_limite_de_noir.yaml"
+    lines = ARTE.read_text(encoding="utf-8").splitlines(keepends=True)
+    kept = [x for x in lines if not x.lstrip().startswith(("head_max_seconds:", "tail_max_seconds:"))]
+    assert len(lines) - len(kept) == 2
+    profile.write_text("".join(kept), encoding="utf-8")
+    result = invoke("rerun", str(work), "--from", "structure", "--profile", str(profile), "--no-thumbnails")
+    assert result.exception is None or isinstance(result.exception, SystemExit), result.output
+    checks = {c["id"]: c for c in json.loads((work / wd.STRUCTURE).read_text(encoding="utf-8"))["checks"]}
+    for id_ in ("head_black", "tail_black"):
+        assert checks[id_]["status"] == "not_requested" and checks[id_]["expected"] == "non demandé par le client"
+    assert "structure_black_too_long" not in types(work)
+    assert "| Noir et silence de tête | non demandé par le client |" in (work / wd.REPORT_MD).read_text(encoding="utf-8")
+
+
 def test_classic_structure_details(analysed) -> None:
     _, _, out = analysed("ok_prores.mov")
     s = json.loads((out / wd.STRUCTURE).read_text(encoding="utf-8"))

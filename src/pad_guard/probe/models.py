@@ -11,7 +11,9 @@ from pad_guard.timecode import TimecodeFormat
 
 SCHEMA_VERSION = 1
 
-CheckStatus = Literal["ok", "fail", "unknown"]
+# not_requested: the client's document sets no limit (black of head and tail, decision of Damien,
+# 25 October 2026): measured and shown, never an anomaly.
+CheckStatus = Literal["ok", "fail", "unknown", "not_requested"]
 
 
 class SourceInfo(BaseModel):

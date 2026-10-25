@@ -699,8 +699,9 @@ def _review(draft_yaml: Path, base: Path, out: Path, answers: list[str]):
 def test_review_profile_accept_correct_choose(review_lab) -> None:
     draft_yaml, base, out = review_lab
     # Field order: audio.sample_rate (conflict), audio.loudness.long.integrated_lufs, audio.true_peak_max_dbtp,
-    # structure.timecode.program_start. After the correction, no term is added to the glossary ("").
-    result = _review(draft_yaml, base, out, ["1", "a", "c", "-3", "1", "le niveau des crêtes", "", "a", "Vincent"])
+    # structure.timecode.program_start. After the correction, no term is added to the glossary (""). Then EBU R128,
+    # named on p. 1 (alias of the glossary) but not proposed by the model: not a reference (""), none to add ("").
+    result = _review(draft_yaml, base, out, ["1", "a", "c", "-3", "1", "le niveau des crêtes", "", "a", "", "", "Vincent"])
     assert result.exit_code == 0, result.output
     r = resolve_profile(out)
     assert r.profile.meta.status == "validated" and r.profile.meta.validated_by == "Vincent"
@@ -715,7 +716,7 @@ def test_review_profile_accept_correct_choose(review_lab) -> None:
 def test_review_flags_implausible_and_learns_terms(review_lab, tmp_path) -> None:
     draft_yaml, base, out = review_lab
     # sample_rate: CONFLIT between 48000 and the implausible 48. True peak corrected, with a new term.
-    answers = ["1", "a", "c", "-3", "1", "le niveau des crêtes", "plafond numérique", "f", "a", "Vincent"]
+    answers = ["1", "a", "c", "-3", "1", "le niveau des crêtes", "plafond numérique", "f", "a", "", "", "Vincent"]
     result = _review(draft_yaml, base, out, answers)
     assert result.exit_code == 0, result.output
     text = " ".join(result.output.split())
@@ -732,13 +733,13 @@ def test_review_confirms_references_to_norms(review_lab, doc_pdf) -> None:
     _, files = draft(doc_pdf, base.parent.parent / "drafts_ref", client)
     # The field is left empty: inherited from EBU R 128. Reference refused: audio_loudness (blocking) would
     # rest on a norm only, so the red warning comes, and the reviewer stops.
-    result = _review(files["yaml"], base, out, ["v", "n", "n"])
+    result = _review(files["yaml"], base, out, ["v", "n", "", "n"])
     text = " ".join(result.output.split())
     assert result.exit_code != 0 and not out.exists()
     assert "Le document renvoie à EBU R 128 (p. 1)" in text
     assert "rules.severity.audio_loudness (blocking) : audio.loudness.long.integrated_lufs" in text
     # Reference confirmed: the R 128 value is the client's requirement, no warning, no cap.
-    result = _review(files["yaml"], base, out, ["v", "o", "Vincent"])
+    result = _review(files["yaml"], base, out, ["v", "o", "", "Vincent"])
     assert result.exit_code == 0, result.output
     assert "rules.severity.audio_loudness" not in " ".join(result.output.split())
     r = resolve_profile(out)
@@ -756,12 +757,12 @@ def test_review_shows_norm_only_blocking_rules(review_lab) -> None:
     draft_yaml, base, out = review_lab
     # true peak left empty: inherited from EBU R 128 only, while audio_true_peak is blocking in the base.
     answers = ["1", "a", "v", "a"]
-    result = _review(draft_yaml, base, out, answers + ["n"])
+    result = _review(draft_yaml, base, out, answers + ["", "", "n"])
     text = " ".join(result.output.split())
     assert result.exit_code != 0 and not out.exists()
     assert "rules.severity.audio_true_peak (blocking) : audio.true_peak_max_dbtp" in text
     assert "plafonné à minor" in text
-    result = _review(draft_yaml, base, out, answers + ["o", "Vincent"])
+    result = _review(draft_yaml, base, out, answers + ["", "", "o", "Vincent"])
     assert result.exit_code == 0, result.output
     r = resolve_profile(out)
     assert r.origins["audio.true_peak_max_dbtp"].file == "normes/ebu_r128.yaml"
@@ -772,7 +773,7 @@ def test_review_refuses_incomplete_profile(review_lab, tmp_path) -> None:
     raw = yaml.safe_load(base.read_text(encoding="utf-8"))
     del raw["structure"]["leaders"]
     base.write_text(yaml.safe_dump(raw, allow_unicode=True), encoding="utf-8")
-    result = _review(draft_yaml, base, out, ["1", "a", "a", "a"])
+    result = _review(draft_yaml, base, out, ["1", "a", "a", "a", "", ""])
     assert result.exit_code != 0 and not out.exists()
     assert "structure.leaders" in " ".join(result.output.split())
 

@@ -79,7 +79,7 @@ def test_review_writes_the_norm(doc_pdf, lab) -> None:
     # Fields: audio.sample_rate (accepted), audio.loudness.long.integrated_lufs (reference: left empty),
     # audio.true_peak_max_dbtp (corrected: a norm's value always cites its page, asked again without it).
     # Then the reference to EBU R 128, confirmed, cited in another version; proposed only when cited (n).
-    answers = ["a", "v", "c", "-2", "", "", "1", TP_QUOTE, "", "o", "V4.0, 2020", "n", "Vincent"]
+    answers = ["a", "v", "c", "-2", "", "", "1", TP_QUOTE, "", "o", "V4.0, 2020", "", "n", "Vincent"]
     result = _review(files["yaml"], answers)
     text = " ".join(result.output.split())
     assert result.exit_code == 0, result.output
@@ -102,7 +102,7 @@ def test_review_writes_the_norm(doc_pdf, lab) -> None:
 
 def test_refused_reference_is_not_extended(doc_pdf, lab) -> None:
     _, files = _norm_draft(doc_pdf, lab)
-    result = _review(files["yaml"], ["a", "v", "a", "n", "o", "Vincent"])
+    result = _review(files["yaml"], ["a", "v", "a", "n", "", "o", "Vincent"])
     assert result.exit_code == 0, result.output
     meta = load_norm(lab / "normes" / "cst_rt099.yaml").meta
     assert meta.extends == [] and meta.refers_to == [] and meta.applies == "always"
@@ -213,3 +213,82 @@ def test_review_load_of_a_norm_finds_its_norms(doc_pdf, lab) -> None:
     rv = review.load(files["yaml"], None)
     assert rv.is_norm and rv.base is None and rv.norms == (lab / "normes").resolve()
     assert rv.doc == "CST-RT-099 V1.0, 2026"
+
+
+# --- references the model missed -------------------------------------------------------------
+
+
+def _pdf(path: Path, pages: list[list[str]]) -> Path:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+
+    c = canvas.Canvas(str(path), pagesize=A4)
+    for lines in pages:
+        y = 780
+        for line in lines:
+            c.drawString(60, y, line)
+            y -= 20
+        c.showPage()
+    c.save()
+    return path
+
+
+R103_LIST = "EBU R 103 : Tolerances sur le signal video dans les systemes numeriques"
+R103_REF = "Conformement a la recommandation EBU R 103 (v2.0 juin 2016), le gamut est surveille."
+RATE = "Frequence d'echantillonnage : 48 kHz"
+
+
+def test_alias_finds_the_reference_the_model_missed(lab, tmp_path) -> None:
+    doc = _pdf(tmp_path / "rt_test.pdf", [["Documents de reference :", R103_LIST, "Signal video", R103_REF], [RATE]])
+    client = FakeClient({1: [finding("audio.sample_rate", 48000, 2, RATE)]})  # the model sees no reference
+    make_draft(doc, "cst_rt099", client, lab / "normes" / "drafts", kind="norm", title=TITLE,
+               doc_version="V1.0, 2026", norms_dir=lab / "normes")
+    draft_yaml = lab / "normes" / "drafts" / "cst_rt099.yaml"
+    rv = review.load(draft_yaml, None)
+    refs = review.reference_questions(rv)
+    assert [(q.norm, q.found_by, q.candidates) for q in refs] == [("ebu_r103", "alias", [(1, R103_LIST), (1, R103_REF)])]
+    # Manual references are checked in the PDF: a norm of normes/, the quote in its page, naming the norm.
+    for name, page, quote, why in (("ebu_r999", "1", R103_REF, "n'est pas une norme de normes/"),
+                                   ("lumiris_maison", "1", R103_REF, "n'est pas une norme de normes/"),
+                                   ("ebu_r103", "2", R103_REF, "citation introuvable p. 2"),
+                                   ("ebu_r128", "1", R103_REF, "ne nomme pas ebu_r128")):
+        with pytest.raises(review.ReviewError, match=why):
+            review.manual_reference(rv, name, page, quote)
+    assert review.manual_reference(rv, "ebu_r103", "1", R103_REF).found_by == "manual"
+    # The second line is the reference (the first one only lists the document), cited in another version;
+    # then a manual reference refused (not in the page), and none more.
+    answers = ["a", "2", "v2.0 (juin 2016)", "ebu_r128", "1", "conforme à la R128", "", "n", "Vincent"]
+    result = _review(draft_yaml, answers)
+    assert result.exit_code == 0, result.output
+    text = " ".join(result.output.split())
+    assert "EBU R 103 est nommée dans le document (alias du glossaire" in text and "citation introuvable p. 1" in text
+    meta = load_norm(lab / "normes" / "cst_rt099.yaml").meta
+    assert meta.extends == ["ebu_r103"]  # not proposed by the model, added because confirmed
+    assert [(r.norm, r.cited_version) for r in meta.refers_to] == [("ebu_r103", "v2.0 (juin 2016)")]
+    assert meta.refers_to[0].source == f"CST-RT-099 V1.0, 2026 p. 1 : « {R103_REF} »"
+
+
+def test_alias_reference_adds_the_norm_to_the_profile(lab, tmp_path) -> None:
+    """A broadcaster's annex refers to the RT 040 (meta.applies: on_reference, so not proposed): found by its
+    alias, confirmed, it goes into extends before the house rules, and into refers_to."""
+    _national_norm(lab)
+    shutil.move(lab / "normes" / "cst_test.yaml", lab / "normes" / "cst_rt040.yaml")
+    path = lab / "normes" / "cst_rt040.yaml"
+    path.write_text(path.read_text(encoding="utf-8").replace("name: cst_test", "name: cst_rt040"), encoding="utf-8")
+    line = "Les normes sont decrites dans la RT 040 - TV - Rec Tech PAD fichier Diffuseurs V1.2-2016"
+    doc = _pdf(tmp_path / "annexe.pdf", [[line], [RATE]])
+    raw = yaml.safe_load((TEST_PROFILES / "test_classic.yaml").read_text(encoding="utf-8"))
+    raw["meta"]["extends"] = ["ebu_r103", "ebu_r128", "lumiris_maison"]
+    base = lab / "profiles" / "base.yaml"
+    base.write_text(yaml.safe_dump(raw, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    _, files = make_draft(doc, "annexe_test", FakeClient({1: [finding("audio.sample_rate", 48000, 2, RATE)]}),
+                          lab / "profiles" / "drafts", broadcaster="Chaîne de test", norms_dir=lab / "normes",
+                          profiles_dir=lab / "profiles")
+    assert "cst_rt040" not in yaml.safe_load(files["yaml"].read_text(encoding="utf-8"))["meta"]["extends"]
+    out = lab / "profiles" / "annexe_test.yaml"
+    result = _review(files["yaml"], ["a", "o", "", "Vincent"], "--base", str(base), "--out", str(out))
+    assert result.exit_code == 0, result.output
+    r = resolve_profile(out)
+    assert r.profile.meta.extends[-2:] == ["cst_rt040", "lumiris_maison"]
+    assert [x.norm for x in r.profile.meta.refers_to] == ["cst_rt040"]
+    assert r.profile.meta.refers_to[0].source == f"annexe.pdf p. 1 : « {line} »"

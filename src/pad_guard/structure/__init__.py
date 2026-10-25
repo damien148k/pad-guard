@@ -219,10 +219,21 @@ def _black_text(ctx: _Context, r: FrameRange | None) -> str:
     return f"{_fmt(ctx.seconds(r.frames))} s ({ctx.tc_range(r.frame_start, r.frame_end)})"
 
 
+NOT_REQUESTED = "non demandé par le client"
+
+
+def _black_check(ctx: _Context, id_: str, label: str, type_: str, r: FrameRange | None, limit: float | None,
+                 expected: str, ok: bool) -> None:
+    """Black of head or tail against its limit; without a limit in the profile (no document sets one,
+    decision of Damien, 25 October 2026), measured and shown, not checked."""
+    ctx.check(id=id_, label=label, type=type_, expected=expected if limit is not None else NOT_REQUESTED,
+              actual=_black_text(ctx, r), status=("ok" if ok else "fail") if limit is not None else "not_requested",
+              frame_start=None if r is None else r.frame_start, frame_end=None if r is None else r.frame_end)
+
+
 def _classic_layout(ctx: _Context, bars_mask: np.ndarray) -> tuple[FrameRange, FrameRange | None, FrameRange | None]:
     p = ctx.profile.structure
-    head_min = require(ctx.profile, "structure.black.head_min_seconds", "le contrôle du noir de tête")
-    tail_min = require(ctx.profile, "structure.black.tail_min_seconds", "le contrôle du noir de queue")
+    head_min, tail_min = p.black.head_min_seconds, p.black.tail_min_seconds
     content = ~(bars_mask | ctx.black_video)
     starts = np.flatnonzero(content)
     start = int(starts[0]) if starts.size else ctx.frames - 1
@@ -230,16 +241,14 @@ def _classic_layout(ctx: _Context, bars_mask: np.ndarray) -> tuple[FrameRange, F
     end = tail.frame_start - 1 if tail is not None and tail.frame_start > start else ctx.frames - 1
     head = _range(detect.run_ending_at(ctx.black, start - 1))
 
-    ok = head is not None and ctx.seconds(head.frames) >= head_min
-    ctx.check(id="head_black", label="Noir et silence de tête", type="structure_black",
-              expected=f"au moins {_fmt(head_min)} s avant le programme", actual=_black_text(ctx, head),
-              status="ok" if ok else "fail",
-              frame_start=None if head is None else head.frame_start, frame_end=None if head is None else head.frame_end)
-    seconds = 0.0 if tail is None else ctx.seconds(tail.frames)
-    ctx.check(id="tail_black", label="Noir et silence de queue", type="structure_black",
-              expected=f"au moins {_fmt(tail_min)} s", actual=_black_text(ctx, tail),
-              status="ok" if seconds >= tail_min else "fail",
-              frame_start=None if tail is None else tail.frame_start, frame_end=None if tail is None else tail.frame_end)
+    head_seconds = 0.0 if head is None else ctx.seconds(head.frames)
+    tail_seconds = 0.0 if tail is None else ctx.seconds(tail.frames)
+    _black_check(ctx, "head_black", "Noir et silence de tête", "structure_black", head, head_min,
+                 "" if head_min is None else f"au moins {_fmt(head_min)} s avant le programme",
+                 head is not None and head_min is not None and head_seconds >= head_min)
+    _black_check(ctx, "tail_black", "Noir et silence de queue", "structure_black", tail, tail_min,
+                 "" if tail_min is None else f"au moins {_fmt(tail_min)} s",
+                 tail_min is not None and tail_seconds >= tail_min)
 
     want = p.timecode.program_start
     tol = p.timecode.tolerance_frames
@@ -256,8 +265,7 @@ def _classic_layout(ctx: _Context, bars_mask: np.ndarray) -> tuple[FrameRange, F
 
 
 def _no_leaders_layout(ctx: _Context) -> tuple[FrameRange, FrameRange | None, FrameRange | None]:
-    head_max = require(ctx.profile, "structure.black.head_max_seconds", "le contrôle du noir de tête")
-    tail_max = require(ctx.profile, "structure.black.tail_max_seconds", "le contrôle du noir de queue")
+    head_max, tail_max = ctx.profile.structure.black.head_max_seconds, ctx.profile.structure.black.tail_max_seconds
     head = _range(detect.leading_run(ctx.black))
     tail = _range(detect.trailing_run(ctx.black))
     if head is not None and tail is not None and head.frame_end >= tail.frame_start:
@@ -265,9 +273,8 @@ def _no_leaders_layout(ctx: _Context) -> tuple[FrameRange, FrameRange | None, Fr
     for id_, label, r, limit in (("head_black", "Noir et silence de tête", head, head_max),
                                  ("tail_black", "Noir et silence de queue", tail, tail_max)):
         seconds = 0.0 if r is None else ctx.seconds(r.frames)
-        ctx.check(id=id_, label=label, type="structure_black_too_long", expected=f"au plus {_fmt(limit)} s",
-                  actual=_black_text(ctx, r), status="ok" if seconds <= limit else "fail",
-                  frame_start=None if r is None else r.frame_start, frame_end=None if r is None else r.frame_end)
+        _black_check(ctx, id_, label, "structure_black_too_long", r, limit,
+                     "" if limit is None else f"au plus {_fmt(limit)} s", limit is not None and seconds <= limit)
     return FrameRange(frame_start=0, frame_end=ctx.frames - 1), head, tail
 
 

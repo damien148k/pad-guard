@@ -78,10 +78,7 @@ def preflight(profile: Profile, groups: list[AudioGroup]) -> list[str]:
                   ("tolerance", "pattern", "start_tc", "min_seconds", "tone_hz", "tone_dbfs", "tone_tolerance_db")]
     elif s.bars.forbidden:
         needs.append(("structure.bars.tolerance", "la recherche de mire"))
-    if s.leaders == "classic":
-        needs += [("structure.black.head_min_seconds", "le noir de tête"), ("structure.black.tail_min_seconds", "le noir de queue")]
-    elif s.leaders == "none":
-        needs += [("structure.black.head_max_seconds", "le noir de tête"), ("structure.black.tail_max_seconds", "le noir de queue")]
+    # Black of head and tail: a limit no document sets is not checked (« non demandé par le client »).
     if profile.format.letterbox is not None and profile.format.letterbox.check:
         needs.append(("format.letterbox.tolerance_lines", "le format d'image"))
     needs += [("audio.silence_max_seconds", "les silences"), ("audio.phase_min_seconds", "la phase"),

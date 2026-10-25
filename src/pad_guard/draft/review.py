@@ -34,6 +34,8 @@ from typing import Any
 import yaml
 
 from pad_guard.draft import glossary as glossary_mod
+from pad_guard.draft import pdf as pdf_mod
+from pad_guard.draft import verify
 from pad_guard.draft.extract import CONFLICT, IMPLAUSIBLE, NORM_REF, OK
 from pad_guard.draft.schema import catalogue, check_value
 from pad_guard.draft.write import CAPPED, dump, one_line, scalar
@@ -44,6 +46,7 @@ from pad_guard.profiles.resolve import (
     ResolvedProfile,
     _norm_chain,
     capped_norm_values,
+    is_norm,
     leaves,
     load_norm,
     norms_dir_for,
@@ -204,9 +207,13 @@ class ReferenceQuestion:
 
     norm: str
     title: str
-    page: int
+    page: int  # the citation proposed (the first of ``candidates``)
     quote: str
     values: list[tuple[str, Any]]
+    # model: proposed by the model (RENVOI_NORME) ; alias: an alias of the glossary found in the text of
+    # the PDF, every line naming the norm is a candidate citation ; manual: given by the reviewer.
+    found_by: str = "model"
+    candidates: list[tuple[int, str]] = field(default_factory=list)  # (page, line), alias only
 
 
 def questions(review: Review, everything: bool = False) -> tuple[list[Question], list[dict]]:
@@ -335,55 +342,149 @@ def ask_fields(review: Review, ask: Ask, say: Say, everything: bool = False, ale
     return skipped
 
 
+def _referable(review: Review, name: str) -> bool:
+    """A norm of normes/ a reference may point to: not the house rules, not the norm under review."""
+    return name not in (HOUSE, review.meta["name"]) and (review.norms / f"{name}.yaml").is_file() \
+        and is_norm(read_yaml(review.norms / f"{name}.yaml"))
+
+
+def _question(review: Review, name: str, page: int, quote: str, found_by: str = "model",
+              candidates: list[tuple[int, str]] | None = None) -> ReferenceQuestion:
+    norm = load_norm(review.norms / f"{name}.yaml")
+    return ReferenceQuestion(norm=name, title=norm.meta.document.title.split(" — ")[0], page=page, quote=quote,
+                             values=leaves({k: v for k, v in norm.raw.items() if k != "sources"}),
+                             found_by=found_by, candidates=candidates or [])
+
+
+def document(review: Review) -> pdf_mod.Document | None:
+    """The PDF of the draft, when it is still where draft-profile read it, unchanged."""
+    if not hasattr(review, "_document"):
+        path = Path(review.meta.get("source_pdf") or "")
+        path = path if path.is_absolute() else ROOT / path
+        doc = None
+        if path.is_file():
+            try:
+                doc = pdf_mod.read(path)
+            except pdf_mod.PdfError:
+                doc = None
+        sha = review.meta.get("source_pdf_sha256")
+        review._document = doc if doc is not None and (sha is None or doc.sha256 == sha) else None
+    return review._document
+
+
 def reference_questions(review: Review) -> list[ReferenceQuestion]:
-    """The references of the document to a norm of normes/ cited in extends (not the house rules)."""
-    norms_dir = review.norms
+    """The references of the document to a norm of normes/: proposed by the model (cited in extends),
+    then found in the text of the PDF by an alias of the glossary (deterministic, every line naming
+    the norm is a candidate citation). Never the house rules."""
     extends = review.meta.get("extends", [])
-    out = []
-    for n in review.cited_norms:
-        if not (n.get("available") and n["norm"] in extends and n["norm"] not in (HOUSE, review.meta["name"])):
-            continue
-        norm = load_norm(norms_dir / f"{n['norm']}.yaml")
-        out.append(ReferenceQuestion(norm=n["norm"], title=norm.meta.document.title.split(" — ")[0], page=n["page"],
-                                     quote=n["quote"],
-                                     values=leaves({k: v for k, v in norm.raw.items() if k != "sources"})))
+    out = [_question(review, n["norm"], n["page"], n["quote"]) for n in review.cited_norms
+           if n.get("available") and n["norm"] in extends and _referable(review, n["norm"])]
+    doc = document(review)
+    if doc is None or review.glossary is None:
+        return out
+    seen = {q.norm for q in out}
+    found: dict[str, list[tuple[int, str]]] = {}
+    for page in doc.pages:
+        for line in page.text.splitlines():
+            for key in review.glossary.norms_in(line):
+                if key not in seen and _referable(review, key):
+                    found.setdefault(key, []).append((page.number, " ".join(line.split())))
+    for key, lines in found.items():
+        out.append(_question(review, key, lines[0][0], lines[0][1], "alias", lines))
     return out
 
 
-def confirm_reference(review: Review, rq: ReferenceQuestion, confirmed: bool, cited_version: str = "") -> None:
+def manual_reference(review: Review, name: str, page: str, quote: str) -> ReferenceQuestion:
+    """A reference the model and the aliases missed, given by the reviewer: the quote must be in its page
+    of the PDF and name the norm (an alias of the glossary). ReviewError otherwise."""
+    name, quote = name.strip(), " ".join(quote.split())
+    if not _referable(review, name):
+        raise ReviewError(f"« {name} » n'est pas une norme de normes/ (nom du fichier sans .yaml, pas {HOUSE})")
+    doc = document(review)
+    if doc is None:
+        raise ReviewError("PDF du brouillon introuvable ou modifié : la citation ne peut pas être vérifiée")
+    found = doc.page(int(page)) if page.strip().isdigit() else None
+    if found is None:
+        raise ReviewError(f"page {page} absente du document ({len(doc.pages)} pages)")
+    if not quote or not verify.quote_in(quote, found.full_text):
+        raise ReviewError(f"citation introuvable p. {found.number}")
+    if review.glossary is None or name not in review.glossary.norms_in(quote):
+        raise ReviewError(f"la citation ne nomme pas {name} (alias du glossaire normes/glossaire.yaml)")
+    return _question(review, name, found.number, quote, "manual")
+
+
+def confirm_reference(review: Review, rq: ReferenceQuestion, confirmed: bool, cited_version: str = "",
+                      choice: int = 0) -> None:
     """Confirm (or withdraw) a reference: confirmed, it goes to meta.refers_to, with the version the
-    document cites when it is not the one of normes/."""
+    document cites when it is not the one of normes/ ; ``choice``: the candidate citation (alias)."""
     review.references = [r for r in review.references if r["norm"] != rq.norm]
     if confirmed:
-        ref = {"norm": rq.norm, "source": f"{review.doc} p. {rq.page} : « {one_line(rq.quote, 300)} »"}
+        page, quote = rq.candidates[choice] if rq.candidates else (rq.page, rq.quote)
+        ref = {"norm": rq.norm, "source": f"{review.doc} p. {page} : « {one_line(quote, 300)} »"}
         if cited_version.strip():
             ref["cited_version"] = cited_version.strip()
         review.references.append(ref)
 
 
+YES = ("o", "oui", "y", "yes")
+
+
+def _ask_one(review: Review, rq: ReferenceQuestion, ask: Ask, say: Say, alert: Say) -> None:
+    say("  Valeurs de la norme : " + "; ".join(f"{p} = {one_line(scalar(v), 60)}" for p, v in rq.values))
+    name = review.meta["name"]
+    if review.is_norm:
+        alert(f"  Confirmé, {name} étend {rq.title} sans recopier ses valeurs : quand un client renvoie à {name}, "
+              f"ces valeurs deviennent ses exigences, sauf celles que {name} écrit elle-même. Non confirmé, "
+              f"{rq.title} n'est pas étendue.")
+    else:
+        alert("  Confirmé, ces valeurs deviennent des exigences du client (sans plafonnement), sauf celles que le "
+              "client chiffre lui-même. Non confirmé, ce sont des recommandations plafonnées à mineur.")
+    choice = 0
+    if len(rq.candidates) > 1:
+        while True:
+            answer = ask(f"  Citation du renvoi : numéro 1 à {len(rq.candidates)} (Entrée : pas de renvoi)").strip()
+            if not answer or (answer.isdigit() and 1 <= int(answer) <= len(rq.candidates)):
+                break
+            say(f"  Réponse attendue : un numéro de 1 à {len(rq.candidates)}, ou Entrée")
+        if not answer:
+            return
+        choice = int(answer) - 1
+    elif ask(f"  Confirmer le renvoi à {rq.title} ? [o/N]").strip().lower() not in YES:
+        return
+    version = ""
+    if review.is_norm:
+        applied = load_norm(review.norms / f"{rq.norm}.yaml").meta.document.version
+        version = ask(f"  Version citée par le document, si ce n'est pas {applied} (Entrée : la même)")
+    confirm_reference(review, rq, True, version, choice)
+
+
 def ask_references(review: Review, ask: Ask, say: Say, alert: Say | None = None) -> None:
-    """Confirm, one by one, the references of the document to a norm of normes/ (meta.refers_to)."""
+    """Confirm, one by one, the references of the document to a norm of normes/ (meta.refers_to): those
+    the model proposed, those an alias of the glossary finds in the PDF, then those the reviewer adds."""
     alert = alert or say
     cited = reference_questions(review)
     for i, rq in enumerate(cited, start=1):
-        say(f"\n[renvoi {i}/{len(cited)}] Le document renvoie à {rq.title} (p. {rq.page}) « {one_line(rq.quote, 200)} »")
-        say("  Valeurs de la norme : " + "; ".join(f"{p} = {one_line(scalar(v), 60)}" for p, v in rq.values))
-        if review.is_norm:
-            name = review.meta["name"]
-            alert(f"  Confirmé, {name} étend {rq.title} sans recopier ses valeurs : quand un client renvoie à {name}, "
-                  f"ces valeurs deviennent ses exigences, sauf celles que {name} écrit elle-même. Non confirmé, "
-                  f"{rq.title} n'est pas étendue.")
-            answer = ask(f"  Confirmer le renvoi à {rq.title} ? [o/N]").strip().lower()
-            if answer in ("o", "oui", "y", "yes"):
-                applied = load_norm(review.norms / f"{rq.norm}.yaml").meta.document.version
-                version = ask(f"  Version citée par le document, si ce n'est pas {applied} (Entrée : la même)")
-                confirm_reference(review, rq, True, version)
+        if rq.found_by == "alias":
+            say(f"\n[renvoi {i}/{len(cited)}] {rq.title} est nommée dans le document (alias du glossaire, non "
+                "proposé par le modèle) :")
+            for k, (page, line) in enumerate(rq.candidates, start=1):
+                say(f"  [{k}] p. {page} « {one_line(line, 160)} »")
+        else:
+            say(f"\n[renvoi {i}/{len(cited)}] Le document renvoie à {rq.title} (p. {rq.page}) "
+                f"« {one_line(rq.quote, 200)} »")
+        _ask_one(review, rq, ask, say, alert)
+    while True:
+        name = ask("\nAutre renvoi non détecté ? Nom de la norme dans normes/ (Entrée : aucun)").strip()
+        if not name:
+            return
+        page = ask("  Page du document").strip()
+        quote = ask("  Citation exacte du renvoi").strip()
+        try:
+            rq = manual_reference(review, name, page, quote)
+        except ReviewError as exc:
+            say(f"  {exc}")
             continue
-        alert("  Confirmé, ces valeurs deviennent des exigences du client (sans plafonnement), sauf celles que le "
-              "client chiffre lui-même. Non confirmé, ce sont des recommandations plafonnées à mineur.")
-        answer = ask(f"  Confirmer le renvoi à {rq.title} ? [o/N]").strip().lower()
-        if answer in ("o", "oui", "y", "yes"):
-            confirm_reference(review, rq, True)
+        _ask_one(review, rq, ask, say, alert)
 
 
 def learn(g: glossary_mod.Glossary | None, path: str, ask: Ask, say: Say) -> None:
@@ -445,7 +546,8 @@ def build(review: Review) -> tuple[dict[str, Any], dict[str, str]]:
     meta = {"name": m["name"], "version": base_meta.get("version", m.get("version", "1.0")),
             "broadcaster": base_meta.get("broadcaster", m.get("broadcaster")), "source_document": m["source_document"],
             "notes": f"Profil relu champ par champ depuis le brouillon {review.draft.name}.",
-            "extends": m.get("extends", []), "refers_to": _references(base_meta, review),
+            "extends": with_references(m.get("extends", []), review.references),
+            "refers_to": _references(base_meta, review),
             "status": "validated", "validated_by": None, "validated_at": None,
             "source_pdf": m.get("source_pdf"), "source_pdf_sha256": m.get("source_pdf_sha256")}
     data = {"meta": meta, **data, "sources": dict(sorted(sources.items()))}
@@ -457,9 +559,19 @@ def build(review: Review) -> tuple[dict[str, Any], dict[str, str]]:
     return data, comments
 
 
+def with_references(extends: list[str], references: list[dict]) -> list[str]:
+    """``extends`` with the norms of the confirmed references it lacks (found by an alias or given by the
+    reviewer), before the house rules: the later the layer, the higher its priority."""
+    missing = [r["norm"] for r in references if r["norm"] not in extends]
+    if HOUSE in extends:
+        i = extends.index(HOUSE)
+        return extends[:i] + missing + extends[i:]
+    return extends + missing
+
+
 def _references(base_meta: dict[str, Any], review: Review) -> list[dict]:
     """References of the base profile, then those confirmed now (one per norm), for norms of extends."""
-    extends = review.meta.get("extends", [])
+    extends = with_references(review.meta.get("extends", []), review.references)
     out = {r["norm"]: r for r in base_meta.get("refers_to") or [] if isinstance(r, dict) and "norm" in r}
     out.update({r["norm"]: r for r in review.references})
     return [r for r in out.values() if r["norm"] in extends]
@@ -475,7 +587,8 @@ def build_norm(review: Review) -> dict[str, Any]:
             _set(data, d.path, d.value)
             sources[d.path] = d.source
     m = review.meta
-    extends = [n for n in m.get("extends", []) if any(r["norm"] == n for r in review.references)]
+    confirmed = {r["norm"] for r in review.references}
+    extends = [n for n in with_references(m.get("extends", []), review.references) if n in confirmed]
     meta = {"kind": "norm", "name": m["name"], "document": dict(m["document"]), "source_pdf": m.get("source_pdf"),
             "source_pdf_sha256": m.get("source_pdf_sha256"),
             "notes": f"Norme relue champ par champ depuis le brouillon {review.draft.name}.",
