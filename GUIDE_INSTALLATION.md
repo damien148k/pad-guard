@@ -58,12 +58,13 @@ Si une commande n'est pas trouvée, c'est presque toujours le PATH : rouvre le t
 
 ## Étape 3 : télécharger le modèle LLM (peut se faire plus tard)
 
-Utile seulement en Phase 4, mais le téléchargement est long (≈ 20 Go) :
+Modèle par défaut de PAD Guard (≈ 6 Go) :
 
 ```bash
-ollama pull qwen3-vl:32b-instruct
 ollama pull qwen3-vl:8b-instruct
 ```
+
+Facultatif, pour une recette ponctuelle seulement (≈ 20 Go, trop lent sur la RTX 3080 Ti) : `ollama pull qwen3-vl:32b-instruct`.
 
 Test rapide :
 
@@ -71,7 +72,7 @@ Test rapide :
 ollama run qwen3-vl:8b-instruct "Réponds en une phrase : qu'est-ce qu'un PAD en télévision ?"
 ```
 
-Pendant que le 32B tourne, `nvidia-smi` doit montrer environ 20 Go de VRAM utilisés.
+Pendant que le 8B tourne, `nvidia-smi` doit montrer environ 6 Go de VRAM utilisés (environ 20 Go pour le 32B).
 
 ---
 

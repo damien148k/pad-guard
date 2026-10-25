@@ -11,7 +11,7 @@ import { Profiles } from './screens/profiles.js';
 
 const STEPS = [['1', 'Dépôt', 'prep'], ['2', 'Récapitulatif', 'recap'], ['3', 'Analyse', 'run'], ['4', 'Rapport', 'report']];
 const TITLES = { prep: 'Nouvelle analyse', recap: 'Récapitulatif', run: 'Analyse', report: 'Rapport', profiles: 'Profils' };
-const EMPTY_FORM = { master: null, profile: null, pdf: null, groups: {}, llm: false };
+const EMPTY_FORM = { master: null, profile: null, pdf: null, groups: {}, llm: false, llm_model: null };
 
 function Settings({ onClose }) {
   const [root, setRoot] = useState('');

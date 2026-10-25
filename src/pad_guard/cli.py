@@ -106,7 +106,7 @@ def analyze(
         LlmBackend.none, "--llm",
         help="Synthèse et qualifications rédigées par le modèle local (ollama) ; none : synthèse par gabarit."),
     llm_model: str | None = typer.Option(
-        None, "--llm-model", help=f"Modèle Ollama (défaut : {llm.DEFAULT_MODEL}, sinon {llm.FALLBACK_MODEL})."),
+        None, "--llm-model", help=f"Modèle Ollama (défaut : {llm.DEFAULT_MODEL})."),
     llm_refresh: bool = typer.Option(
         False, "--llm-refresh", help=f"Rappelle le modèle même si {wd.LLM_SYNTHESIS} correspond aux entrées."),
     thumbnails: bool | None = typer.Option(
@@ -188,7 +188,7 @@ def rerun(
         LlmBackend.none, "--llm",
         help="Synthèse et qualifications rédigées par le modèle local (ollama) ; none : synthèse par gabarit."),
     llm_model: str | None = typer.Option(
-        None, "--llm-model", help=f"Modèle Ollama (défaut : {llm.DEFAULT_MODEL}, sinon {llm.FALLBACK_MODEL})."),
+        None, "--llm-model", help=f"Modèle Ollama (défaut : {llm.DEFAULT_MODEL})."),
     llm_refresh: bool = typer.Option(
         False, "--llm-refresh", help=f"Rappelle le modèle même si {wd.LLM_SYNTHESIS} correspond aux entrées."),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Affiche la progression détaillée."),
@@ -224,7 +224,7 @@ def report(
         LlmBackend.none, "--llm",
         help="Synthèse et qualifications rédigées par le modèle local (ollama) ; none : synthèse par gabarit."),
     llm_model: str | None = typer.Option(
-        None, "--llm-model", help=f"Modèle Ollama (défaut : {llm.DEFAULT_MODEL}, sinon {llm.FALLBACK_MODEL})."),
+        None, "--llm-model", help=f"Modèle Ollama (défaut : {llm.DEFAULT_MODEL})."),
     llm_refresh: bool = typer.Option(
         False, "--llm-refresh", help=f"Rappelle le modèle même si {wd.LLM_SYNTHESIS} correspond aux entrées."),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Affiche la progression détaillée."),
@@ -570,7 +570,7 @@ def draft_profile(
     pdf_file: Path = typer.Argument(..., help="PDF du cahier des charges du diffuseur (dans diffuseurs/)."),
     name: str = typer.Option(..., "--name", "-n", help="Nom du profil, ex. france_tv_hd."),
     model: str | None = typer.Option(
-        None, "--model", help=f"Modèle Ollama (défaut : {llm.DEFAULT_MODEL}, sinon {llm.FALLBACK_MODEL})."),
+        None, "--model", help=f"Modèle Ollama (défaut : {llm.DEFAULT_MODEL})."),
     broadcaster: str | None = typer.Option(None, "--broadcaster", help="Nom du diffuseur (défaut : le nom du profil)."),
     out_dir: Path = typer.Option(draft.DRAFTS, "--out-dir", help="Dossier des brouillons."),
     num_ctx: int | None = typer.Option(
@@ -636,17 +636,10 @@ def _ollama_or_exit(model: str | None) -> llm.OllamaClient:
     probe = llm.OllamaClient()
     try:
         installed = probe.installed()
+        found = llm.pick_model(model, installed)
     except llm.LLMError as exc:
         err_console.print(f"[red]{exc}[/red]")
         raise typer.Exit(EXIT_USAGE) from None
-    wanted = [model] if model else [llm.DEFAULT_MODEL, llm.FALLBACK_MODEL]
-    found = next((m for m in wanted if m in installed), None)
-    if found is None:
-        err_console.print(f"[red]Modèle absent d'Ollama : {wanted[0]}. Lancer « ollama pull {wanted[0]} ».[/red]")
-        raise typer.Exit(EXIT_USAGE)
-    if found != wanted[0]:
-        err_console.print(f"[yellow]{wanted[0]} absent : repli sur {found} "
-                          f"(« ollama pull {wanted[0]} » pour le modèle par défaut).[/yellow]")
     return llm.OllamaClient(model=found)
 
 

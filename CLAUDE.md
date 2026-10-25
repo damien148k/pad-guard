@@ -30,7 +30,7 @@ La spécification complète est dans `docs/SPEC.md`. La feuille de route et les 
 - `typer` pour la CLI, `rich` pour l'affichage.
 - `jinja2` pour le rapport Markdown, `weasyprint` (ou `markdown-pdf`) pour le PDF.
 - Tests avec `pytest`. Fixtures vidéo générées par `tests/fixtures/make_fixtures.sh` (FFmpeg `testsrc2`, `smptehdbars`, `color`, `sine`).
-- Couche IA : **Ollama uniquement** (bibliothèque Python `ollama`), modèle par défaut `qwen3-vl:32b-instruct`, repli `qwen3-vl:8b-instruct`, derrière une interface `LLMClient` (pour pouvoir brancher un autre moteur local plus tard). Pas d'API externe. Désactivée par défaut. Deux usages : la synthèse du rapport (Phase 4c) et l'extraction d'un profil brouillon depuis le PDF d'un diffuseur (`draft-profile`, Phase 4b), toujours en `A_VERIFIER`.
+- Couche IA : **Ollama uniquement** (bibliothèque Python `ollama`), modèle par défaut `qwen3-vl:8b-instruct` pour `draft-profile` et la synthèse, CLI et interface, dans la seule constante `llm.DEFAULT_MODEL` (décision de Damien, 24 octobre 2026 : le 32B est trop lent sur la RTX 3080 Ti, il ne sert qu'en recette ponctuelle, par `--model` / `--llm-model` ou le choix du modèle dans l'interface), derrière une interface `LLMClient` (pour pouvoir brancher un autre moteur local plus tard). Pas d'API externe. Désactivée par défaut. Deux usages : la synthèse du rapport (Phase 4c) et l'extraction d'un profil brouillon depuis le PDF d'un diffuseur (`draft-profile`, Phase 4b), toujours en `A_VERIFIER`.
 - Lecture des PDF (Phase 4b) : `pdfplumber` (texte) et `pypdfium2` (rendu des pages). Pas de PyMuPDF pour cet usage (licence AGPL).
 - Interface locale (Phase 5) : `starlette` + `uvicorn` sur 127.0.0.1 seulement (pas FastAPI : il tire `opentelemetry-api`), page en Preact + htm copiés dans `ui/static/vendor/`, polices copiées dans `ui/static/fonts/` (OFL). Aucun CDN : la Content-Security-Policy l'interdit et un test le vérifie. Maquette de référence : `design/maquette/` (export Claude Design). Test de bout en bout avec Playwright (`-m e2e`, hors pytest par défaut).
 - pymupdf (AGPL) est utilisé pour produire rapport.pdf : acceptable pour un usage interne Lumiris ; à remplacer avant toute distribution de PAD Guard.
@@ -109,6 +109,7 @@ uv run pytest -m e2e                                          # interface dans C
 - Les films ne transitent jamais par le navigateur : la page ne reçoit que des chemins (boîte de dialogue native ouverte par le serveur, ou chemin collé).
 - Une anomalie est désignée par `Event.key` (`type@frame_start@groupe`), jamais par son numéro, pour les liens et les vignettes.
 - Les analyses et `draft-profile` lancés depuis l'interface exécutent la CLI (`python -m pad_guard … --progress-json`), une tâche à la fois.
+- Avant chaque lancement qui utilise l'IA locale (brouillon, synthèse), la page affiche le modèle utilisé et propose les modèles installés (`ollama list`, via `/api/llm/models`) ; le modèle par défaut est présélectionné.
 - Mêmes garde-fous que la CLI : profil draft, jamais « CONFORME » ; synthèse IA « à relire » ; à la validation d'un profil, décision explicite pour chaque champ et chaque renvoi, INVRAISEMBLABLE et règles plafonnées par une norme en rouge.
 
 ## Ce qu'il ne faut pas faire

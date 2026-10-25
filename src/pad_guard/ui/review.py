@@ -25,6 +25,7 @@ from starlette.routing import Route
 from pad_guard.draft import pdf as pdf_mod, review
 from pad_guard.draft.write import CAPPED, one_line, scalar
 from pad_guard.ui.analysis import jobs_of
+from pad_guard.ui.api import model_flag
 from pad_guard.ui.jobs import snapshot
 from pad_guard.ui.server import ApiError, Context, body, ctx_of
 
@@ -373,6 +374,7 @@ async def start_draft(request: Request) -> Response:
     data = await body(request)
     name = str(data.get("name") or "").strip()
     draft, _ = draft_paths(ctx, name)
+    model = model_flag("--model", data)
     src = Path(str(data.get("pdf") or "").strip().strip('"'))
     if not src.is_absolute() or not src.is_file() or src.suffix.lower() != ".pdf":
         raise ApiError(f"PDF introuvable : {src}")
@@ -385,7 +387,7 @@ async def start_draft(request: Request) -> Response:
             raise ApiError(f"un autre document porte déjà ce nom dans diffuseurs/ : {src.name}")
         if not pdf.exists():
             shutil.copyfile(src, pdf)
-    args = ["draft-profile", str(pdf), "--name", name, "--out-dir", str(draft.parent)]
+    args = ["draft-profile", str(pdf), "--name", name, "--out-dir", str(draft.parent), *model]
     if data.get("broadcaster"):
         args += ["--broadcaster", str(data["broadcaster"]).strip()]
     job = jobs_of(ctx).start("draft", f"Brouillon {name} · {pdf.name}", args, draft.parent / f"{name}.progression.jsonl")

@@ -387,6 +387,43 @@ def test_ollama_client_context_errors(monkeypatch) -> None:
     assert _FakeOllama.calls[-1][1]["options"]["repeat_penalty"] == 1.1 == client.settings()["repeat_penalty"]
 
 
+def test_timeout_says_what_to_do(monkeypatch) -> None:
+    import httpx
+    import ollama
+
+    from pad_guard.llm import DEFAULT_MODEL, OllamaClient
+
+    monkeypatch.setattr(ollama, "Client", _FakeOllama)
+    _FakeOllama.answer = httpx.ReadTimeout("timed out")
+    request = LLMRequest(prompt="p", schema={"type": "object"}, timeout=600)
+    with pytest.raises(LLMError) as exc:
+        OllamaClient(model="qwen3-vl:32b-instruct", num_ctx=16384).generate(request)
+    assert str(exc.value) == ("Ollama n'a pas répondu en 600 s (modèle qwen3-vl:32b-instruct) : modèle trop lent "
+                              "sur cette machine, choisir qwen3-vl:8b-instruct")
+    with pytest.raises(LLMError, match="modèle trop lent sur cette machine : fermer les programmes"):
+        OllamaClient(model=DEFAULT_MODEL, num_ctx=16384).generate(request)
+
+
+def test_one_default_model() -> None:
+    from pad_guard import llm
+
+    assert llm.DEFAULT_MODEL == "qwen3-vl:8b-instruct"
+    assert llm.OllamaClient().model == llm.DEFAULT_MODEL
+    assert llm.pick_model(None, ["qwen3-vl:32b-instruct", "qwen3-vl:8b-instruct"]) == "qwen3-vl:8b-instruct"
+    assert llm.pick_model("qwen3-vl:32b-instruct", ["qwen3-vl:32b-instruct"]) == "qwen3-vl:32b-instruct"
+    with pytest.raises(LLMError, match="ollama pull qwen3-vl:8b-instruct"):
+        llm.pick_model(None, ["qwen3-vl:32b-instruct"])  # no silent switch to another model
+
+
+def test_cli_uses_the_default_model(monkeypatch) -> None:
+    import pad_guard.cli as cli
+    from pad_guard import llm
+
+    monkeypatch.setattr(llm.OllamaClient, "installed", lambda self: ["qwen3-vl:32b-instruct", "qwen3-vl:8b-instruct"])
+    assert cli._ollama_or_exit(None).model == "qwen3-vl:8b-instruct"
+    assert cli._ollama_or_exit("qwen3-vl:32b-instruct").model == "qwen3-vl:32b-instruct"
+
+
 class _ReleasingClient(FakeClient):
     released = 0
 

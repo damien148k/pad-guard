@@ -443,12 +443,45 @@ def test_draft_job_copies_the_pdf_and_runs_the_cli(lab, lab_client, tmp_path, mo
     assert copy.read_bytes() == doc.read_bytes()
     assert started[-1] == ["draft-profile", str(copy), "--name", "ftv_hd", "--out-dir", str(lab.root / "profiles" / "drafts"),
                            "--broadcaster", "France Télévisions"]
+    lab_client.post("/api/jobs/draft", json={"pdf": str(doc), "name": "ftv_hd", "model": "qwen3-vl:32b-instruct"})
+    assert started[-1][-2:] == ["--model", "qwen3-vl:32b-instruct"]  # the model chosen in the page
+    bad = lab_client.post("/api/jobs/draft", json={"pdf": str(doc), "name": "ftv_hd", "model": "--num-ctx"})
+    assert bad.status_code == 400 and "nom de modèle illisible" in bad.json()["error"]
     other = tmp_path / "autre" / "Cahier FTV.pdf"
     other.parent.mkdir()
     pdf_fixture.make(other)
     other.write_bytes(other.read_bytes() + b"%")
     clash = lab_client.post("/api/jobs/draft", json={"pdf": str(other), "name": "ftv_hd"})
     assert clash.status_code == 400 and "porte déjà ce nom" in clash.json()["error"]
+
+
+def test_models_of_the_local_ai(lab_client, monkeypatch) -> None:
+    from pad_guard import llm
+
+    monkeypatch.setattr(llm.OllamaClient, "installed", lambda self: ["qwen3-vl:32b-instruct", "qwen3-vl:8b-instruct"])
+    assert lab_client.get("/api/llm/models").json() == {
+        "default": "qwen3-vl:8b-instruct", "installed": ["qwen3-vl:32b-instruct", "qwen3-vl:8b-instruct"],
+        "selected": "qwen3-vl:8b-instruct", "error": None}
+    monkeypatch.setattr(llm.OllamaClient, "installed", lambda self: ["qwen3-vl:32b-instruct"])
+    models = lab_client.get("/api/llm/models").json()
+    assert models["selected"] == "qwen3-vl:32b-instruct" and "ollama pull qwen3-vl:8b-instruct" in models["error"]
+
+    def unreachable(self):
+        raise llm.LLMError("Ollama injoignable (ConnectError) : lancer l'application Ollama")
+
+    monkeypatch.setattr(llm.OllamaClient, "installed", unreachable)
+    models = lab_client.get("/api/llm/models").json()
+    assert models["installed"] == [] and models["selected"] is None and "injoignable" in models["error"]
+
+
+@pytest.mark.fixtures
+def test_analysis_with_the_chosen_model(lab_client, analyses, fixtures_dir) -> None:
+    body = {"master": str(fixtures_dir / "bad_levels.mov"), "profile": "test_classic", "llm": True,
+            "llm_model": "qwen3-vl:32b-instruct"}
+    plan = lab_client.post("/api/jobs/analyze/preview", json=body).json()
+    assert plan["command"].endswith("--llm ollama --llm-model qwen3-vl:32b-instruct")
+    plan = lab_client.post("/api/jobs/analyze/preview", json={**body, "llm": False}).json()
+    assert "--llm" not in plan["command"]
 
 
 def test_page_preview_of_the_draft(draft_lab, lab_client) -> None:

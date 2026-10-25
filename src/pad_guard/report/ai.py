@@ -32,7 +32,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from pad_guard import workdir as wd
-from pad_guard.llm import DEFAULT_MODEL, FALLBACK_MODEL, LLMClient, LLMError, LLMRequest, OllamaClient
+from pad_guard.llm import DEFAULT_MODEL, LLMClient, LLMError, LLMRequest, OllamaClient, pick_model
 from pad_guard.llm import request_fingerprint
 
 PROMPT_VERSION = "synthese_v1"
@@ -105,7 +105,7 @@ class Outcome:
 
 @dataclass
 class Options:
-    model: str | None = None  # None: DEFAULT_MODEL, else FALLBACK_MODEL when only it is installed
+    model: str | None = None  # None: DEFAULT_MODEL
     refresh: bool = False  # call the model even when llm_synthese.json matches the inputs
     client: LLMClient | None = None  # tests: a fake client; None: OllamaClient
     timeout: float = TIMEOUT
@@ -564,20 +564,13 @@ def _write(path: Path, plan: Plan, client: LLMClient, out: Outcome, log: list[di
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
-def _client(options: Options, candidates: list[str], progress: Progress) -> tuple[LLMClient | None, str | None]:
+def _client(options: Options, model: str) -> tuple[LLMClient | None, str | None]:
     if options.client is not None:
         return options.client, None
-    probe = OllamaClient()
     try:
-        installed = probe.installed()
+        return OllamaClient(model=pick_model(model, OllamaClient().installed())), None
     except LLMError as exc:
         return None, str(exc)
-    found = next((m for m in candidates if m in installed), None)
-    if found is None:
-        return None, f"modèle absent d'Ollama : {candidates[0]} (lancer « ollama pull {candidates[0]} »)"
-    if found != candidates[0]:
-        progress(f"{candidates[0]} absent d'Ollama : repli sur {found}")
-    return OllamaClient(model=found), None
 
 
 def run(workdir: Path, context: dict, events: list[dict], images: dict[int, Path], options: Options,
@@ -586,24 +579,19 @@ def run(workdir: Path, context: dict, events: list[dict], images: dict[int, Path
     progress = progress or (lambda _m: None)
     plan = Plan(PROMPT_FILE.read_text(encoding="utf-8"), context, events,
                 {n: p.read_bytes() for n, p in images.items()}, options.timeout)
-    if options.client is not None:
-        candidates = [options.client.model]
-    else:
-        candidates = [options.model] if options.model else [DEFAULT_MODEL, FALLBACK_MODEL]
+    model = options.client.model if options.client is not None else options.model or DEFAULT_MODEL
     path = workdir / wd.LLM_SYNTHESIS
     stored = None if options.refresh else _read(path)
-    if stored and stored.get("complete"):
-        model = next((m for m in candidates if stored.get("fingerprint") == plan.fingerprint(m)), None)
-        if model is not None:
-            try:
-                out = execute(plan, _Replay(model, stored.get("requests", [])), [])
-            except _CacheMiss:
-                pass  # recorded answers do not cover this run: ask the model
-            else:
-                out.reused, out.num_ctx = True, stored.get("num_ctx")
-                progress(f"IA : réponses reprises de {wd.LLM_SYNTHESIS} (mêmes entrées, modèle {model})")
-                return out
-    client, why = _client(options, candidates, progress)
+    if stored and stored.get("complete") and stored.get("fingerprint") == plan.fingerprint(model):
+        try:
+            out = execute(plan, _Replay(model, stored.get("requests", [])), [])
+        except _CacheMiss:
+            pass  # recorded answers do not cover this run: ask the model
+        else:
+            out.reused, out.num_ctx = True, stored.get("num_ctx")
+            progress(f"IA : réponses reprises de {wd.LLM_SYNTHESIS} (mêmes entrées, modèle {model})")
+            return out
+    client, why = _client(options, model)
     if client is None:
         return failed(f"couche IA indisponible : {why}", len(plan.qualify))
     needed = plan.needed_context()

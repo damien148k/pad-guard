@@ -1,5 +1,6 @@
 // Shared pieces of the screens. Display only: colours follow the severity written by PAD Guard.
-import { html, useEffect } from './vendor/preact-htm.module.js';
+import { html, useEffect, useState } from './vendor/preact-htm.module.js';
+import { api } from './api.js';
 
 export { html };
 
@@ -45,4 +46,22 @@ export function Kv({ rows, cls = '' }) {
 
 export function ErrorLine({ error }) {
   return error ? html`<div class="error" role="alert">${error}</div>` : null;
+}
+
+// Model of the local AI used by the next launch, among those Ollama has (ollama list); the server
+// says which one is preselected (PAD Guard's default model).
+export function ModelPicker({ value, onChange }) {
+  const [models, setModels] = useState(null);
+  useEffect(() => {
+    api('/api/llm/models').then(m => { setModels(m); if (!value && m.selected) onChange(m.selected); })
+      .catch(e => setModels({ installed: [], error: e.message }));
+  }, []);
+  if (!models) return html`<${Busy} text="Modèles installés dans Ollama…" />`;
+  return html`<div class="btn-row" style="align-items:center">
+    <span class="label">Modèle utilisé</span>
+    ${models.installed.length > 0
+      ? html`<select class="input mono" value=${value || ''} onChange=${e => onChange(e.target.value)} aria-label="Modèle de l'IA locale">
+          ${models.installed.map(m => html`<option value=${m}>${m}${m === models.default ? ' (défaut)' : ''}</option>`)}</select>`
+      : html`<span class="mono">aucun modèle installé</span>`}
+    ${models.error && html`<span class="hint" style="color:var(--amber)">${models.error}</span>`}</div>`;
 }

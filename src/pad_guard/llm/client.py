@@ -20,8 +20,9 @@ import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-DEFAULT_MODEL = "qwen3-vl:32b-instruct"
-FALLBACK_MODEL = "qwen3-vl:8b-instruct"
+# The one default model of draft-profile and of the report synthesis, CLI and interface (decision of
+# Damien, 24/10/2026: the 32B is too slow on the RTX 3080 Ti, kept for occasional acceptance runs).
+DEFAULT_MODEL = "qwen3-vl:8b-instruct"
 SEED = 1234  # fixed: same pages, same model, same context, same answer
 DEFAULT_TIMEOUT = 600.0  # seconds per request
 # Default repeat_penalty of draft-profile. None: not sent, Ollama applies 1.0 (no penalty).
@@ -122,7 +123,7 @@ class OllamaClient(LLMClient):
         except ollama.ResponseError as exc:
             raise LLMError(self._refusal(exc.status_code, str(exc.error))) from None
         except httpx.TimeoutException:
-            raise LLMError(f"Ollama n'a pas répondu en {request.timeout:g} s (modèle {self.model})") from None
+            raise LLMError(timeout_message(self.model, request.timeout)) from None
         except (httpx.HTTPError, ConnectionError) as exc:
             raise LLMError(f"Ollama injoignable ({exc.__class__.__name__}) : lancer l'application Ollama") from None
         self._usage = Usage(response.prompt_eval_count, response.eval_count, self.num_ctx)
@@ -163,6 +164,22 @@ class OllamaClient(LLMClient):
             return sorted(m.model for m in ollama.Client(host=self.host, timeout=10).list().models)
         except Exception as exc:  # noqa: BLE001 - any failure means Ollama cannot be used
             raise LLMError(f"Ollama injoignable ({exc.__class__.__name__}) : lancer l'application Ollama") from None
+
+
+def pick_model(model: str | None, installed: list[str]) -> str:
+    """The model to use: the one asked for, else DEFAULT_MODEL, if Ollama has it."""
+    model = model or DEFAULT_MODEL
+    if model not in installed:
+        raise LLMError(f"modèle absent d'Ollama : {model} (lancer « ollama pull {model} »)")
+    return model
+
+
+def timeout_message(model: str, timeout: float) -> str:
+    """What the user reads when a request outlives its timeout, and what to do about it."""
+    text = f"Ollama n'a pas répondu en {timeout:g} s (modèle {model}) : modèle trop lent sur cette machine"
+    if model != DEFAULT_MODEL:
+        return f"{text}, choisir {DEFAULT_MODEL}"
+    return f"{text} : fermer les programmes qui occupent la carte graphique (DaVinci Resolve…) et relancer"
 
 
 def _round_up(tokens: int, step: int = 1024) -> int:

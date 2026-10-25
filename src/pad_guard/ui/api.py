@@ -9,13 +9,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
+from pad_guard import llm
 from pad_guard.profiles import resolve_profile
 from pad_guard.rules.profile import ProfileError
-from pad_guard.ui.server import Context, ctx_of
+from pad_guard.ui.server import ApiError, Context, ctx_of
 
 
 def profiles_dir(ctx: Context) -> Path:
@@ -61,6 +63,34 @@ async def get_profiles(request: Request) -> Response:
     return JSONResponse({"profiles": profiles, "drafts": list_drafts(ctx, profiles)})
 
 
+def llm_models(installed: list[str] | None, error: str | None = None) -> dict:
+    """Models of the local AI to choose from before a launch (``ollama list``), and the one preselected:
+    DEFAULT_MODEL when installed."""
+    installed = installed or []
+    selected = llm.DEFAULT_MODEL if llm.DEFAULT_MODEL in installed else (installed[0] if installed else None)
+    if error is None and llm.DEFAULT_MODEL not in installed:
+        error = f"modèle par défaut absent d'Ollama : lancer « ollama pull {llm.DEFAULT_MODEL} »"
+    return {"default": llm.DEFAULT_MODEL, "installed": installed, "selected": selected, "error": error}
+
+
+async def get_llm_models(request: Request) -> Response:
+    try:
+        installed = await run_in_threadpool(llm.OllamaClient().installed)
+    except llm.LLMError as exc:
+        return JSONResponse(llm_models(None, str(exc)))
+    return JSONResponse(llm_models(installed))
+
+
+def model_flag(flag: str, data: dict, key: str = "model") -> list[str]:
+    """``[flag, model]`` for the CLI when the page chose a model (the CLI checks that Ollama has it)."""
+    model = str(data.get(key) or "").strip()
+    if not model:
+        return []
+    if model.startswith("-") or any(c.isspace() for c in model):
+        raise ApiError(f"nom de modèle illisible : {model}")
+    return [flag, model]
+
+
 def routes() -> list:
     from pad_guard.ui import analysis, prepare, review, runs  # noqa: PLC0415
 
@@ -70,6 +100,7 @@ def routes() -> list:
         *runs.routes(),
         *review.routes(),
         Route("/api/profiles", get_profiles),
+        Route("/api/llm/models", get_llm_models),
     ]
 
 

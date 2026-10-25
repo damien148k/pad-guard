@@ -17,6 +17,7 @@ from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
 
 from pad_guard import audio_map as amap, pipeline, workdir as wd
+from pad_guard.ui.api import model_flag
 from pad_guard.ui.jobs import JobManager, snapshot
 from pad_guard.ui.prepare import load_resolved, master_info
 from pad_guard.ui.server import ApiError, Context, body, ctx_of
@@ -49,7 +50,7 @@ def analyze_plan(ctx: Context, data: dict) -> dict:
         raise ApiError(str(exc)) from None
     workdir = new_workdir(ctx.settings().root, Path(master["path"]))
     args = ["analyze", master["path"], "--profile", str(path), "--out", str(workdir),
-            *(["--audio-map", spec] if spec else []), *(["--llm", "ollama"] if data.get("llm") else [])]
+            *(["--audio-map", spec] if spec else []), *(["--llm", "ollama", *model_flag("--llm-model", data, "llm_model")] if data.get("llm") else [])]
     return {"args": args, "command": subprocess.list2cmdline(["pad-guard", *args]), "workdir": str(workdir),
             "run_id": workdir.name, "title": f"{master['name']} · {prof.meta.name} v{prof.meta.version}",
             "problems": pipeline.preflight(prof, mapping.groups)}

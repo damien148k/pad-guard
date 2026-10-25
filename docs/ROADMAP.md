@@ -113,7 +113,7 @@ Orientation v3 du 23 octobre 2026 : multi-diffuseurs, profils hérités de norme
 ## Phase 4c : synthèse IA du rapport (§8.1)
 
 **Livrables**
-- `llm/` : interface `LLMClient` et implémentation `OllamaClient` (bibliothèque `ollama`, sortie forcée au schéma JSON, images jointes), communes avec `draft-profile`. Modèle par défaut `qwen3-vl:32b-instruct`, repli `qwen3-vl:8b-instruct`. Aucun autre moteur, aucune API externe. Fait.
+- `llm/` : interface `LLMClient` et implémentation `OllamaClient` (bibliothèque `ollama`, sortie forcée au schéma JSON, images jointes), communes avec `draft-profile`. Modèle par défaut `qwen3-vl:8b-instruct` depuis le 25 octobre 2026 (32B trop lent sur la RTX 3080 Ti, recette ponctuelle seulement ; avant : 32B, repli 8B). Aucun autre moteur, aucune API externe. Fait.
 - Options `--llm none|ollama`, `--llm-model`, `--llm-refresh` sur `analyze`, `rerun` et `report`. Fait.
 - Prompt système versionné `llm/prompts/synthese_v1.md`, qui interdit explicitement toute modification du verdict. Fait.
 - `report/ai.py` : une requête par événement à vignette (vision), une par famille d'événements sans vignette, une pour la synthèse ; contrôles déterministes de tout ce que le modèle écrit (SPEC §8.1), repli sur le gabarit avec avertissement ; `llm_synthese.json` rejoué tant que l'empreinte ne change pas. Fait.

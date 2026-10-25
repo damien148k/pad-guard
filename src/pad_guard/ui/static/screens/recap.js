@@ -3,7 +3,7 @@
 // is built and checked by PAD Guard (audio_map), never here.
 import { html, useState, useEffect } from '../vendor/preact-htm.module.js';
 import { api } from '../api.js';
-import { Corners, Kv, Busy, ErrorLine } from '../ui.js';
+import { Corners, Kv, Busy, ErrorLine, ModelPicker } from '../ui.js';
 
 const STATUS_CLS = { ok: 'ok', fail: 'fail', unknown: 'unknown' };
 const STATUS_TXT = { ok: 'OK', fail: 'ÉCHEC', unknown: '?' };
@@ -28,14 +28,15 @@ export function Recap({ form, setForm, job, back, started, toProfiles }) {
       .then(setMap).catch(e => { setMap(null); setMapError(e.message); });
   }, [JSON.stringify(form.assign), form.profile]);
 
-  const launchBody = { master: form.master.path, profile: form.profile, audio_map: map ? map.spec : null, llm: !!form.llm };
+  const launchBody = { master: form.master.path, profile: form.profile, audio_map: map ? map.spec : null, llm: !!form.llm,
+    llm_model: form.llm ? form.llm_model : null };
   useEffect(() => {
     if (tracks.length && !map) { setCmd(null); return; }
     api('/api/jobs/analyze/preview', { method: 'POST', body: launchBody }).then(setCmd).catch(e => setCmd({ error: e.message }));
-  }, [map && map.spec, map && map.shown, form.llm, form.profile, form.master.path]);
+  }, [map && map.spec, map && map.shown, form.llm, form.llm_model, form.profile, form.master.path]);
 
   const busy = job && job.state === 'running';
-  const canLaunch = !!(cmd && cmd.command && !cmd.problems.length && pv && pv.accepted && (!tracks.length || map) && !busy && !launching);
+  const canLaunch = !!((!form.llm || form.llm_model) && cmd && cmd.command && !cmd.problems.length && pv && pv.accepted && (!tracks.length || map) && !busy && !launching);
   const launch = async () => {
     setError(''); setLaunching(true);
     try { started(await api('/api/jobs/analyze', { method: 'POST', body: launchBody })); }
@@ -85,6 +86,7 @@ export function Recap({ form, setForm, job, back, started, toProfiles }) {
     </div>`}
     <label class="check"><input type="checkbox" checked=${!!form.llm} onChange=${e => setForm(f => ({ ...f, llm: e.target.checked }))} />
       <span>Synthèse et qualifications suggérées par l'IA locale (Ollama, rien ne sort de la machine). À relire : le verdict, le score et les gravités n'en dépendent pas.</span></label>
+    ${form.llm && html`<${ModelPicker} value=${form.llm_model} onChange=${m => setForm(f => ({ ...f, llm_model: m }))} />`}
     <div class="launch">
       <div class="cmd">${cmd && cmd.command ? html`<span class="p">$ </span>${cmd.command}` : cmd && cmd.error ? html`<span class="error">${cmd.error}</span>` : '…'}
         ${cmd && cmd.workdir && html`<div class="hint" style="margin-top:6px">Dossier de l'analyse : ${cmd.workdir}</div>`}

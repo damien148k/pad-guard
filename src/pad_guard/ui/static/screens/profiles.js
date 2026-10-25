@@ -3,7 +3,7 @@
 // an explicit decision; implausible values and rules capped by a norm are shown in red.
 import { html, useState, useEffect } from '../vendor/preact-htm.module.js';
 import { api, url } from '../api.js';
-import { Corners, Busy, ErrorLine } from '../ui.js';
+import { Corners, Busy, ErrorLine, ModelPicker } from '../ui.js';
 
 const STATUS = { A_VERIFIER: ['À vérifier', 'steel'], CONFLIT: ['Conflit', 'amber'], INVRAISEMBLABLE: ['Invraisemblable', 'red'],
   RENVOI_NORME: ['Renvoi à une norme', 'amber'] };
@@ -19,6 +19,7 @@ function NewDraft({ pdf, job, setJob, openReview }) {
   const [path, setPath] = useState(pdf ? pdf.path : '');
   const [broadcaster, setBroadcaster] = useState('');
   const [name, setName] = useState('');
+  const [model, setModel] = useState('');
   const [error, setError] = useState('');
   const draftJob = job && job.kind === 'draft' ? job : null;
   const busy = job && job.state === 'running';
@@ -28,7 +29,7 @@ function NewDraft({ pdf, job, setJob, openReview }) {
   };
   const start = async () => {
     setError('');
-    try { setJob(await api('/api/jobs/draft', { method: 'POST', body: { pdf: path, name, broadcaster } })); }
+    try { setJob(await api('/api/jobs/draft', { method: 'POST', body: { pdf: path, name, broadcaster, model } })); }
     catch (e) { setError(e.message); }
   };
   const cancel = async () => { try { setJob(await api('/api/jobs/current/cancel', { method: 'POST' })); } catch (e) { setError(e.message); } };
@@ -40,7 +41,8 @@ function NewDraft({ pdf, job, setJob, openReview }) {
     <div class="btn-row"><input class="input" style="flex:1" placeholder="Diffuseur (ex. France Télévisions)" value=${broadcaster}
         onInput=${e => { setBroadcaster(e.target.value); if (!name || name === slug(broadcaster)) setName(slug(e.target.value)); }} aria-label="Diffuseur" />
       <input class="input mono" style="width:260px" placeholder="nom_du_profil" value=${name} onInput=${e => setName(e.target.value)} aria-label="Nom du profil" />
-      <button class="btn primary" disabled=${!path || !name || busy} onClick=${start}>Extraire (IA locale)</button></div>
+      <button class="btn primary" disabled=${!path || !name || !model || busy} onClick=${start}>Extraire (IA locale)</button></div>
+    <${ModelPicker} value=${model} onChange=${setModel} />
     <span class="hint">Chaque valeur proposée est « à vérifier » : la citation est contrôlée dans le PDF, seul un humain confirme le sens. Le PDF est copié dans diffuseurs/.</span>
     <${ErrorLine} error=${error} />
     ${draftJob && html`<div class="col" style="gap:8px;border-top:1px solid var(--line);padding-top:12px">

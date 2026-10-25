@@ -8,7 +8,7 @@ Trois scripts pour mesurer ce que vaut un brouillon extrait par `pad-guard draft
 uv run pad-guard draft-profile "diffuseurs\Consignes Techniques Globales ARTE G.E.I.E_.pdf" --name arte_hd_sdr --broadcaster "ARTE G.E.I.E." --model qwen3-vl:32b-instruct
 ```
 
-`--broadcaster` sert à exclure les exemples tirés des profils validés de ce même diffuseur. Le contexte (`num_ctx`) est calculé sur la plus grosse demande et affiché au début ; pour comparer deux modèles, garder le même (il ne dépend que du PDF et de la consigne, ou le fixer avec `--num-ctx`). Sans `--model`, l'outil prend `qwen3-vl:32b-instruct`, ou à défaut `qwen3-vl:8b-instruct`. Le temps d'extraction s'affiche à la fin.
+`--broadcaster` sert à exclure les exemples tirés des profils validés de ce même diffuseur. Le contexte (`num_ctx`) est calculé sur la plus grosse demande et affiché au début ; pour comparer deux modèles, garder le même (il ne dépend que du PDF et de la consigne, ou le fixer avec `--num-ctx`). Sans `--model`, l'outil prend `qwen3-vl:8b-instruct` (`llm.DEFAULT_MODEL`). Le temps d'extraction s'affiche à la fin.
 
 ## 2. Comparer à un profil de référence : `recette.py`
 
