@@ -1,6 +1,7 @@
 """Phase 5 acceptance in a real browser (Playwright, Chromium headless): choose the film and the
 profile, follow the analysis, read the verdict and the anomalies with their thumbnail, download
-the PDF. Not run by default (marker e2e): ``uv run pytest -m e2e``; needs
+the PDF; the model of the local AI shown and chosen before a launch (a fake model list stands for
+Ollama). Not run by default (marker e2e): ``uv run pytest -m e2e``; needs
 ``uv run playwright install chromium`` once."""
 
 from __future__ import annotations
@@ -21,9 +22,17 @@ pytestmark = [pytest.mark.e2e, pytest.mark.fixtures]
 playwright = pytest.importorskip("playwright.sync_api")
 
 
+FAKE_MODELS = ["qwen3-vl:32b-instruct", "qwen3-vl:8b-instruct"]
+
+
 @pytest.fixture
-def running(tmp_path, fixtures_dir):
+def running(tmp_path, fixtures_dir, monkeypatch):
     import uvicorn
+
+    from pad_guard import llm
+
+    # The server runs in this process: its model list (ollama list) is a fake one, Ollama is never called.
+    monkeypatch.setattr(llm.OllamaClient, "installed", lambda self: list(FAKE_MODELS))
 
     root = tmp_path / "depot"
     (root / "profiles" / "drafts").mkdir(parents=True)
@@ -67,6 +76,20 @@ def test_vincent_produces_a_report_without_a_terminal(running) -> None:
         page.get_by_role("button", name="Voir le récapitulatif →").click()
         page.get_by_text("Vérifiez avant de lancer l'analyse").wait_for()
         page.locator(".cmd", has_text="pad-guard analyze").wait_for()
+
+        # Synthesis by the local AI: the model used is shown before the launch, chosen among those installed.
+        synthesis = page.get_by_role("checkbox")
+        synthesis.check()
+        picker = page.get_by_label("Modèle de l'IA locale")
+        picker.wait_for()
+        assert picker.input_value() == "qwen3-vl:8b-instruct"  # the default model, preselected
+        assert page.locator("select option").all_inner_texts() == ["qwen3-vl:32b-instruct", "qwen3-vl:8b-instruct (défaut)"]
+        page.locator(".cmd", has_text="--llm ollama --llm-model qwen3-vl:8b-instruct").wait_for()
+        picker.select_option("qwen3-vl:32b-instruct")
+        page.locator(".cmd", has_text="--llm-model qwen3-vl:32b-instruct").wait_for()
+        synthesis.uncheck()  # the analysis itself runs without the model (the CLI would call the real Ollama)
+        assert picker.count() == 0
+        page.wait_for_function("() => !document.querySelector('.cmd').textContent.includes('--llm')")
         page.get_by_role("button", name="Lancer l'analyse").click()
 
         page.locator(".stage", has_text="Mesures image").wait_for()
@@ -91,5 +114,13 @@ def test_vincent_produces_a_report_without_a_terminal(running) -> None:
         saved = Path(tmp / "telecharge.pdf")
         dl.value.save_as(saved)
         assert saved.read_bytes()[:5] == b"%PDF-"
+
+        # New draft from a PDF: same choice of model, shown before « Extraire » (not started here).
+        page.get_by_role("button", name="Profils").click()
+        draft_picker = page.get_by_label("Modèle de l'IA locale")
+        draft_picker.wait_for()
+        assert draft_picker.input_value() == "qwen3-vl:8b-instruct"
+        draft_picker.select_option("qwen3-vl:32b-instruct")
+        assert draft_picker.input_value() == "qwen3-vl:32b-instruct"
         browser.close()
     assert errors == [] and external == []  # nothing loaded from the Internet

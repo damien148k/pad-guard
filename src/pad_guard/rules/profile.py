@@ -602,9 +602,9 @@ class Rules(_Model):
 
 
 class Llm(_Model):
+    # The model is not a profile value: one default for every profile (llm.DEFAULT_MODEL), another
+    # one chosen at launch (--llm-model, --model, the interface).
     backend: Literal["ollama"]
-    model: str
-    fallback_model: str
     num_ctx: int
     temperature: float
     language: str

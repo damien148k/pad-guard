@@ -1,0 +1,148 @@
+# Copie figée pour les tests du brouillon France TV v0.1 (avant la relecture du document) : un profil
+# draft qui hérite presque tout des normes. Les tests ne dépendent pas de profiles/france_tv_hd.yaml.
+# Profil de contrôle PAD — exemple France Télévisions HD (SDR, 1080p25)
+#
+# ATTENTION : valeurs d'exemple fondées sur EBU R103, EBU R128 et CST RT-017.
+# Les valeurs marquées "A VERIFIER" doivent être relues dans le cahier des charges
+# officiel du diffuseur avant toute utilisation en production.
+# Les champs à null sont volontairement non renseignés : l'outil refuse de tourner
+# si une règle activée dépend d'un champ null.
+# Le document FTV n'a pas encore été relu : ses valeurs seront reprises du PDF (diffuseurs/) en
+# Phase 4b. En attendant, ce que le fichier ne fixe pas vient des normes (meta.extends) et
+# s'applique comme recommandation : toute anomalie qui en dépend est plafonnée à mineur
+# (CLAUDE.md, principe 2). `pad-checker explain-profile profiles/france_tv_hd.yaml` montre le
+# profil effectif. Hérité de normes/ebu_r103.yaml : Y légal 64-940, RVB -5 % / 105 %, surface 1 %,
+# préfiltre. Hérité de normes/ebu_r128.yaml : loudness cible -23 LUFS. Hérité de
+# normes/lumiris_maison.yaml : paramètres du PSE et de la détection du balayage.
+# Pas de format.delivery : le document FTV (diffuseurs/) n'a pas encore été relu.
+
+meta:
+  name: france_tv_hd
+  version: "0.1"
+  broadcaster: "France Télévisions"
+  source_document: "Cahier des charges technique FTV HD — A VERIFIER (référence et date)"
+  notes: "Profil de démarrage, à valider par Vincent."
+  extends: [ebu_r128, ebu_r103, lumiris_maison]
+  status: draft                           # jamais validé par Vincent : rapport indicatif
+
+format:
+  codecs:
+    - {codec_name: prores, profile: "HQ"}          # ProRes 422 HQ
+    - {codec_name: dnxhd, profile: "DNXHR HQX"}    # DNxHR HQX (ffprobe l'annonce sous codec dnxhd)
+  containers: [mov, mxf]
+  bit_depth_allowed: [10]
+  chroma_allowed: ["4:2:2"]
+  width: 1920
+  height: 1080
+  fps_allowed: ["25/1"]
+  field_order: progressive
+  color_primaries: bt709
+  color_transfer: bt709
+  color_space: bt709
+  color_range: tv
+  unknown_color_tags_severity: minor      # balises absentes = avertissement, pas blocage
+
+video:
+  bit_depth: 10
+  y_tolerance_low_pct: -1.0               # valeur d'exemple, à reprendre du document FTV (Phase 4b)
+  y_tolerance_high_pct: 103.0             # valeur d'exemple, à reprendre du document FTV (Phase 4b)
+  prefilter_taps: 3                       # méthode non fixée par FTV : [1 2 1]/4 en attendant le filtre de R 103 (étape séparée)
+
+audio:
+  sample_rate: 48000
+  bit_depth: 24
+  groups:                                 # A VERIFIER : mapping exigé par la chaîne
+    - {name: "VF stéréo", tracks: [1, 2], layout: stereo, required: true}
+    - {name: "VI stéréo", tracks: [3, 4], layout: stereo, required: false}
+  loudness:                               # pas de distinction programme court / long : "long" s'applique à tout
+    long:
+      integrated_tolerance_lu: 1.0        # valeur d'exemple, à reprendre du document FTV (Phase 4b)
+      lra_max_lu: 20.0                    # A VERIFIER
+  true_peak_max_dbtp: -3.0                # CST RT-017 (France) ; EBU R128 seul dirait -1
+  silence_dbfs: -60.0
+  silence_max_seconds: 3.0                # hors tête et queue
+  phase_min_correlation: -0.3
+  phase_min_seconds: 2.0
+  exclude_head_tail: true                 # ne pas mesurer la mire/1 kHz ni les noirs
+
+structure:
+  leaders: classic                        # mire + noir de tête, noir de queue
+  timecode:
+    file_start: "09:59:30:00"             # A VERIFIER
+    program_start: "10:00:00:00"
+    tolerance_frames: 0
+    drop_frame_allowed: false
+  bars:
+    required: true
+    start_tc: "09:59:30:00"
+    min_seconds: 20                       # A VERIFIER (souvent 30 s)
+    pattern: ebu_75                       # ebu_75 | ebu_100 | smpte_hd
+    tone_hz: 1000
+    tone_dbfs: -18.0                      # A VERIFIER (-18 dBFS est l'usage EBU)
+    tone_tolerance_db: 0.5                # SPEC §6.1 : niveau du 1 kHz à ± 0,5 dB (sinus, RMS × √2)
+    tolerance: 12                         # erreur moyenne max par barre, en valeurs de code 10 bits
+  black:
+    head_min_seconds: 5                   # noir + silence juste avant 10:00:00:00 — A VERIFIER
+    tail_min_seconds: 10                  # A VERIFIER
+    y_max: 68                             # une image est "noire" si y_p99 < 68
+    silence_dbfs: -60.0
+  freeze:
+    threshold: 0.5                        # diff. absolue moyenne (code 10 bits) entre images consécutives
+    min_seconds: 2.0
+
+rules:
+  # merge_gap_seconds (0,5 s) et min_event_seconds.freeze (2 s) : normes/lumiris_maison.yaml
+  min_event_frames:
+    white_clip: 1
+    black_crush: 1
+    gamut: 3
+  max_major: 0                            # un seul "major" = NON-CONFORME
+  score_formula: "100 - 40*blocking - 10*major - 2*minor"
+  severity:
+    white_clip:
+      - {if: "worst_value > 1004 or area_pct_max > 5", then: blocking, source: "A VERIFIER : pas de document FTV"}
+      - {if: "duration_s >= 1", then: major, source: "A VERIFIER : pas de document FTV"}
+      - {else: minor, source: "A VERIFIER : pas de document FTV"}
+    black_crush:
+      - {if: "area_pct_max > 5", then: major, source: "A VERIFIER : pas de document FTV"}
+      - {else: minor, source: "A VERIFIER : pas de document FTV"}
+    gamut:
+      - {if: "area_pct_max > 5 and duration_s >= 1", then: major, source: "A VERIFIER : pas de document FTV"}
+      - {else: minor, source: "A VERIFIER : pas de document FTV"}
+    freeze:
+      - {if: "duration_s >= 5", then: blocking, source: "A VERIFIER : pas de document FTV"}
+      - {else: major, source: "A VERIFIER : pas de document FTV"}
+    isolated_black_frame:
+      - {else: major, source: "A VERIFIER : pas de document FTV"}
+    duplicate_frame:
+      - {else: minor, source: "A VERIFIER : pas de document FTV"}
+    pse:
+      - {else: major, source: "A VERIFIER : pas de document FTV"}
+    audio_loudness:
+      - {else: blocking, source: "CST RT-017"}
+    audio_true_peak:
+      - {else: blocking, source: "CST RT-017"}
+    audio_lra:
+      - {else: major, source: "A VERIFIER : pas de document FTV"}                                # A VERIFIER
+    audio_silence:
+      - {else: major, source: "A VERIFIER : pas de document FTV"}
+    audio_phase:
+      - {else: minor, source: "A VERIFIER : pas de document FTV"}
+    structure_bars:
+      - {else: blocking, source: "A VERIFIER : pas de document FTV"}
+    structure_black:
+      - {else: major, source: "A VERIFIER : pas de document FTV"}
+    structure_timecode:
+      - {else: blocking, source: "A VERIFIER : pas de document FTV"}
+    format:
+      - {else: blocking, source: "A VERIFIER : pas de document FTV"}
+    scan_interlaced:                               # images entrelacées alors que le profil attend du progressif
+      - {else: blocking, source: "A VERIFIER : pas de document FTV"}
+    integrity:                                     # fichier corrompu : erreur de décodage, images manquantes
+      - {else: blocking, source: "A VERIFIER : pas de document FTV"}
+
+llm:
+  backend: ollama
+  num_ctx: 8192
+  temperature: 0.1
+  language: fr

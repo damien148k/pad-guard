@@ -198,8 +198,6 @@ rules:
 
 llm:                                                 # couche IA locale, désactivée sauf --llm ollama
   backend: ollama
-  model: "qwen3-vl:32b-instruct"                     # vision + texte, Q4_K_M ≈ 20 Go, tient sur 24 Go de VRAM
-  fallback_model: "qwen3-vl:8b-instruct"             # ≈ 6 Go, plus rapide, si le 32B ne tient pas ou pour un aperçu
   num_ctx: 8192
   temperature: 0.1
   language: fr

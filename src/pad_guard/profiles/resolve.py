@@ -125,20 +125,32 @@ def fingerprint(profile: Profile) -> str:
     return hashlib.sha256(_canonical(profile_values(profile)).encode("utf-8")).hexdigest()
 
 
+# Fields removed from the schema that older analysis directories still carry in their effective
+# profile: checked by the stored fingerprint, then dropped (they never changed a measure or a rule).
+REMOVED_FIELDS = ("llm.model", "llm.fallback_model")
+
+
 def from_json(data: dict[str, Any], where: Path) -> ResolvedProfile:
     """Effective profile written by :meth:`ResolvedProfile.dumps` (``rerun`` without ``--profile``)."""
     try:
-        profile = Profile.model_validate(data["values"])
+        values = data["values"]
+        stored = hashlib.sha256(_canonical(values).encode("utf-8")).hexdigest()
+        values = copy.deepcopy(values)
+        for path in REMOVED_FIELDS:
+            section, key = path.split(".")
+            if isinstance(values.get(section), dict):
+                values[section].pop(key, None)
+        profile = Profile.model_validate(values)
         resolved = ResolvedProfile(
             profile=profile,
             profile_file=data["profile_file"],
             layers=[Layer(**layer) for layer in data["layers"]],
-            origins={path: Origin(**o) for path, o in data["origins"].items()},
-            conflicts=[Conflict(**c) for c in data["conflicts"]],
+            origins={path: Origin(**o) for path, o in data["origins"].items() if path not in REMOVED_FIELDS},
+            conflicts=[Conflict(**c) for c in data["conflicts"] if c.get("path") not in REMOVED_FIELDS],
         )
-    except (KeyError, TypeError, ValidationError) as exc:
+    except (KeyError, TypeError, AttributeError, ValidationError) as exc:
         raise ProfileError(where, [f"profil effectif illisible ({exc.__class__.__name__}) : relancer « analyze »"]) from None
-    if resolved.fingerprint != data.get("fingerprint_sha256"):
+    if stored != data.get("fingerprint_sha256"):
         raise ProfileError(where, ["l'empreinte ne correspond pas aux valeurs (fichier modifié à la main ?)"])
     return resolved
 

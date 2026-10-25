@@ -654,11 +654,16 @@ def test_examples_never_come_from_the_same_broadcaster(doc_pdf, tmp_path) -> Non
     prompt = client.requests[0].prompt
     assert "chez Autre diffuseur, « Autre §2 : true peak -2 dBTP » a donné -2.0" in prompt
     assert "Chaîne §1" not in prompt and "Même PDF" not in prompt and "master interne" not in prompt
-    # The validated profiles of the repository: Arte's examples are never shown for an Arte PDF.
-    arte = examples.collect(ROOT / "profiles", examples.Target(name="arte_hd_sdr"))
-    assert arte == {}
-    other = examples.collect(ROOT / "profiles", examples.Target(name="france_tv_hd", broadcaster="France Télévisions"))
-    assert other and all(e.profile == "arte_hd_sdr.yaml" for items in other.values() for e in items)
+    # Matched on the profile name too: Arte's examples are never shown for an Arte PDF, France TV's for a
+    # France TV one (test profiles of a temporary folder, whatever profiles/ holds).
+    known = tmp_path / "connus"
+    known.mkdir()
+    _validated(known / "arte_hd_sdr.yaml", "ARTE G.E.I.E.", "Arte §4.3 : true peak -1 dBTP")
+    _validated(known / "france_tv_hd.yaml", "France Télévisions", "FTV p. 8 : true peak -3 dBTP")
+    arte = examples.collect(known, examples.Target(name="arte_hd_sdr"))
+    assert [e.profile for items in arte.values() for e in items] == ["france_tv_hd.yaml"]
+    ftv = examples.collect(known, examples.Target(name="france_tv_hd", broadcaster="France Télévisions"))
+    assert ftv and all(e.profile == "arte_hd_sdr.yaml" for items in ftv.values() for e in items)
 
 
 # --- review-profile and compare-profiles -------------------------------------------------------
@@ -789,9 +794,11 @@ def test_review_completes_or_removes_partial_sections() -> None:
     assert comments["format.delivery.scan"].startswith("A VERIFIER")
 
 
-def test_compare_profiles() -> None:
-    result = CliRunner().invoke(app, ["compare-profiles", str(ROOT / "profiles" / "arte_hd_sdr.yaml"),
-                                      str(ROOT / "profiles" / "france_tv_hd.yaml")], env={"COLUMNS": "250"})
+def test_compare_profiles(tmp_path) -> None:
+    for name in ("arte_hd_sdr_v1_flat.yaml", "test_classic.yaml"):  # test profiles, whatever profiles/ holds
+        shutil.copyfile(TEST_PROFILES / name, tmp_path / name)
+    result = CliRunner().invoke(app, ["compare-profiles", str(tmp_path / "arte_hd_sdr_v1_flat.yaml"),
+                                      str(tmp_path / "test_classic.yaml")], env={"COLUMNS": "250"})
     assert result.exit_code == 0, result.output
     text = " ".join(result.output.split())
     assert "audio.true_peak_max_dbtp" in text and "différent" in text and "structure.leaders" in text

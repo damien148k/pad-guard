@@ -11,6 +11,8 @@ from pad_guard.rules.profile import ProfileError, load_profile, null_fields
 
 from conftest import PROFILES, TEST_PROFILES
 
+FTV_DRAFT = TEST_PROFILES / "france_tv_hd_v01_draft.yaml"  # frozen: whatever profiles/ holds
+
 runner = CliRunner()
 
 ALL_PROFILES = sorted(PROFILES.glob("*.yaml")) + sorted(TEST_PROFILES.glob("*.yaml"))
@@ -32,7 +34,7 @@ def test_arte_values() -> None:
 
 
 def test_france_tv_values() -> None:
-    p = load_profile(PROFILES / "france_tv_hd.yaml")
+    p = load_profile(FTV_DRAFT)
     assert p.structure.leaders == "classic"
     assert p.audio.true_peak_max_dbtp == -3.0
     assert p.audio.loudness.short is None
@@ -128,7 +130,7 @@ def test_prefilter_needs_kernel(tmp_path: Path) -> None:
 
 
 def test_cli_validate_ok() -> None:
-    result = runner.invoke(app, ["validate-profile", str(PROFILES / "france_tv_hd.yaml")])
+    result = runner.invoke(app, ["validate-profile", str(FTV_DRAFT)])
     assert result.exit_code == 0, result.output
     assert "Profil valide" in result.output
 
@@ -189,6 +191,6 @@ def test_arte_severity_calibration() -> None:
 
 
 def test_validate_profile_warns_on_unsourced_major() -> None:
-    result = runner.invoke(app, ["validate-profile", str(PROFILES / "france_tv_hd.yaml")])
+    result = runner.invoke(app, ["validate-profile", str(FTV_DRAFT)])
     assert result.exit_code == 0
     assert "sans document source" in " ".join(result.output.split())

@@ -115,8 +115,6 @@ rules:
 
 llm:
   backend: ollama
-  model: "qwen3-vl:32b-instruct"
-  fallback_model: "qwen3-vl:8b-instruct"
   num_ctx: 8192
   temperature: 0.1
   language: fr

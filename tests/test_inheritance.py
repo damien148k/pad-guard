@@ -22,6 +22,8 @@ from pad_guard.rules.profile import ProfileError, ScanDetection, null_fields
 
 from conftest import PROFILES, ROOT, TEST_PROFILES
 
+FTV_DRAFT = TEST_PROFILES / "france_tv_hd_v01_draft.yaml"  # frozen: whatever profiles/ holds
+
 runner = CliRunner()
 
 # Values added to the Arte profile by v3 (format of delivery, scan detection, loudness method);
@@ -105,7 +107,7 @@ def test_arte_inherits_and_conflicts() -> None:
 
 
 def test_france_tv_is_draft() -> None:
-    r = resolve_profile(PROFILES / "france_tv_hd.yaml")
+    r = resolve_profile(FTV_DRAFT)
     assert r.profile.meta.status == "draft"
     assert r.profile.audio.true_peak_max_dbtp == -3.0
     assert r.origins["audio.true_peak_max_dbtp"].replaced == [{"file": "normes/ebu_r128.yaml", "value": -1.0}]
@@ -131,6 +133,26 @@ def test_effective_json_is_deterministic() -> None:
 
 def test_effective_json_tampered(tmp_path: Path) -> None:
     data = json.loads(resolve_profile(PROFILES / "arte_hd_sdr.yaml").dumps())
+    data["values"]["audio"]["true_peak_max_dbtp"] = -2.0
+    with pytest.raises(ProfileError, match="empreinte"):
+        from_json(data, tmp_path / "effective_profile.json")
+
+
+def test_effective_json_of_an_older_analysis_with_the_removed_model_fields(tmp_path: Path) -> None:
+    """llm.model and llm.fallback_model left the schema (never read): an older effective_profile.json
+    still loads, its fingerprint checked on the stored values, the two fields dropped."""
+    import hashlib
+
+    from pad_guard.profiles.resolve import _canonical
+
+    a = resolve_profile(PROFILES / "arte_hd_sdr.yaml")
+    assert "model" not in a.profile.llm.model_dump()
+    data = json.loads(a.dumps())
+    data["values"]["llm"].update(model="qwen3-vl:32b-instruct", fallback_model="qwen3-vl:8b-instruct")
+    data["origins"]["llm.model"] = data["origins"]["llm.backend"]
+    data["fingerprint_sha256"] = hashlib.sha256(_canonical(data["values"]).encode("utf-8")).hexdigest()
+    back = from_json(data, tmp_path / "effective_profile.json")
+    assert back.profile == a.profile and "llm.model" not in back.origins
     data["values"]["audio"]["true_peak_max_dbtp"] = -2.0
     with pytest.raises(ProfileError, match="empreinte"):
         from_json(data, tmp_path / "effective_profile.json")
@@ -361,6 +383,6 @@ def test_scan_detection_rules() -> None:
 
 def test_france_tv_a_verifier_never_about_norms() -> None:
     """« A VERIFIER » means: no citation of the client's document, never « differs from a norm »."""
-    for line in (PROFILES / "france_tv_hd.yaml").read_text(encoding="utf-8").splitlines():
+    for line in FTV_DRAFT.read_text(encoding="utf-8").splitlines():
         if "A VERIFIER" in line:
             assert not any(n in line for n in ("R103", "R 103", "R128", "R 128")), line
