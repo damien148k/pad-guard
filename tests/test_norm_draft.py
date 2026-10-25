@@ -292,3 +292,7 @@ def test_alias_reference_adds_the_norm_to_the_profile(lab, tmp_path) -> None:
     assert r.profile.meta.extends[-2:] == ["cst_rt040", "lumiris_maison"]
     assert [x.norm for x in r.profile.meta.refers_to] == ["cst_rt040"]
     assert r.profile.meta.refers_to[0].source == f"annexe.pdf p. 1 : « {line} »"
+
+
+def test_citation_lines_without_symbol_bullets() -> None:
+    assert review._clean("  ITU-R BT.709 :   Paramètres de codage vidéo HD") ==         "ITU-R BT.709 : Paramètres de codage vidéo HD"

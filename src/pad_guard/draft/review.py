@@ -372,6 +372,12 @@ def document(review: Review) -> pdf_mod.Document | None:
     return review._document
 
 
+def _clean(line: str) -> str:
+    """A line of the PDF as a citation: spaces collapsed, list bullets of symbol fonts (private use area,
+    e.g. U+F0D8) removed."""
+    return " ".join("".join(c for c in line if not "" <= c <= "").split())
+
+
 def reference_questions(review: Review) -> list[ReferenceQuestion]:
     """The references of the document to a norm of normes/: proposed by the model (cited in extends),
     then found in the text of the PDF by an alias of the glossary (deterministic, every line naming
@@ -388,7 +394,7 @@ def reference_questions(review: Review) -> list[ReferenceQuestion]:
         for line in page.text.splitlines():
             for key in review.glossary.norms_in(line):
                 if key not in seen and _referable(review, key):
-                    found.setdefault(key, []).append((page.number, " ".join(line.split())))
+                    found.setdefault(key, []).append((page.number, _clean(line)))
     for key, lines in found.items():
         out.append(_question(review, key, lines[0][0], lines[0][1], "alias", lines))
     return out
