@@ -1,6 +1,6 @@
 # Ce que les consignes Arte V2 changent pour PAD Guard
 
-Source : « Consignes Techniques Globales ARTE G.E.I.E. » V2-01-00, applicable au 1er janvier 2026 (V1-07-3 encore acceptée jusqu'au 31 décembre 2026). Le profil `profiles/arte_hd_sdr.yaml` reprend toutes les valeurs ci-dessous avec le paragraphe source.
+Source : « Consignes Techniques Globales ARTE G.E.I.E. » V2-01-00, applicable au 1er janvier 2026 (V1-07-3 encore acceptée jusqu'au 31 décembre 2026). Analyse faite sur la V2-01-00 ; depuis le 24 octobre 2026, le profil se réfère à la **V2-01-03** (`diffuseurs/`), où chaque paragraphe cité a été retrouvé. Le profil `profiles/arte_hd_sdr.yaml` reprend toutes les valeurs ci-dessous avec le paragraphe source.
 
 ## 1. Le PAD Arte n'est pas un ProRes
 

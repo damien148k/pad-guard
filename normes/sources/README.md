@@ -20,7 +20,6 @@ Empreintes : SHA-256 du fichier tel qu'il a été rangé le 23 octobre 2026.
 | `AUDIO/tech3344.pdf` | EBU Tech 3344, Practical guidelines for distribution systems in accordance with EBU R 128 | v1.1, octobre 2011 | EBU | `56dcd6ea40bbc24a4b768820237f927a02fda6226750a1a0fa313370a52e885c` |
 | `AUDIO/tech3401.pdf` | EBU Tech 3401, Guidelines for radio production and distribution in accordance with EBU R 128 | novembre 2023 | EBU | `ac571db62e4eb8c9bbc74680910730b286adec89382002fef95a52260aa0ad25` |
 | `AUDIO/Recommendation ITU-R BS.1770-5 (11_2023) Algorithms to measure audio programme loudness and true-peak audio level.pdf` | ITU-R BS.1770-5 | 11/2023 | UIT (itu.int, gratuit) | `615c01958eb5b4eda821c55da77c89376acb782b4a1fef89ccd1f3d7aaf1f857` |
-| `AUDIO/RECOMMENDATION ITU-R BS.1770-2 - Algorithms to measure audio programme loudness and true-peak audio level.pdf` | ITU-R BS.1770-2 (remplacée par -5) | 03/2011 | UIT | `9ec1e156649e1005a3129047d3d160ba86fc6f04fd242fb8327749a1d7921a8e` |
 
 ## TV — utilisé par `normes/ebu_r103.yaml` (R103) et `normes/itu_bt709.yaml` (BT.709) ; BT.2100 (plage pleine) par le décodage ; les autres serviront à la phase 7
 
@@ -32,10 +31,8 @@ Empreintes : SHA-256 du fichier tel qu'il a été rangé le 23 octobre 2026.
 | `TV/Parameter values for the HDTV standards for production and international programme exchange.pdf` | ITU-R BT.709-6 | 06/2015 | UIT | `460b9e95d473b4344bd468e2e9f9739e03319e74038a5a5e87ba76fa62afdd60` |
 | `TV/RECOMMENDATION ITU-R BT.1886 - Reference Electro-Optical Transfer Function (EOTF) for flat panel displays used in HDTV studio production.pdf` | ITU-R BT.1886 | 03/2011 | UIT | `796e4267c81907253a9792b2c7b0aba9d104128f2aa2ad9ba0ca043175a74671` |
 | `TV/R-REC-BT.2020-2-201510-I!!PDF-E.pdf` | ITU-R BT.2020-2 | 10/2015 | UIT | `eed65cf78c95923964c5420ac4f60d1c83f68823c7a71b05a5e31818ebd03374` |
-| `TV/Template BR_Rec_2005.dot.pdf` | ITU-R BT.2020-2 (même document que le précédent, fichier différent) | 10/2015 | UIT | `a94edf557ff80aaba19100589d9a6aee3d131ce5fee2baef12e02f1885c9f205` |
 | `TV/R-REC-BT.2100-3-202502-I!!PDF-E.pdf` | ITU-R BT.2100-3 | 02/2025 | UIT | `f0668803dce2cd67e3780efbe97494c776b7d6b680733c8237fee364f2d412c3` |
-| `TV/cst-rt-021-c-2013-part2-fr-specificationformatmezzanine-3.pdf` | CST-RT-021 part 2, Spécification de format mezzanine pour films | 2013 | CST | `40247717de158f8de9a29b8e02d175f985ef4550e1a6170e5d6aebb808a8259d` |
-| `TV/ISO-26428-19-2011.pdf` | ISO 26428-19, D-cinema distribution master, part 19 (aperçu iTeh, incomplet) | 1re édition, 2011-12-15 | ISO (payant) | `68f1825692618da50be60500167f271d4024fc85e1bd5bd37f5f4f30b3493970` |
+| `TV/cst-rt-040-tv-2016-pad_fichiers_editeurs_v1.2.pdf` | CST-RT-040-TV, Recommandation technique PAD fichiers éditeurs (source de `normes/cst_rt040.yaml`, renvoi de l'annexe France TV §I.A) | V1.2, 2016 | CST | `c3c2a86b10aed7c7b068b5b775d9f17366ebedfcfe619316f6dd793a78480b3c` |
 
 ## HDR_COULEUR — phase 7
 
@@ -54,15 +51,12 @@ Empreintes : SHA-256 du fichier tel qu'il a été rangé le 23 octobre 2026.
 
 | Fichier | Origine | SHA-256 |
 |---|---|---|
-| `IMF_PLATEFORMES/OV 2067-0, Interoperable Master Format (IMF) — Interoperable Master Format.pdf` | SMPTE (payant) | `4c8faf9c2d43e4e053c1a978a25eb390afe749eacd1663e85df7f47d5cb5a5e8` |
 | `IMF_PLATEFORMES/SMPTE OV 2067-0_2021 - Interoperable Master Format.pdf` | SMPTE (payant) | `84be3eab2533e8ba2611f16506dfc3b75f59b33817f021f6c1a9fb69dc48e79c` |
 | `IMF_PLATEFORMES/ST 2067-2, Interoperable Master Format (IMF) — Core Constraints.pdf` | SMPTE (payant) | `e589723b3ab4d46623f58ea0e101cd28db65fce0119237d975fac10de153e656` |
 | `IMF_PLATEFORMES/ST 2067-3, Interoperable Master Format (IMF) — Composition Playlist.pdf` | SMPTE (payant) | `9b47e269067da74b55f1fd29419fbfa41a46de5db4a8a941defc22214bb0d999` |
 | `IMF_PLATEFORMES/ST 2067-5, Interoperable Master Format (IMF) — Essence Component.pdf` | SMPTE (payant) | `193dc7e98b671af9ef00a5db97fad9c6f432d8714c97e6987d9da775aff54707` |
 | `IMF_PLATEFORMES/ST 2067-8, Interoperable Master Format (IMF) — Common Audio Labels.pdf` | SMPTE (payant) | `6449955e566987f238ea8aa1fbd1ff73eab0d7015e63ed494687fb57f4939dad` |
 | `IMF_PLATEFORMES/ST 2067-9, Interoperable Master Format (IMF) — Sidecar Composition Map.pdf` | SMPTE (payant) | `bd443ebc7afb26d367a320809f397ae0dbe8ef65f44db4b82ca6b65259791c40` |
-| `IMF_PLATEFORMES/ST 2067-20, Interoperable Master Format (IMF) — Application #2.pdf` | SMPTE (payant) | `c24eb38fcffb7fb9f536785efa27dc706dfb2a541a1827809ae3c392cc1c27e7` |
-| `IMF_PLATEFORMES/st2067-20-withdrawal2020.pdf` | SMPTE | `ed921589be72c48c43e386070d480c4941bc5e4b2027a0a3ec2e1cdb5e22f379` |
 | `IMF_PLATEFORMES/ST 2067-21, Interoperable Master Format (IMF) — Application #2E.pdf` | SMPTE (payant) | `69c20a2bc83be584e6ff6ac18e89b2cea6882782296a04319c02e3554ee55aa6` |
 | `IMF_PLATEFORMES/ST 2067-30, Interoperable Master Format (IMF) — Application #3.pdf` | SMPTE (payant) | `360afe764f277c94622f366383de7a9ac64b8d5e19d27f365e223756cbf0c26b` |
 | `IMF_PLATEFORMES/ST 2067-40, Interoperable Master Format (IMF) — Application #4 Cinema Mezzanine.pdf` | SMPTE (payant) | `481cf15b6cc36f771e7fa38971e828513a3500d4be08e960d6424b45a260f6b7` |
@@ -81,7 +75,21 @@ Empreintes : SHA-256 du fichier tel qu'il a été rangé le 23 octobre 2026.
 | `IMF_PLATEFORMES/ST 2067-204, Interoperable Master Format (IMF) — Audio with ADM Metadata Plug-in.pdf` | SMPTE (payant) | `7399f5ff6e5f0935df02e0b5131c52dd1a2944f6082024b477cc569bf1b4bd57` |
 | `IMF_PLATEFORMES/ST 2067-206, Interoperable Master Format (IMF) — Event-based, Text-based Metadata Plug-in.pdf` | SMPTE (payant) | `c22aacbb43c770f6604e7e93119364ab06c0bb0b81d7841e9dc68b52990ced17` |
 | `BLURAY/Microsoft Word - BD-ROMwhitepaper20051123clean.doc.pdf` | Blu-ray Disc Association (livre blanc BD-ROM, 2005 d'après le nom) | `83061b0c79dcc87dcc28329d82d2f35fe20edf7f66f50efacbbaba32188cdb76` |
-| `BLURAY/Slide 1.pdf` | inconnue | `c0016b0b98f259283d3a27bf4e77eed10a0ed72a92353ef0c2e00005d83f6a32` |
 | `FIAF NORMES/FIAF TECHNICAL COMMISSION RECOMMENDATION.pdf` | FIAF | `455a8fa005e2f448224142e8a1a44396e7a154c855090b12a115a56a2c38d12b` |
 | `FIAF NORMES/International Federation of Film Archives 7.pdf` | FIAF | `8e31a9c235ea0e17f052aa41b2958cbc587aedeaacdcd01b7973b5ce025ce300` |
 | `IPI/methodology_guidebook_all.pdf` | Image Permanence Institute | `7918b6b37454d7a71f3a2ca684f6bc480bc9c537fbdb85fc689893489725bdd6` |
+
+## Retirés lors de l'audit du 25 octobre 2026
+
+Archivés dans `_archives/normes_sources/` (même sous-dossier), ou supprimés quand c'était un doublon.
+
+| Fichier | Sort |
+|---|---|
+| `AUDIO/RECOMMENDATION ITU-R BS.1770-2 - Algorithms to measure audio programme loudness and true-peak audio level.pdf` | archivé (remplacé par BS.1770-5) |
+| `TV/Template BR_Rec_2005.dot.pdf` | supprimé (même document que R-REC-BT.2020-2) |
+| `TV/cst-rt-021-c-2013-part2-fr-specificationformatmezzanine-3.pdf` | archivé (copie de CST/CST-RT-021…) |
+| `TV/ISO-26428-19-2011.pdf` | archivé (aperçu incomplet) |
+| `IMF_PLATEFORMES/OV 2067-0, Interoperable Master Format (IMF) — Interoperable Master Format.pdf` | supprimé (même document que SMPTE OV 2067-0_2021) |
+| `IMF_PLATEFORMES/ST 2067-20, Interoperable Master Format (IMF) — Application #2.pdf` | archivé (IMF App #2, retirée en 2020) |
+| `IMF_PLATEFORMES/st2067-20-withdrawal2020.pdf` | archivé (avec ST 2067-20) |
+| `BLURAY/Slide 1.pdf` | archivé (origine inconnue) |

@@ -16,3 +16,8 @@ normes/sources/*
 !normes/sources/README.md
 diffuseurs/*
 !diffuseurs/README.md
+# progress files of the interface jobs (draft-profile)
+profiles/drafts/*.progression.jsonl
+normes/drafts/**/*.progression.jsonl
+# archives: text files tracked, documents not (licences)
+_archives/**/*.pdf

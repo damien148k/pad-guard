@@ -25,3 +25,11 @@ le PDF présent ici est la **V2-01-03**, à laquelle le profil se réfère depui
 (24 octobre 2026). Chaque paragraphe cité par le profil a été retrouvé dans la V2-01-03 sous le
 même numéro ; d'après le suivi des versions (p. 8), elle ne modifie que les chapitres 2.1, 6.1,
 10.1.1 et l'annexe 13.
+
+## Retirés lors de l'audit du 25 octobre 2026
+
+| Fichier | Sort | SHA-256 |
+|---|---|---|
+| `spécificités-techniques-du-numérique-2021.pdf` | archivé dans `_archives/diffuseurs/` : spécifications de la régie publicitaire francetvpub (publicité numérique, 2021), hors sujet pour un PAD | `91242e955b63b0a9ca766e2b360d22f3d1927ac71a3e00ca51e9ea2d82787002` |
+
+`Consignes Techniques Globales old ARTE G.E.I.E_.pdf` (V1-07-3) est gardé : encore acceptée jusqu'au 31/12/2026 (1080i50 toléré jusqu'au 31/12/2027) ; à archiver ensuite.

@@ -1,0 +1,116 @@
+{
+  "decisions": [
+    {
+      "path": "format.delivery.scan",
+      "action": "accept",
+      "value": "interlaced_tff",
+      "source": "Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 8 : « Entrelacement: Entrelacé / Upper Field First »"
+    },
+    {
+      "path": "format.delivery.codec",
+      "action": "accept",
+      "value": "Sony XDCAM HD422",
+      "source": "Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 8 : « Codec Video: Sony XDCAM HD422 »"
+    },
+    {
+      "path": "audio.sample_rate",
+      "action": "accept",
+      "value": 48000,
+      "source": "Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 8 : « Codec Audio: PCM Little Endian 24bit @ 48 kHz »"
+    },
+    {
+      "path": "audio.bit_depth",
+      "action": "accept",
+      "value": 24,
+      "source": "Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 8 : « Codec Audio: PCM Little Endian 24bit @ 48 kHz »"
+    },
+    {
+      "path": "audio.loudness.method",
+      "action": "correct",
+      "value": "-23LUFS (+/-1LU)",
+      "source": "A VERIFIER : valeur saisie à la relecture, sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf"
+    },
+    {
+      "path": "audio.loudness.long.integrated_lufs",
+      "action": "accept",
+      "value": -23.0,
+      "source": "Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 7 : « ≤ -23 LUFS »"
+    },
+    {
+      "path": "audio.loudness.long.lra_max_lu",
+      "action": "accept",
+      "value": 20.0,
+      "source": "Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 9 : « Excursion dynamique (Loudness Range ou LRA) ≤ 20 LU (+5 LU) »"
+    },
+    {
+      "path": "structure.leaders",
+      "action": "accept",
+      "value": "none",
+      "source": "Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 3 : « Le début de programme (première image et premier son utile) doit commencer obligatoirement au Time Code 00:00:00:00, sans présence d’amorce en début de fichier (SOM et TC IN). »"
+    },
+    {
+      "path": "structure.timecode.file_start",
+      "action": "accept",
+      "value": "00:00:00:00",
+      "source": "Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 3 : « Le début de programme (première image et premier son utile) doit commencer obligatoirement au Time Code 00:00:00:00, sans présence d’amorce en début de fichier (SOM et TC IN). »"
+    },
+    {
+      "path": "format.width",
+      "action": "accept",
+      "value": 1920,
+      "source": "Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 5 : « 1920 x 1080 pixels carrés »"
+    },
+    {
+      "path": "format.height",
+      "action": "accept",
+      "value": 1080,
+      "source": "Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 5 : « 1920 x 1080 pixels carrés »"
+    },
+    {
+      "path": "audio.loudness.long.integrated_tolerance_lu",
+      "action": "accept",
+      "value": 1.0,
+      "source": "Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 7 : « -23 LUFS (+/- 1 LU) »"
+    },
+    {
+      "path": "audio.true_peak_max_dbtp",
+      "action": "accept",
+      "value": -3.0,
+      "source": "Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 7 : « -3 dB TP »"
+    }
+  ],
+  "references": [
+    {
+      "norm": "cst_rt040",
+      "source": "Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 2 : « RT 040 - TV - Rec Tech PAD fichier Diffuseurs V1.2-2016, pour la livraison en fichiers »"
+    },
+    {
+      "norm": "ebu_r128",
+      "source": "Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 7 : « conformes à la norme R128 »"
+    }
+  ],
+  "answers": {
+    "format.width": "a",
+    "format.height": "a",
+    "format.delivery.scan": "a",
+    "format.delivery.codec": "a",
+    "audio.sample_rate": "a",
+    "audio.bit_depth": "a",
+    "audio.loudness.method": "c",
+    "audio.loudness.long.integrated_lufs": "a",
+    "audio.loudness.long.integrated_tolerance_lu": "a",
+    "audio.loudness.long.lra_max_lu": "a",
+    "audio.true_peak_max_dbtp": "a",
+    "structure.leaders": "a",
+    "structure.timecode.file_start": "a"
+  },
+  "confirmed": {
+    "ebu_r128": true,
+    "cst_rt040": true
+  },
+  "fills": {
+    "format.delivery.fps": null,
+    "llm.model": "qwen3-vl:8b-instruct",
+    "llm.fallback_model": "qwen3-vl:8b-instruct"
+  }
+}
