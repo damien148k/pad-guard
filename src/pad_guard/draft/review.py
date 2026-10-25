@@ -87,6 +87,9 @@ class Review:
     capped_pages: list[int] = field(default_factory=list)  # findings.json "capped_pages"
     references: list[dict] = field(default_factory=list)  # confirmed: {norm, source} for meta.refers_to
     norms_dir: Path | None = None  # norms of a norm draft (normes/ above normes/drafts/)
+    # A second review of a norm already validated (normes/<name>.yaml): its values are the base, kept
+    # unless decided otherwise, like the base profile of a profile.
+    norm_base: Path | None = None
 
     @property
     def is_norm(self) -> bool:
@@ -115,8 +118,7 @@ def load(draft: Path, base: Path | None) -> Review:
     if meta.get("kind") == "norm":
         if base is not None:
             raise ReviewError("une norme n'a pas de profil de base (--base) : ses valeurs viennent de son seul document")
-        folder = draft.resolve().parent
-        norms_dir = folder.parent if folder.name == "drafts" and folder.parent.name == NORMS_DIR else REPO_NORMS
+        norms_dir = next((d for d in draft.resolve().parents if d.name == NORMS_DIR), REPO_NORMS)
     elif base is None:
         own = ROOT / "profiles" / f"{meta['name']}.yaml"
         base = own if own.is_file() else TEMPLATE
@@ -125,9 +127,10 @@ def load(draft: Path, base: Path | None) -> Review:
         g = glossary_mod.load(terms) if terms.is_file() else None
     except glossary_mod.GlossaryError as exc:
         raise ReviewError(str(exc)) from None
+    norm_base = norms_dir / f"{meta['name']}.yaml" if norms_dir is not None else None
     return Review(draft=draft, meta=meta, fields=data["fields"], base=base, glossary=g,
                   cited_norms=data.get("cited_norms", []), capped_pages=data.get("capped_pages", []),
-                  norms_dir=norms_dir)
+                  norms_dir=norms_dir, norm_base=norm_base if norm_base is not None and norm_base.is_file() else None)
 
 
 def norm_values(extends: list[str], norms_dir: Path) -> dict[str, tuple[Any, str]]:
@@ -220,7 +223,7 @@ def questions(review: Review, everything: bool = False) -> tuple[list[Question],
     """(questions, fields not asked about) for the fields to verify (A_VERIFIER, INVRAISEMBLABLE,
     RENVOI_NORME) and in conflict; with ``everything``, also the fields whose proposals were all
     refused. The fields not asked about keep the value of the base profile."""
-    base_raw = read_yaml(review.base) if review.base else {}
+    base_raw = read_yaml(review.base or review.norm_base) if (review.base or review.norm_base) else {}
     norms = norm_values(review.meta.get("extends", []), review.norms)
     asked = [f for f in review.fields if everything or f["status"] in ASKED]
     skipped = [f for f in review.fields if f not in asked]
@@ -324,9 +327,9 @@ def ask_fields(review: Review, ask: Ask, say: Say, everything: bool = False, ale
                 line = (f"  {mark}{scalar(x['value'])} (p. {x['page']}, {x['status']}"
                         f"{' : ' + x['reason'] if x.get('reason') else ''}) « {one_line(x['quote'], 160)} »")
                 (alert if x["status"] == IMPLAUSIBLE else say)(line)
-        if review.base is not None:
-            say(f"  Profil de base ({review.base.name}) : "
-                f"{scalar(q.base_value) if q.base_value is not None else '—'}")
+        if review.base is not None or review.norm_base is not None:
+            which = f"Profil de base ({review.base.name})" if review.base else f"Norme actuelle ({review.norm_base.name})"
+            say(f"  {which} : {scalar(q.base_value) if q.base_value is not None else '—'}")
         if q.norm:
             say(f"  Norme (information) : {scalar(q.norm[0])} ({q.norm[1]})")
         menu = " ".join(f"[{c}] {CHOICE_LABELS.get(c, 'choisir ce candidat')}" for c in q.choices)
@@ -383,12 +386,13 @@ def reference_questions(review: Review) -> list[ReferenceQuestion]:
     then found in the text of the PDF by an alias of the glossary (deterministic, every line naming
     the norm is a candidate citation). Never the house rules."""
     extends = review.meta.get("extends", [])
+    done = {r["norm"] for r in (read_yaml(review.norm_base)["meta"].get("refers_to") or [])} if review.norm_base else set()
     out = [_question(review, n["norm"], n["page"], n["quote"]) for n in review.cited_norms
-           if n.get("available") and n["norm"] in extends and _referable(review, n["norm"])]
+           if n.get("available") and n["norm"] in extends and n["norm"] not in done and _referable(review, n["norm"])]
     doc = document(review)
     if doc is None or review.glossary is None:
         return out
-    seen = {q.norm for q in out}
+    seen = {q.norm for q in out} | done  # a reference of the norm already validated is not asked again
     found: dict[str, list[tuple[int, str]]] = {}
     for page in doc.pages:
         for line in page.text.splitlines():
@@ -585,7 +589,10 @@ def _references(base_meta: dict[str, Any], review: Review) -> list[dict]:
 
 def build_norm(review: Review) -> dict[str, Any]:
     """The norm from the decisions alone: a partial profile, every value with its citation; it
-    extends only the norms whose reference was confirmed (no value copied)."""
+    extends only the norms whose reference was confirmed (no value copied). For a second review of a
+    validated norm, its values, sources and references are the base: kept unless decided otherwise."""
+    if review.norm_base is not None:
+        return _completed_norm(review)
     data: dict[str, Any] = {}
     sources: dict[str, str] = {}
     for d in review.decisions:
@@ -601,6 +608,25 @@ def build_norm(review: Review) -> dict[str, Any]:
             "extends": extends,
             "refers_to": [r for n in extends for r in review.references if r["norm"] == n],
             "applies": "always", "validated_by": None, "validated_at": None}
+    return {"meta": meta, **data, "sources": dict(sorted(sources.items()))}
+
+
+def _completed_norm(review: Review) -> dict[str, Any]:
+    data = read_yaml(review.norm_base)
+    meta = dict(data.pop("meta"))
+    sources: dict[str, str] = dict(data.pop("sources", None) or {})
+    for d in review.decisions:
+        if d.action in ("accept", "correct"):
+            _set(data, d.path, d.value)
+            sources[d.path] = d.source
+        elif d.action == "empty":
+            _delete(data, d.path)
+            sources.pop(d.path, None)
+    refs = {r["norm"]: r for r in meta.get("refers_to") or []}
+    refs.update({r["norm"]: r for r in review.references})
+    meta["extends"] = with_references(list(meta.get("extends") or []), review.references)
+    meta["refers_to"] = [refs[n] for n in meta["extends"] if n in refs]
+    meta["notes"] = f"{meta.get('notes') or ''} Complétée depuis le brouillon {review.draft.name}.".strip()
     return {"meta": meta, **data, "sources": dict(sorted(sources.items()))}
 
 

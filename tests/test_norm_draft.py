@@ -296,3 +296,31 @@ def test_alias_reference_adds_the_norm_to_the_profile(lab, tmp_path) -> None:
 
 def test_citation_lines_without_symbol_bullets() -> None:
     assert review._clean("  ITU-R BT.709 :   Paramètres de codage vidéo HD") ==         "ITU-R BT.709 : Paramètres de codage vidéo HD"
+
+
+def test_second_review_completes_the_validated_norm(doc_pdf, lab) -> None:
+    """A complementary draft (normes/drafts/<sub>/<name>.yaml) reviewed over normes/<name>.yaml: the validated
+    values, sources and references are the base, kept unless decided otherwise."""
+    _, files = _norm_draft(doc_pdf, lab)
+    first = ["a", "v", "c", "-2", "", "", "1", TP_QUOTE, "", "o", "V4.0, 2020", "", "n", "Vincent"]
+    assert _review(files["yaml"], first).exit_code == 0
+    norm_file = lab / "normes" / "cst_rt099.yaml"
+    before = load_norm(norm_file)
+    client = FakeClient({1: [finding("audio.loudness.long.integrated_tolerance_lu", 1, 1, "avec une tolérance de ± 1 LU."),
+                             finding("audio.true_peak_max_dbtp", -1, 1, TP_QUOTE)]})
+    _, more = make_draft(doc_pdf, "cst_rt099", client, lab / "normes" / "drafts" / "complement", kind="norm",
+                         title=TITLE, doc_version="V1.0, 2026", norms_dir=lab / "normes")
+    rv = review.load(more["yaml"], None)
+    assert rv.norm_base == norm_file.resolve() and review.reference_questions(rv) == []  # R 128: already confirmed
+    # Tolerance accepted; true peak: the validated -2 kept (g); no new reference; applies unchanged (Entrée);
+    # the validated file is replaced by the completed norm (o).
+    result = _review(more["yaml"], ["a", "g", "", "", "Vincent", "o"])
+    assert result.exit_code == 0, result.output
+    assert "Norme actuelle (cst_rt099.yaml) : -2.0" in " ".join(result.output.split())
+    after = load_norm(norm_file)
+    assert after.raw["audio"]["loudness"]["long"]["integrated_tolerance_lu"] == 1
+    assert after.raw["audio"]["true_peak_max_dbtp"] == -2.0 and after.raw["audio"]["sample_rate"] == 48000
+    assert after.raw["sources"]["audio.true_peak_max_dbtp"] == before.raw["sources"]["audio.true_peak_max_dbtp"]
+    assert after.raw["sources"]["audio.loudness.long.integrated_tolerance_lu"].startswith("CST-RT-099 V1.0, 2026 p. 1")
+    assert after.meta.refers_to == before.meta.refers_to and after.meta.applies == "on_reference"
+    assert "Complétée depuis le brouillon cst_rt099.yaml" in after.meta.notes

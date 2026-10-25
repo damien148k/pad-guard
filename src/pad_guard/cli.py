@@ -752,6 +752,9 @@ def _review_norm(rv: review.Review, out: Path, everything: bool) -> None:
     alert = lambda text: console.print(f"[bold red]{escape(text)}[/bold red]", highlight=False)  # noqa: E731
     console.print(f"Relecture de la norme [bold]{rv.meta['name']}[/bold] ({rv.doc}) : {len(rv.fields)} champ(s) "
                   "extrait(s) ; une valeur refusée ou laissée vide est absente de la norme.")
+    if rv.norm_base is not None:
+        console.print(f"Seconde relecture : {rv.norm_base} est la base (ses valeurs et ses renvois sont gardés, "
+                      "sauf décision contraire).")
     skipped = review.ask_fields(rv, ask=ask, say=say, everything=everything, alert=alert)
     if skipped:
         console.print(f"\n{len(skipped)} champ(s) dont toutes les propositions ont été rejetées n'ont pas été relus "
@@ -761,8 +764,12 @@ def _review_norm(rv: review.Review, out: Path, everything: bool) -> None:
     answers = review.save_answers(rv)
     console.print(f"Réponses enregistrées dans {answers}")
     data = review.build_norm(rv)
-    data["meta"]["applies"] = ("always" if _yes("Proposer cette norme à tout nouveau brouillon de profil, même quand "
-                                                "le document ne la cite pas ? [o/N]") else "on_reference")
+    question = "Proposer cette norme à tout nouveau brouillon de profil, même quand le document ne la cite pas ?"
+    if rv.norm_base is not None and data["meta"].get("applies") == "always":  # second review: default unchanged
+        keep = typer.prompt(f"{question} [O/n]", default="", show_default=False).strip().lower() in ("", "o", "oui", "y", "yes")
+    else:
+        keep = _yes(f"{question} [o/N]")
+    data["meta"]["applies"] = "always" if keep else "on_reference"
     who = ""
     while not who:
         who = typer.prompt("Nom du validateur").strip()

@@ -852,3 +852,14 @@ def test_fill_missing_checks_the_value() -> None:
     review.fill_missing(data, comments, "format.delivery.scan", None, "doc.pdf")
     assert "delivery" not in data["format"] and not data["sources"]
     assert review.missing_section(data, "format.delivery.fps") is None
+
+
+def test_dash_between_two_numbers_is_no_sign() -> None:
+    """« 64 – 940 » (a range) and « 1080i – 25 images/seconde » (a list, RT 040 p. 5) are not -940 and -25;
+    « - 23 LUFS » is still -23."""
+    from pad_guard.draft.verify import numbers
+
+    assert [n for n, _ in numbers("10 bits 64 – 940 20 – 984 4 - 1019")] == [10, 64, 940, 20, 984, 4, 1019]
+    assert [n for n, _ in numbers("1080i – 25 images/seconde")] == [1080, 25]
+    assert [n for n, _ in numbers('"Dialog level" - 23,0 LUFS ± 1')] == [-23, 1]
+    assert [n for n, _ in numbers("ne doit pas dépasser - 1 dBTP")] == [-1]

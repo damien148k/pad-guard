@@ -87,9 +87,16 @@ def table_column_kind(value: Any, table: list[list[str]], row: int) -> str | Non
     return kinds.pop() if len(kinds) == 1 else None
 
 
+def _glue_sign(m: re.Match) -> str:
+    """"- 23 LUFS" -> "-23 LUFS", but a dash after a token with a digit separates two values: "64 – 940",
+    "1080i – 25 images/seconde" (RT 040 p. 5) are a range and a list, not -940 and -25."""
+    before = m.string[: m.start(2)].rstrip().rsplit(" ", 1)[-1]
+    return m[0] if any(c.isdigit() for c in before) else m[1] + m[2]
+
+
 def numbers(text: str) -> list[tuple[float, str]]:
     """(number, text right after it) for every number of ``text``, plus 2'00 as 120 and 48 kHz as 48000."""
-    text = _SIGN_GAP.sub(r"\1\2", normalise(text))
+    text = _SIGN_GAP.sub(_glue_sign, normalise(text))
     out = [(float(m[0].replace(",", ".")), text[m.end(): m.end() + 12].lstrip()) for m in _NUMBER.finditer(text)]
     out += [(int(m[1]) * 60 + int(m[2]), "s") for m in _MIN_SEC.finditer(text)]
     out += [(float(m[1].replace(",", ".")) * 1000, "hz") for m in _KHZ.finditer(text)]
