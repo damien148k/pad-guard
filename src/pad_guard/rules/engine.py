@@ -349,7 +349,7 @@ class Engine:
         if not programme.any():
             return
         y_min, y_max = self.v["y_min"][programme], self.v["y_max"][programme]
-        picture = picture_of(v.pix_fmt, v.color_range, self.p.format.color_space)
+        picture = picture_of(v.pix_fmt, v.color_range, self.m.video_settings.matrix)
         if picture is None:
             reached = (y_min <= 4) | (y_max >= 1019)
             share = 100.0 * float(reached.sum()) / reached.size

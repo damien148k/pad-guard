@@ -18,7 +18,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
-from pad_guard import timecode, workdir as wd
+from pad_guard import formats, timecode, workdir as wd
 from pad_guard.audio_map import describe, tracks_text
 from pad_guard.labels import SEVERITY_LABELS, SEVERITY_ORDER, VIDEO_TYPES, number, status_label, type_label
 from pad_guard.decode.video import picture_of
@@ -337,6 +337,12 @@ class _Builder:
             result["loudness"] = f"{wd.CHARTS}/loudness.png"
         return result
 
+    def matrix_reason(self) -> str:
+        """Why the measurements used this matrix (formats.file_matrix); the matrix of older measures may differ."""
+        v = self.probe.video
+        matrix, why = formats.file_matrix(v.color_space, v.height)
+        return why if matrix == self.m.video_settings.matrix else "matrice du profil, mesures antérieures"
+
     def parameters(self) -> list[str]:
         p, s = self.p, self.m.video_settings
         v = p.video
@@ -353,7 +359,8 @@ class _Builder:
             f"bornes incluses) ; anomalie si la surface hors tolérance atteint {number(v.max_out_of_range_area_pct)} % "
             "de l'image.",
             f"Préfiltre avant mesure des niveaux : {prefilter}.",
-            f"Conversion RVB : matrice {s.matrix}, chroma 4:2:2 interpolée linéairement, sans écrêtage.",
+            f"Conversion RVB : matrice {s.matrix} ({self.matrix_reason()}), chroma 4:2:2 interpolée linéairement, "
+            "sans écrêtage.",
             f"Structure : amorces « {st.leaders} », TC de départ {st.timecode.file_start}, programme à "
             f"{st.timecode.program_start} (± {st.timecode.tolerance_frames} image(s)) ; noir si y_p99 < {st.black.y_max}"
             f" et son < {number(st.black.silence_dbfs)} dBFS.",

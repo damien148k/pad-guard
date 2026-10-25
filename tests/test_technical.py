@@ -56,6 +56,15 @@ def test_colour_tags_have_their_own_type(fixtures_dir, tmp_path) -> None:
 
 
 @pytest.mark.fixtures
+@pytest.mark.parametrize("name", ["sd_pal_169.mov", "fmt_dnxhr444_rgb.mov"])
+def test_colour_coherent_with_the_file_accepted(fixtures_dir, tmp_path, name) -> None:
+    """SD tagged BT.601, R'G'B' tagged gbr: their colorimetry is coherent, no format event."""
+    _analyse(fixtures_dir / name, tmp_path / "o")
+    events = json.loads((tmp_path / "o" / wd.EVENTS).read_text(encoding="utf-8"))["events"]
+    assert not [e for e in events if e["type"].startswith("format")]
+
+
+@pytest.mark.fixtures
 def test_house_rules_keep_their_severity(fixtures_dir, tmp_path) -> None:
     """Full-range content tagged narrow: a house rule (major), listed in the technical report too."""
     _analyse(fixtures_dir / "fmt_full_as_tv.mov", tmp_path / "o")

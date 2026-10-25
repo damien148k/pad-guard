@@ -62,7 +62,7 @@ def test_uhd_active_area_recorded(fixtures_dir, tmp_path) -> None:
 
 @pytest.mark.fixtures
 def test_dci4k_thumbnail_and_measures(fixtures_dir) -> None:
-    limits = VideoLimits.from_profile(load_profile(CLASSIC))
+    limits = VideoLimits.from_profile(load_profile(CLASSIC), "bt709")
     (frame,) = read_frames(fixtures_dir / "fmt_dci4k.mov", [3])
     picture = thumbnails.render(frame, limits, "white_clip")
     assert picture.shape[1] == 2 * (4096 // 6) + 8 and picture.shape[0] == 2160 // 6

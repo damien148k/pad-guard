@@ -34,6 +34,9 @@ format:
   height: any
   fps_allowed: any
   field_order: any
+  color_primaries: coherent                          # balises cohérentes avec le fichier, pas celles de BT.709
+  color_transfer: coherent
+  color_space: coherent
   color_range: any
   unknown_color_tags_severity: info
   letterbox:
@@ -121,6 +124,9 @@ llm:
 sources:
   meta.purpose: "Lumiris : rapport technique sans verdict pour les fichiers de travail (décision de Damien, 24/10/2026)"
   format: "Lumiris : aucun format imposé, le format du fichier est relevé (décision de Damien, 24/10/2026)"
+  format.color_primaries: "Lumiris : colorimétrie cohérente avec le fichier, BT.601 pour la SD (décision de Damien, 25/10/2026)"
+  format.color_transfer: "Lumiris : colorimétrie cohérente avec le fichier (décision de Damien, 25/10/2026)"
+  format.color_space: "Lumiris : colorimétrie cohérente avec le fichier, gbr pour une source RVB, BT.601 pour la SD (décision de Damien, 25/10/2026)"
   video.bit_depth: "PAD Guard : valeurs du JSON en codes 10 bits (CLAUDE.md)"
   video.prefilter_taps: "Lumiris : [1 2 1]/4 horizontal, comme les autres profils ; EBU R 103 recommande un filtre que PAD Guard n'applique pas encore"
   audio: "Lumiris : contrôle technique ; groupes à préciser par fichier (--audio-map)"

@@ -66,7 +66,7 @@ def test_pct_to_code_rounded_outward() -> None:
 
 
 def test_limits_from_profile() -> None:
-    lim = VideoLimits.from_profile(load_profile(ARTE))
+    lim = VideoLimits.from_profile(load_profile(ARTE), "bt709")
     assert (lim.y_legal, lim.y_tolerance, lim.rgb, lim.prefilter_taps) == ((64, 940), (55, 967), (20, 984), 3)
 
 

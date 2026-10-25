@@ -24,7 +24,7 @@ from pad_guard.probe.models import (
     VideoInfo,
 )
 from pad_guard.profiles import fingerprint
-from pad_guard.rules.profile import ANY, Profile
+from pad_guard.rules.profile import ANY, COHERENT, Profile
 from pad_guard.timecode import TimecodeFormat
 
 _UNKNOWN = {None, "", "unknown", "unspecified", "N/A"}
@@ -260,6 +260,9 @@ def _check_measurable(c: _Checks, v: VideoInfo) -> None:
         c.add("sdr", "Signal SDR (BT.709 ou BT.601)", "format", "SDR",
               f"transfert {v.color_transfer or '?'}, primaires {v.color_primaries or '?'}, matrice {v.color_space or '?'}",
               False, refusal=True)
+    elif not formats.matrix_measurable(v.color_space):
+        c.add("matrix_measurable", "Matrice de couleur mesurable par PAD Guard", "format", formats.MATRICES_TEXT,
+              v.color_space, False, refusal=True)
 
 
 ANY_LABEL = "tout (contrôle technique)"
@@ -318,8 +321,12 @@ def _check_format(c: _Checks, p: Profile, container: ContainerInfo, v: VideoInfo
 
     for key, label in (("color_primaries", "Primaires"), ("color_transfer", "Transfert"), ("color_space", "Matrice")):
         expected, actual = getattr(f, key), getattr(v, key)
+        allowed: tuple[str, ...] = (expected,)
+        if expected == COHERENT:
+            allowed, why = formats.coherent_tags(key, v.sampling == "rgb", v.height)
+            expected = f"cohérente avec le fichier ({why}) : {' ou '.join(allowed)}"
         c.add(key, f"Colorimétrie : {label.lower()}", "format_color_tags", expected, actual or "non renseigné",
-              None if actual is None else actual == expected)
+              None if actual is None else actual in allowed)
     add("color_range", "Plage", "format_color_tags", f.color_range, f.color_range, v.color_range or "non renseignée",
         None if v.color_range is None else v.color_range == f.color_range)
 
@@ -417,6 +424,8 @@ def _refusal(ch: Check) -> str:
         return f"codec {ch.actual} : aucun décodeur disponible, le fichier ne peut pas être lu."
     if ch.id == "sdr":
         return f"HDR ou BT.2020 ({ch.actual}) : mesures prévues en Phase 7 (BT.2100), pas encore prises en charge."
+    if ch.id == "matrix_measurable":
+        return f"matrice de couleur {ch.actual} : PAD Guard ne sait mesurer que {ch.expected}."
     if ch.id == "frame_rate_variable":
         return f"cadence variable ({ch.actual}) : les images ne sont pas régulièrement espacées, PAD Guard ne la mesure pas."
     return f"{ch.label} : {ch.actual} n'est pas accepté (attendu : {ch.expected})."

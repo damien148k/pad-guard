@@ -26,6 +26,7 @@ Severity = Literal["blocking", "major", "minor", "info"]
 # Explicit « anything is accepted » for the comparison values of a technical profile (no
 # broadcaster): never implied by an absent value (CLAUDE.md, null in a profile).
 ANY = "any"
+COHERENT = "coherent"  # colour tags: those coherent with the file (formats.coherent_tags)
 Any_ = Literal["any"]
 
 # Anomaly types known to the rules engine (SPEC §5-§7). A severity table or a
@@ -639,9 +640,9 @@ _DESCRIPTIONS: dict[type[BaseModel], dict[str, str]] = {
         "height": "Hauteur de l'image en lignes (ex. 1080)",
         "fps_allowed": "Cadences d'images acceptées, en fractions 'num/den' (ex. '25/1', '50/1')",
         "field_order": "Balayage attendu : progressive, psf (progressif en deux trames), tt, bb, tb ou bt (entrelacé)",
-        "color_primaries": "Primaires colorimétriques attendues (ex. bt709)",
-        "color_transfer": "Fonction de transfert attendue (ex. bt709)",
-        "color_space": "Matrice de couleur attendue (ex. bt709)",
+        "color_primaries": "Primaires colorimétriques attendues (ex. bt709 ; coherent : cohérentes avec le fichier)",
+        "color_transfer": "Fonction de transfert attendue (ex. bt709 ; coherent : cohérente avec le fichier)",
+        "color_space": "Matrice de couleur attendue (ex. bt709 ; coherent : cohérente avec le fichier)",
         "color_range": "Plage de codage : tv (légale, 64-940 en 10 bits) ou pc (pleine)",
         "unknown_color_tags_severity": "Gravité si les balises de colorimétrie sont absentes",
         "letterbox": "Contrôle du format d'image (bandes noires) et lignes actives attendues par format",

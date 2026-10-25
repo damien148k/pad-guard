@@ -59,3 +59,21 @@ Sorties dans `C:\dev\pad-checker-recette\phase6fix\` (sources figées dans `src\
 **3. Anomalie « format » avec `lumiris_controle_technique`.** Elle vient des balises de colorimétrie, comparées aux valeurs BT.709 que le profil hérite de `itu_bt709` (la matrice sert aussi aux mesures, elle n'est pas « any ») : DV PAL, balises absentes (« non renseigné ») ; SD PAL ProRes, primaires et matrice `bt470bg` (BT.601) au lieu de `bt709` ; DNxHR 444 R'G'B', matrice `gbr` (pas de matrice, le cas normal d'un fichier RVB) au lieu de `bt709`. Gravité info dans les trois cas. Le type devient `format_color_tags` (« Balises de colorimétrie ») pour les primaires, le transfert, la matrice et la plage ; la gravité reste celle de `format` à défaut d'une chaîne propre.
 
 **Non-régression du master Arte.** 56 événements aux mêmes images que la recette précédente et que la Phase 4a, même verdict (statut, score, compteurs, motifs). Différences : les deux balises de colorimétrie absentes sont de type `format_color_tags` au lieu de `format` ; une excursion short term qui regroupait déjà deux dépassements l'indique (« -15,2 LUFS au maximum, 2 dépassements ») ; avec la Phase 4a, la source de la règle des deux anomalies de niveaux, comme indiqué plus haut.
+
+## Colorimétrie (25 octobre 2026)
+
+Sorties dans `C:\dev\pad-checker-recette\phase6fix2\`.
+
+**1. Matrice des mesures.** Les mesures (conversion RVB du gamut, conversion d'une source RVB ou plage pleine en Y'CbCr, mire de référence) utilisaient la matrice du profil (`format.color_space`, héritée de `itu_bt709` pour le contrôle technique) et non celle du fichier. Elles utilisent maintenant celle du fichier : sa balise si elle désigne une matrice prise en charge, sinon le standard de son nombre de lignes (576 → `bt470bg`, 480/486 → `smpte170m`, autre → `bt709`) ; une balise désignant une autre matrice (`smpte240m`…) est refusée. Le rapport indique l'origine (« matrice bt470bg (balise du fichier) »). Écart avant/après (profil `lumiris_controle_technique`) :
+
+| Fixture | Matrice avant → après | Pixels hors gamut (max par image) | Niveaux Y |
+|---|---|---|---|
+| `sd_pal_169.mov` (balise `bt470bg`) | bt709 → bt470bg | 61,15 % → 1,50 % | identiques |
+| `sd_dv.mov` (balise absente, 576 lignes) | bt709 → bt470bg | 62,16 % → 1,24 % | identiques |
+| `fmt_dnxhr444_rgb.mov` (`gbr`, 360 lignes) | bt709 → bt709 | identiques | identiques |
+
+Le DNxHR 444 RVB ne change pas : à 360 lignes, son standard est BT.709, comme le profil ; une source RVB SD serait désormais convertie en BT.601. Sur un fichier Y'CbCr, la matrice ne touche que le gamut (les niveaux Y sont lus directement).
+
+**2. `lumiris_controle_technique`.** Primaires, transfert et matrice valent `coherent` : sont acceptés `gbr` pour la matrice d'une source RVB, `bt470bg` ou `smpte170m` (primaires et matrice) et `bt709` ou `smpte170m` (transfert, même courbe) pour la SD, `bt709` sinon. SD PAL et DNxHR 444 RVB : plus d'anomalie de format ; DV sans balises : trois `format_color_tags` en information, comme avant. Le profil Arte ne change pas.
+
+**Non-régression du master Arte** (balise `bt709`) : 56 événements identiques à la relecture précédente, tous champs compris ; verdict identique ; mesures vidéo, audio et structure identiques à l'octet.

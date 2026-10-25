@@ -33,7 +33,7 @@ def test_bob_interpolation() -> None:
 
 def test_field_flash_invisible_on_whole_frames() -> None:
     """Bright top field, dark bottom field, every frame the same: no frame change, two field changes."""
-    limits = VideoLimits.from_profile(load_profile(ARTE))
+    limits = VideoLimits.from_profile(load_profile(ARTE), "bt709")
     y = np.empty((32, 16), np.uint16)
     y[0::2], y[1::2] = 800, 100
     chroma = np.full((32, 8), 512, np.uint16)
@@ -47,7 +47,7 @@ def test_field_flash_invisible_on_whole_frames() -> None:
 
 def test_fields_measured_only_around_combed_frames() -> None:
     """Field measures for a combed frame and the frame after it; null between progressive pictures."""
-    limits = VideoLimits.from_profile(load_profile(ARTE))
+    limits = VideoLimits.from_profile(load_profile(ARTE), "bt709")
     smooth = np.repeat(np.arange(100, 900, 25)[:, None], 16, axis=1).astype(np.uint16)  # ramp: comb ratio 0.5
     combed = smooth.copy()
     combed[1::2] = 64

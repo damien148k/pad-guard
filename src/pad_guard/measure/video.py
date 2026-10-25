@@ -121,10 +121,10 @@ class VideoLimits:
     flash_delta_pct: float
 
     @classmethod
-    def from_profile(cls, profile: Profile) -> VideoLimits:
+    def from_profile(cls, profile: Profile, matrix: str) -> VideoLimits:
+        """Thresholds of the profile; ``matrix``: the file's (formats.file_matrix), not the profile's."""
         v = profile.video
         legal = (v.y_min_legal, v.y_max_legal)
-        matrix = profile.format.color_space
         if matrix not in MATRICES:
             raise MeasureSetupError(
                 f"matrice de couleur « {matrix} » non prise en charge pour la conversion RGB "

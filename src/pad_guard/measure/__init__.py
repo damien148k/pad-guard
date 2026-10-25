@@ -18,7 +18,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from pad_guard import __version__, jsonio
+from pad_guard import __version__, formats, jsonio
 from pad_guard.decode.video import VideoDecoder, picture_of
 from pad_guard.measure import audio as am
 from pad_guard.measure.models import (
@@ -63,7 +63,7 @@ def run(
     progress: Progress | None = None,
     on_audio: Callable[[], None] | None = None,
 ) -> Measurements:
-    limits = VideoLimits.from_profile(profile)
+    limits = VideoLimits.from_profile(profile, formats.file_matrix(probe.video.color_space, probe.video.height)[0])
     scan_settings = scan_detection(profile)
     source = Path(probe.source.path)
     out_dir.mkdir(parents=True, exist_ok=True)

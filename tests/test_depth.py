@@ -25,7 +25,7 @@ CLASSIC = TEST_PROFILES / "test_classic.yaml"
 def limits() -> VideoLimits:
     """Arte bounds without the prefilter: its rounding is finer in 12 bits, and in 4:4:4 it runs on
     full-width chroma, so the equivalences below hold for the unfiltered measures only."""
-    return dataclasses.replace(VideoLimits.from_profile(load_profile(ARTE)), prefilter_taps=None)
+    return dataclasses.replace(VideoLimits.from_profile(load_profile(ARTE), "bt709"), prefilter_taps=None)
 
 
 def _frame(h: int = 64, w: int = 96, seed: int = 3) -> VideoFrame:

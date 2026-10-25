@@ -28,3 +28,14 @@ def test_refused(fixtures_dir, tmp_path, name, reason) -> None:
     result = CliRunner().invoke(app, ["analyze", str(fixtures_dir / name), "--profile", str(TECHNICAL),
                                       "--out", str(tmp_path / "o")])
     assert result.exit_code == EXIT_REFUSED
+
+
+def test_unsupported_matrix_refused(fixtures_dir, tmp_path) -> None:
+    """A matrix tag PAD Guard has no coefficients for (SMPTE 240M): the measurements would be wrong."""
+    import subprocess
+    path = tmp_path / "m240.mov"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(fixtures_dir / "psf_prores.mov"), "-map", "0:v",
+                    "-c", "copy", "-colorspace", "smpte240m", str(path)], check=True)
+    r = probe_file(path, load_profile(TECHNICAL), TECHNICAL, hash_source=False)
+    assert not r.accepted and r.refusal_reasons == [
+        "matrice de couleur smpte240m : PAD Guard ne sait mesurer que bt709, bt470bg ou smpte170m."]

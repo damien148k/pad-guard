@@ -70,7 +70,7 @@ class _Context:
         self.clock = timecode.Clock(self.fps, probe.timecode, probe.timecode_format)
         self.frames = video.frames
         self.source = Path(probe.source.path)
-        self.picture = picture_of(probe.video.pix_fmt, probe.video.color_range, profile.format.color_space)
+        self.picture = picture_of(probe.video.pix_fmt, probe.video.color_range, m.video_settings.matrix)
         self.checks: list[StructureCheck] = []
         self.findings: list[Finding] = []
         s = profile.structure
@@ -124,7 +124,7 @@ def _find_bars(ctx: _Context, patterns: list[str], tolerance: float) -> list[Bar
     found = []
     for frame in read_frames(ctx.need_source("la recherche de mire"), middles, ctx.probe.video.stream_index,
                              ctx.picture):
-        pattern, error = bars_mod.best_pattern(frame, patterns, ctx.profile.format.color_space)
+        pattern, error = bars_mod.best_pattern(frame, patterns, ctx.m.video_settings.matrix)
         if error <= tolerance:
             a, b = middles[frame.index]
             found.append(BarsRange(frame_start=a, frame_end=b, pattern=pattern, tested_frame=frame.index, error=error))

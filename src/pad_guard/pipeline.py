@@ -19,7 +19,7 @@ import shutil
 from collections.abc import Callable
 from pathlib import Path
 
-from pad_guard import jsonio, report, structure, workdir as wd
+from pad_guard import formats, jsonio, report, structure, workdir as wd
 from pad_guard.measure.models import Measurements
 from pad_guard.measure.program import program_range
 from pad_guard.measure.series import load_video
@@ -136,7 +136,7 @@ def run_steps(workdir: Path, profile: Profile, first: Step = "structure", thumbn
 def measurement_differences(workdir: Path, probe: ProbeResult, m: Measurements, profile: Profile) -> list[str]:
     """Measurement settings that ``profile`` would change (French). Empty: the measurements stand."""
     out = []
-    limits = VideoLimits.from_profile(profile)
+    limits = VideoLimits.from_profile(profile, formats.file_matrix(probe.video.color_space, probe.video.height)[0])
     s = m.video_settings
     for name, new, old in (
         ("Y légal (codes 10 bits)", limits.y_legal, tuple(s.y_legal)),

@@ -67,6 +67,50 @@ MATRICES: dict[str, tuple[float, float]] = {
     "smpte170m": (0.299, 0.114),
 }
 
+MATRICES_TEXT = "bt709, bt470bg ou smpte170m"
+
+# Matrix of the measurements: the file's, never the profile's (decision of Damien, 25 October 2026).
+# The color_space tag when it names a supported matrix; without one (tag absent or « unknown »,
+# or gbr: an R'G'B' file has no matrix, its picture is converted to Y'CbCr for the measurements),
+# the standard of its line count: 576 lines, 625-line system of ITU-R BT.601 (bt470bg); 480 or
+# 486 lines, 525-line system (smpte170m); any other size, ITU-R BT.709 (HD, UHD, scans).
+SD_LINE_MATRICES: dict[int, str] = {576: "bt470bg", 480: "smpte170m", 486: "smpte170m"}
+NO_MATRIX_TAGS = frozenset({"unknown", "reserved", "gbr"})
+
+
+def matrix_measurable(color_space: str | None) -> bool:
+    """A tag that names another matrix (smpte240m, fcc, ycgco…) cannot be measured."""
+    return color_space is None or color_space in MATRICES or color_space in NO_MATRIX_TAGS
+
+
+def file_matrix(color_space: str | None, height: int) -> tuple[str, str]:
+    """(matrix of the measurements, why, in French) for a file with this tag and this many lines."""
+    if color_space in MATRICES:
+        return color_space, "balise du fichier"
+    matrix = SD_LINE_MATRICES.get(height, "bt709")
+    tag = "fichier RVB, sans matrice" if color_space == "gbr" else "balise absente"
+    return matrix, f"{tag} : standard des {height} lignes"
+
+
+# Colour tags coherent with the file (profile value « coherent », technical profile, decision of
+# Damien of 25 October 2026): matrix gbr for an R'G'B' file; ITU-R BT.601 tags for SD (576, 480 or
+# 486 lines; bt470bg and smpte170m have the same coefficients), with the BT.709 transfer curve
+# (smpte170m names the same curve); BT.709 for any other size.
+SD_TAGS: dict[str, tuple[str, ...]] = {
+    "color_primaries": ("bt470bg", "smpte170m"),
+    "color_transfer": ("bt709", "smpte170m"),
+    "color_space": ("bt470bg", "smpte170m"),
+}
+
+
+def coherent_tags(key: str, rgb: bool, height: int) -> tuple[tuple[str, ...], str]:
+    """(tags coherent with the file for ``key``, why in French)."""
+    if key == "color_space" and rgb:
+        return ("gbr",), "fichier RVB"
+    if height in SD_LINE_MATRICES:
+        return SD_TAGS[key], f"SD, {height} lignes"
+    return ("bt709",), f"{height} lignes"
+
 
 def rate_label(fps: Fraction) -> str:
     """'25', '29,97', '23,976'."""

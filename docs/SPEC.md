@@ -111,7 +111,7 @@ Extraire et vérifier contre le profil :
 | résolution | `width`, `height` | 1920×1080 |
 | cadence | `r_frame_rate`, `avg_frame_rate` | dans `format.fps_allowed` (Arte : 25/1 ou 50/1), et les deux doivent être égales |
 | balayage | `field_order` | `progressive` |
-| colorimétrie | `color_primaries`, `color_transfer`, `color_space` | `bt709` ×3 ; `unknown` = avertissement `minor` |
+| colorimétrie | `color_primaries`, `color_transfer`, `color_space` | `bt709` ×3 ; `unknown` = avertissement `minor` ; `coherent` : balises cohérentes avec le fichier (`gbr` pour une source RVB, BT.601 pour la SD, BT.709 sinon ; profil de contrôle technique) |
 | plage | `color_range` | `tv` |
 | durée | `duration`, `nb_frames` | cohérence entre les deux ; durée totale vs. durée annoncée dans le profil (tolérance) |
 | timecode de départ | tag `timecode` (piste `tmcd` en MOV, `timecode` en MXF) | égal à `profile.structure.timecode.file_start` |
@@ -152,7 +152,7 @@ Calculées en NumPy sur le plan Y, puis sur Cb et Cr, puis sur une conversion RG
 | `d_mean` | différence absolue moyenne de Y (non filtré) avec l'image précédente, en valeurs de code ; `null` pour la première image | images figées, dupliquées, mire |
 | `d_up_pct`, `d_down_pct` | % de pixels dont la luminance relative a augmenté (diminué) de plus de `structure.pse.flash_min_delta_pct` depuis l'image précédente | PSE |
 
-**Conversion RGB :** Y'CbCr 10 bits plage légale → R'G'B' avec la matrice BT.709 inverse, en float32, sans clipping. Le résultat est comparé aux bornes du profil exprimées en % (-5 % à +105 % par défaut, EBU R103).
+**Conversion RGB :** Y'CbCr 10 bits plage légale → R'G'B' avec la matrice inverse **du fichier** (décision de Damien, 25 octobre 2026 : sa balise `color_space` si elle désigne une matrice prise en charge, sinon le standard de son nombre de lignes : 576 → `bt470bg`, 480 ou 486 → `smpte170m`, autre → `bt709` ; une source RVB, balise `gbr`, est convertie en Y'CbCr avec ce standard ; une autre matrice, `smpte240m` par exemple, est refusée). La matrice du profil n'est qu'une balise attendue (`format_color_tags`), jamais un paramètre de mesure. en float32, sans clipping. Le résultat est comparé aux bornes du profil exprimées en % (-5 % à +105 % par défaut, EBU R103).
 
 **Conversion des pourcentages en valeurs de code :** `code = y_min_legal + pct/100 × (y_max_legal − y_min_legal)`, arrondi vers l'extérieur (borne basse vers le bas, borne haute vers le haut) ; la plage obtenue est inclusive. Exemple : -1 % → 55,24 → 55 ; 103 % → 966,28 → 967.
 
@@ -480,7 +480,7 @@ Un profil `draft` peut servir, mais le rapport porte en tête « PROFIL NON VALI
 - **Profondeur.** Un fichier 8 bits est converti en 10 bits (x 4) avant toute comparaison ; un fichier 12 bits est mesuré en 12 bits, avec les seuils 10 bits multipliés par 4 exactement (décision de Damien, 24 octobre 2026), et ses valeurs écrites en codes 10 bits au quart près.
 - **Échantillonnage.** 4:2:2 : chroma interpolée linéairement sur les colonnes impaires ; 4:2:0 : chaque ligne de chroma couvre les deux lignes de luminance ; 4:4:4 : sans interpolation.
 - **Plage et RVB.** Un fichier en plage pleine (balise `pc`, `yuvj*`) ou en R'G'B' est converti en Y'CbCr plage légale (codes 12 bits) avant la mesure, d'après BT.2100-3 tableau 9 et BT.709-6 §3.2 à 3.4 : les seuils du profil, exprimés sur la plage légale, s'appliquent aux bons niveaux. Un fichier annoncé en plage légale dont au moins 1 % des images atteignent les bornes 4 ou 1019 (BT.709-6 §4.7 ; ProRes et DNxHR écrêtent à 4-1019) a un contenu en plage pleine probable : `range_content_mismatch` (règle maison, A VERIFIER). Une balise plage pleine dont le contenu reste dans 64-940 : `range_tag_suspect` (info).
-- **Matrices.** BT.709 (`bt709`) et BT.601 (`bt470bg`, `smpte170m`, coefficients usuels A VERIFIER tant que le PDF manque) ; la mire de référence est générée dans la matrice du profil.
+- **Matrices.** BT.709 (`bt709`) et BT.601 (`bt470bg`, `smpte170m`, coefficients usuels A VERIFIER tant que le PDF manque) ; la mire de référence est générée dans la matrice du fichier (celle des mesures).
 - **Alpha.** Le plan alpha est ignoré, signalé (`alpha_channel`, info).
 - **Format d'image.** Rapport largeur / hauteur de la zone active avec le rapport des pixels (`sample_aspect_ratio`) ; un profil sans tableau de formats (`formats: []`) relève la zone active sans comparer.
 - **GOP long.** Le décodeur relève les images clés ; une erreur de décodage couvre les images jusqu'à l'image clé suivante. L'accès direct (vignettes, mire, format d'image) part de l'image clé précédente : exact, vérifié sur MPEG-2, H.264 et HEVC.
