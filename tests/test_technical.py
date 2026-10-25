@@ -45,6 +45,17 @@ def test_scan_gets_a_technical_report(fixtures_dir, tmp_path) -> None:
 
 
 @pytest.mark.fixtures
+def test_colour_tags_have_their_own_type(fixtures_dir, tmp_path) -> None:
+    """DV without colour tags: the only format events are « format_color_tags » (info), against BT.709."""
+    _analyse(fixtures_dir / "sd_dv.mov", tmp_path / "o")
+    events = json.loads((tmp_path / "o" / wd.EVENTS).read_text(encoding="utf-8"))["events"]
+    fmt = [e for e in events if e["type"].startswith("format")]
+    assert {(e["type"], e["severity"], e["value_text"]) for e in fmt} == {("format_color_tags", "info", "non renseigné")}
+    assert sorted(e["title"] for e in fmt) == [
+        "Colorimétrie : matrice", "Colorimétrie : primaires", "Colorimétrie : transfert"]
+
+
+@pytest.mark.fixtures
 def test_house_rules_keep_their_severity(fixtures_dir, tmp_path) -> None:
     """Full-range content tagged narrow: a house rule (major), listed in the technical report too."""
     _analyse(fixtures_dir / "fmt_full_as_tv.mov", tmp_path / "o")

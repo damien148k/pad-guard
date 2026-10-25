@@ -45,6 +45,34 @@ def test_field_flash_invisible_on_whole_frames() -> None:
     assert "fu1" not in meter.measure(VideoFrame(index=1, y=y, cb=chroma, cr=chroma), y)
 
 
+def test_fields_measured_only_around_combed_frames() -> None:
+    """Field measures for a combed frame and the frame after it; null between progressive pictures."""
+    limits = VideoLimits.from_profile(load_profile(ARTE))
+    smooth = np.repeat(np.arange(100, 900, 25)[:, None], 16, axis=1).astype(np.uint16)  # ramp: comb ratio 0.5
+    combed = smooth.copy()
+    combed[1::2] = 64
+    chroma = np.full((32, 8), 512, np.uint16)
+    meter = FrameMeter(limits, strip_rows=8)
+
+    def frame(y, previous):
+        return meter.measure(VideoFrame(index=1, y=y, cb=chroma, cr=chroma), previous, "top", comb_min=0.9)
+
+    assert [frame(smooth, smooth)[k] for k in ("fu1", "fd1", "fu2", "fd2")] == [None] * 4
+    assert frame(combed, smooth)["fd2"] > 0  # combed
+    after = frame(smooth, combed)  # not combed, follows a combed frame
+    assert after["fu1"] > 0 and after["fu2"] == 0.0
+    every = meter.measure(VideoFrame(index=1, y=smooth, cb=chroma, cr=chroma), smooth, "top")
+    assert every["fu2"] == 0.0  # no comb_min: every frame
+
+
+def test_unmeasured_fields_take_the_frame_difference() -> None:
+    from pad_guard.structure import field_changes
+    v = {"fu1": np.array([np.nan, np.nan, 3.0]), "fu2": np.array([np.nan, np.nan, 40.0]),
+         "d_up_pct": np.array([np.nan, 30.0, 1.0])}
+    first, second = field_changes(v, "u")
+    assert np.array_equal(first, [np.nan, 30.0, 3.0], equal_nan=True) and second.tolist() == [0.0, 0.0, 40.0]
+
+
 def _analyse(fixtures_dir, tmp_path, name: str, profile=ARTE):
     out = tmp_path / name.replace(".", "_")
     result = CliRunner().invoke(app, ["analyze", str(fixtures_dir / name), "--profile", str(profile),

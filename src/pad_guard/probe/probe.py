@@ -318,9 +318,9 @@ def _check_format(c: _Checks, p: Profile, container: ContainerInfo, v: VideoInfo
 
     for key, label in (("color_primaries", "Primaires"), ("color_transfer", "Transfert"), ("color_space", "Matrice")):
         expected, actual = getattr(f, key), getattr(v, key)
-        c.add(key, f"Colorimétrie : {label.lower()}", "format", expected, actual or "non renseigné",
+        c.add(key, f"Colorimétrie : {label.lower()}", "format_color_tags", expected, actual or "non renseigné",
               None if actual is None else actual == expected)
-    add("color_range", "Plage", "format", f.color_range, f.color_range, v.color_range or "non renseignée",
+    add("color_range", "Plage", "format_color_tags", f.color_range, f.color_range, v.color_range or "non renseignée",
         None if v.color_range is None else v.color_range == f.color_range)
 
 

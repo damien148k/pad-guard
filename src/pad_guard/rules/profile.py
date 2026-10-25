@@ -60,6 +60,7 @@ EVENT_TYPES = (
     "format_picture",
     "format_resolution",
     "format_frame_rate",
+    "format_color_tags",
     "integrity",
     "alpha_channel",
     "audio_not_analysed",
@@ -528,6 +529,9 @@ class Rules(_Model):
     # rate of the file, rounded down); merge_gap_frames is the older form, in frames.
     merge_gap_seconds: float | None = Field(default=None, ge=0)
     merge_gap_frames: int | None = Field(default=None, ge=0)
+    # Point audio events (true peak, short-term excursion, dual mono mismatch): exceedances closer
+    # than this, in seconds, are one event, with the number of exceedances and the worst value.
+    audio_merge_gap_seconds: float | None = Field(default=None, ge=0)
     # Minimum duration of an event, by type: in frames (1: a single frame counts) or in seconds
     # (converted at the frame rate of the file, rounded up).
     min_event_frames: dict[EventType, int] = Field(default_factory=dict)  # type: ignore[valid-type]
@@ -568,6 +572,13 @@ class Rules(_Model):
         if self.merge_gap_seconds is None:
             return self.merge_gap_frames
         return math.floor(Fraction(str(self.merge_gap_seconds)) * fps)
+
+    def audio_gap_frames(self, fps: Fraction) -> int:
+        """audio_merge_gap_seconds in frames at ``fps`` (rounded down, like merge_gap)."""
+        if self.audio_merge_gap_seconds is None:
+            raise ProfileValueError("le profil ne renseigne pas « rules.audio_merge_gap_seconds », nécessaire pour "
+                                    "le regroupement des événements audio ponctuels")
+        return math.floor(Fraction(str(self.audio_merge_gap_seconds)) * fps)
 
     def min_frames(self, event_type: str, fps: Fraction) -> int:
         """Minimum duration of an event of this type, in frames at ``fps`` (rounded up)."""

@@ -136,6 +136,7 @@ structure:
 
 rules:
   merge_gap_frames: 12
+  audio_merge_gap_seconds: 3.0
   min_event_frames:
     white_clip: 1
     black_crush: 1

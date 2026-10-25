@@ -93,6 +93,31 @@ def test_bad_audio(analysed) -> None:
     assert peak["tc_start"] == "10:00:05:00" and peak["worst_value"] > -1.0  # the burst at t = 15 s
 
 
+def test_true_peaks_grouped_across_audio_merge_gap(analysed, tmp_path) -> None:
+    """Peaks less than rules.audio_merge_gap_seconds (3 s) apart: one event with their number and
+    the highest peak; a peak 4 s before them stays alone. The severity does not change."""
+    _, _, out = analysed("bad_audio.mov")
+    work = tmp_path / "w"
+    shutil.copytree(out, work)
+    path = work / "measurements_audio.jsonl"
+    lines = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        rec = json.loads(line)
+        if round(rec["t"], 1) in (11.0, 16.0, 17.0):  # the burst of the fixture is at 15 s, -0.5 dBTP
+            rec["tp"] = [-0.8, -0.8]
+        lines.append(json.dumps(rec, ensure_ascii=False))
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    result = invoke("rerun", str(work), "--from", "rules", "--no-thumbnails")
+    assert result.exception is None or isinstance(result.exception, SystemExit), result.output
+    burst = next(e for e in events(out) if e["type"] == "audio_true_peak")
+    peaks = [e for e in events(work) if e["type"] == "audio_true_peak"]
+    assert [(e["tc_start"], e["occurrences"], e["worst_value"]) for e in peaks] == [
+        ("10:00:01:00", 1, -0.8), ("10:00:05:00", 3, burst["worst_value"])]
+    assert peaks[0]["value_text"] == "-0,8 dBTP"
+    assert peaks[1]["value_text"] == f"{burst['value_text']} au maximum, 3 dépassements"
+    assert {e["severity"] for e in peaks} == {burst["severity"]}
+
+
 def test_bad_structure(analysed) -> None:
     code, _, out = analysed("bad_structure.mov")
     assert code == EXIT_NON_CONFORME

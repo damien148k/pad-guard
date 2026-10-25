@@ -75,7 +75,8 @@ def run(
     comb, d_mean = array("d"), array("d")
     with (out_dir / VIDEO_FILE).open("w", encoding="utf-8", newline="\n") as f:
         first = first_field(probe.video.field_order)
-        for rec in measure_frames(decoder.frames(), limits, workers or default_workers(), first_field=first):
+        for rec in measure_frames(decoder.frames(), limits, workers or default_workers(), first_field=first,
+                                  comb_min=scan_settings.comb_ratio_min):
             f.write(_line(rec))
             y_p99.append(rec["y_p99"])
             comb.append(float("nan") if rec["comb"] is None else rec["comb"])

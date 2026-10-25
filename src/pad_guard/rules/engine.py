@@ -73,6 +73,15 @@ def merge(ranges: Iterable[tuple[int, int]], gap: int) -> list[tuple[int, int]]:
     return out
 
 
+# Audio events made of separate exceedances, grouped across rules.audio_merge_gap_seconds.
+POINT_AUDIO_TYPES = frozenset({"audio_true_peak", "audio_short_term_excursion", "audio_dual_mono_mismatch"})
+
+
+def _exceedances(worst: str, runs: int) -> str:
+    """Value of a grouped point audio event: the worst value, and the number of exceedances if several."""
+    return worst if runs == 1 else f"{worst} au maximum, {runs} dépassements"
+
+
 def _pct(value: float, digits: int = 2) -> str:
     return f"{number(value, digits)} %"
 
@@ -230,8 +239,9 @@ class Engine:
     def add(self, **kw) -> None:
         self.drafts.append(Draft(**kw))
 
-    def aggregate(self, event_type: str, mask: np.ndarray) -> list[tuple[int, int]]:
-        ranges = merge(detect.runs(mask), self.p.rules.gap_frames(self.fps))
+    def aggregate(self, event_type: str, mask: np.ndarray, gap: int | None = None) -> list[tuple[int, int]]:
+        """Runs of ``mask`` merged across fewer than ``gap`` clean frames (default: merge_gap)."""
+        ranges = merge(detect.runs(mask), self.p.rules.gap_frames(self.fps) if gap is None else gap)
         minimum = self.p.rules.min_frames(event_type, self.fps)
         return [(a, b) for a, b in ranges if b - a + 1 >= minimum]
 
@@ -431,19 +441,22 @@ class Engine:
         return first, last
 
     def _block_events(self, event_type: str, mask: np.ndarray, values: np.ndarray, worst_is_max: bool,
-                      min_seconds: float | None = None) -> list[tuple[int, int, float, int, int]]:
-        """Runs of blocks -> merged frame ranges: (first frame, last frame, worst value, worst frame, blocks)."""
+                      min_seconds: float | None = None) -> list[tuple[int, int, float, int, int, int]]:
+        """Runs of blocks -> merged frame ranges: (first frame, last frame, worst value, worst frame, blocks,
+        runs). Point events (POINT_AUDIO_TYPES) merge across rules.audio_merge_gap_seconds, the others
+        across merge_gap; ``runs`` counts the separate exceedances in the range."""
         block = self.m.audio.settings.block_samples / self.m.audio.settings.sample_rate
         runs = [(a, b) for a, b in detect.runs(mask)
                 if min_seconds is None or (b - a + 1) * block > min_seconds]
         frame_runs = {self._block_range(a, b): (a, b) for a, b in runs}
+        gap = self.p.rules.audio_gap_frames(self.fps) if event_type in POINT_AUDIO_TYPES else None
         out = []
-        for fa, fb in self.aggregate(event_type, self._frames_mask(frame_runs)):
+        for fa, fb in self.aggregate(event_type, self._frames_mask(frame_runs), gap):
             blocks = [r for fr, r in frame_runs.items() if fa <= fr[0] and fr[1] <= fb]
             idx = np.concatenate([np.arange(a, b + 1) for a, b in blocks])
             k = int(idx[np.argmax(values[idx])] if worst_is_max else idx[np.argmin(values[idx])])
             worst_frame = self._block_range(k, k)[0]
-            out.append((fa, fb, float(values[k]), worst_frame, len(idx)))
+            out.append((fa, fb, float(values[k]), worst_frame, len(idx), len(blocks)))
         return out
 
     def _frames_mask(self, ranges: Iterable[tuple[int, int]]) -> np.ndarray:
@@ -525,11 +538,11 @@ class Engine:
     def _true_peak(self, name: str, label: str, b: GroupBlocks, in_prog: np.ndarray) -> None:
         limit = self.p.audio.true_peak_max_dbtp
         tp = b.tp.max(axis=1)
-        for fa, fb, worst, wf, _ in self._block_events("audio_true_peak", (tp > limit) & in_prog, tp, True):
+        for fa, fb, worst, wf, _, runs in self._block_events("audio_true_peak", (tp > limit) & in_prog, tp, True):
             self.add(type="audio_true_peak", title=f"True peak {name}", source="measure", scope="range",
-                     frame_start=fa, frame_end=fb, value_text=_db(worst, "dBTP"),
+                     frame_start=fa, frame_end=fb, value_text=_exceedances(_db(worst, "dBTP"), runs),
                      threshold_text=f"≤ {number(limit)} dBTP", worst_value=worst, worst_frame=wf, threshold=limit,
-                     group=label)
+                     group=label, occurrences=runs)
 
     def _short_term(self, name: str, label: str, b: GroupBlocks, in_prog: np.ndarray, rs: LoudnessRules,
                     kind: str, exempt: bool) -> None:
@@ -553,9 +566,10 @@ class Engine:
         with np.errstate(invalid="ignore"):
             hit = (np.nan_to_num(b.s, nan=-np.inf) > limit) & in_prog & full
         s = np.nan_to_num(b.s, nan=-np.inf)
-        for fa, fb, worst, wf, _ in self._block_events("audio_short_term_excursion", hit, s, True):
+        for fa, fb, worst, wf, _, runs in self._block_events("audio_short_term_excursion", hit, s, True):
             self.add(type="audio_short_term_excursion", title=f"Loudness short term {name}", source="measure",
-                     scope="range", frame_start=fa, frame_end=fb, value_text=_db(worst, "LUFS"),
+                     scope="range", frame_start=fa, frame_end=fb, value_text=_exceedances(_db(worst, "LUFS"), runs),
+                     occurrences=runs,
                      threshold_text=f"≤ {number(limit)} LUFS ({why})", worst_value=worst, worst_frame=wf,
                      threshold=limit, group=label,
                      detail="excursion vers le haut seulement : le dialogue n'est pas détecté automatiquement"
@@ -566,7 +580,7 @@ class Engine:
         max_seconds = require(self.p, "audio.silence_max_seconds", "le contrôle des silences")
         peak = b.peak.max(axis=1)
         hit = (peak < a.silence_dbfs) & in_prog
-        for fa, fb, worst, wf, n in self._block_events("audio_silence", hit, peak, True, max_seconds):
+        for fa, fb, worst, wf, n, _ in self._block_events("audio_silence", hit, peak, True, max_seconds):
             self.add(type="audio_silence", title=f"Silence {name}", source="measure", scope="range",
                      frame_start=fa, frame_end=fb, value_text=f"crête {_db(worst, 'dBFS')}",
                      threshold_text=f"silence < {number(a.silence_dbfs)} dBFS pendant ≤ {number(max_seconds)} s",
@@ -578,7 +592,7 @@ class Engine:
         min_seconds = require(self.p, "audio.phase_min_seconds", "le contrôle de phase")
         corr = np.nan_to_num(b.corr, nan=np.inf)
         hit = (corr < a.phase_min_correlation) & in_prog
-        for fa, fb, worst, wf, _ in self._block_events("audio_phase", hit, corr, False, min_seconds):
+        for fa, fb, worst, wf, _, _ in self._block_events("audio_phase", hit, corr, False, min_seconds):
             self.add(type="audio_phase", title=f"Opposition de phase {name}", source="measure", scope="range",
                      frame_start=fa, frame_end=fb, value_text=f"corrélation {number(worst, 2)}",
                      threshold_text=f"≥ {number(a.phase_min_correlation, 2)} (plus de {number(min_seconds)} s)",
@@ -586,10 +600,12 @@ class Engine:
 
     def _dual_mono(self, name: str, label: str, b: GroupBlocks, in_prog: np.ndarray) -> None:
         hit = (b.diff > -np.inf) & in_prog
-        for fa, fb, worst, wf, _ in self._block_events("audio_dual_mono_mismatch", hit, b.diff, True):
+        for fa, fb, worst, wf, _, runs in self._block_events("audio_dual_mono_mismatch", hit, b.diff, True):
             self.add(type="audio_dual_mono_mismatch", title=f"Double mono {name} non identique", source="measure",
-                     scope="range", frame_start=fa, frame_end=fb, value_text=f"écart crête {_db(worst, 'dBFS')}",
-                     threshold_text="pistes identiques", worst_value=worst, worst_frame=wf, group=label)
+                     scope="range", frame_start=fa, frame_end=fb,
+                     value_text=_exceedances(f"écart crête {_db(worst, 'dBFS')}", runs),
+                     threshold_text="pistes identiques", worst_value=worst, worst_frame=wf, group=label,
+                     occurrences=runs)
 
     # --- severity, verdict ----------------------------------------------------------------
 

@@ -34,6 +34,7 @@ structure:
 rules:
   # Regroupement des images en événements, en secondes (converties à la cadence du fichier).
   merge_gap_seconds: 0.5                 # A VERIFIER avec Vincent : 12 images à 25 i/s, comme avant la Phase 6
+  audio_merge_gap_seconds: 3.0           # A VERIFIER avec Vincent : true peak, short term, double mono
   min_event_seconds:
     freeze: 2.0                          # A VERIFIER avec Vincent : 50 images à 25 i/s, comme avant la Phase 6
   params:
@@ -62,6 +63,11 @@ sources:
   rules.merge_gap_seconds: >-
     Lumiris : deux plages en anomalie séparées de moins de 0,5 s font un seul événement (SPEC §7.1).
     A VERIFIER : à confirmer avec Vincent (décision de Damien, 24/10/2026 : durées en secondes).
+  rules.audio_merge_gap_seconds: >-
+    Lumiris : les dépassements audio ponctuels (true peak, excursion short term, double mono non identique)
+    séparés de moins de 3 s font un seul événement, avec le nombre de dépassements et la valeur la plus
+    forte ; 3 s est la fenêtre du loudness short term (EBU Tech 3341 §2.2). Le verdict ne change pas.
+    A VERIFIER : à confirmer avec Vincent (décision de Damien, 25/10/2026).
   rules.min_event_seconds: >-
     Lumiris : une image figée n'est signalée qu'à partir de 2 s. A VERIFIER : à confirmer avec Vincent.
   rules.params.levels_major_min_seconds: >-

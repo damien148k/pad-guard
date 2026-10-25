@@ -31,6 +31,14 @@ two fields of this frame (share of the field pixels whose luminance rose / fell 
 flash delta). The first field is the top one for the flags tt and tb, the bottom one for bb and
 bt (FFmpeg writes tb for a top field first ProRes in MOV).
 
+They are only computed where the pictures are interlaced (decision of Damien of 25 October 2026):
+for a frame that is combed (``comb`` >= ``comb_ratio_min``) or follows a combed frame. Elsewhere
+the two fields of each frame show the same picture, so the measures are left null and the
+structure step takes the frame differences for ``fu1`` / ``fd1`` and no change for ``fu2`` / ``fd2``.
+A master flagged interlaced whose pictures are progressive (most frames not combed) thus costs
+about one comb ratio more per frame (the previous frame's), not the field measures (+55 % per
+frame at 1080).
+
 Combing (scan detection, SPEC §12.5): ``comb`` is the mean absolute difference between
 neighbouring lines (opposite fields) divided by the mean absolute difference between lines two
 apart (same field), on the unfiltered Y plane. Around 0.5-0.8 for progressive pictures, above 1
@@ -66,7 +74,7 @@ FIELDS = (
     "rgb_out_pct", "cb_min", "cb_max", "cr_min", "cr_max", "sat_max",
     "d_mean", "d_up_pct", "d_down_pct", "comb",
 )
-FIELD_FIELDS = ("fu1", "fd1", "fu2", "fd2")  # written only for a file flagged interlaced
+FIELD_FIELDS = ("fu1", "fd1", "fu2", "fd2")  # written only for a file flagged interlaced (null: not combed)
 LUMINANCE_GAMMA = 2.4  # ITU-R BT.1886 display response (a definition, not a threshold)
 
 
@@ -301,6 +309,17 @@ class FrameMeter:
         up = int(np.count_nonzero(after >= self._up[before]))
         return _pct(up, n), _pct(int(np.count_nonzero(before >= self._up[after])), n)
 
+    def _comb(self, plane: np.ndarray, strip: int, full: _Workspace) -> float | None:
+        """Comb ratio of a Y plane, as ``measure`` writes it (same sums, strip by strip)."""
+        h = plane.shape[0]
+        across = within = 0
+        for top in range(0, h, strip):
+            rows = min(strip, h - top)
+            ws = full.view(rows)
+            across += self._line_diff(plane, top, rows, 1, ws)
+            within += self._line_diff(plane, top, rows, 2, ws)
+        return _comb_ratio(across, within, h)
+
     def fields(self, y: np.ndarray, previous: np.ndarray | None, first: str) -> dict:
         top, bottom = y[0::2], y[1::2]
         top_first = first == "top"
@@ -312,9 +331,12 @@ class FrameMeter:
             out["fu1"], out["fd1"] = self._field_change(_bob(last, not top_first, a.shape[0]), a)
         return out
 
-    def measure(self, frame: VideoFrame, previous: np.ndarray | None = None, first: str | None = None) -> dict:
+    def measure(self, frame: VideoFrame, previous: np.ndarray | None = None, first: str | None = None,
+                comb_min: float | None = None) -> dict:
         """``previous``: Y plane of the previous frame of the file (None for the first frame);
-        ``first``: first field of an interlaced file ('top', 'bottom'), None: no field measures."""
+        ``first``: first field of an interlaced file ('top', 'bottom'), None: no field measures;
+        ``comb_min``: field measures only for a combed frame or one that follows a combed frame
+        (None: for every frame)."""
         lim = self.limits
         h, w = frame.y.shape
         if previous is not None and previous.shape != (h, w):
@@ -371,7 +393,13 @@ class FrameMeter:
         p01 = int(np.searchsorted(cum, (n + 999) // 1000))
         p99 = int(np.searchsorted(cum, (999 * n + 999) // 1000))
         total = int(hist @ np.arange(hist.size, dtype=np.int64))
-        field_values = self.fields(frame.y, previous, first) if first else {}
+        comb = _comb_ratio(across, within, h)
+        field_values = {}
+        if first:
+            field_values = dict.fromkeys(FIELD_FIELDS)
+            if comb_min is None or _combed(comb, comb_min) or (
+                    previous is not None and _combed(self._comb(previous, strip, full), comb_min)):
+                field_values = self.fields(frame.y, previous, first)
         tol_lo, tol_hi = (x * scale for x in lim.y_tolerance)
         leg_lo, leg_hi = (x * scale for x in lim.y_legal)
         v = self._value
@@ -395,7 +423,7 @@ class FrameMeter:
             "d_mean": None if previous is None else round(d_sum / n / scale, 3),
             "d_up_pct": None if previous is None else _pct(d_up, n),
             "d_down_pct": None if previous is None else _pct(d_down, n),
-            "comb": None if within == 0 or h < 3 else round((across / (h - 1)) / (within / (h - 2)), 4),
+            "comb": comb,
             **field_values,
         }
 
@@ -501,6 +529,14 @@ def out_of_range_masks(frame: VideoFrame, limits: VideoLimits) -> dict[str, np.n
     return {"y_above": y > limits.y_tolerance[1] * s, "y_below": y < limits.y_tolerance[0] * s, "rgb_out": rgb}
 
 
+def _comb_ratio(across: int, within: int, h: int) -> float | None:
+    return None if within == 0 or h < 3 else round((across / (h - 1)) / (within / (h - 2)), 4)
+
+
+def _combed(comb: float | None, comb_min: float) -> bool:
+    return comb is not None and comb >= comb_min
+
+
 def _add_histogram(hist: np.ndarray, y: np.ndarray) -> np.ndarray:
     part = np.bincount(y.ravel(), minlength=hist.size)
     if part.size > hist.size:  # values above 1023: not a 10-bit signal, keep them all
@@ -530,10 +566,10 @@ def _slot_views(buf, slots: int, h: int, w: int, ch: int, cw: int) -> list[tuple
 
 
 def _worker_init(shm_name: str, slots: int, shapes: tuple[int, int, int, int], layout: tuple[int, int, int],
-                 limits: VideoLimits, strip_rows: int | None, first: str | None) -> None:
+                 limits: VideoLimits, strip_rows: int | None, first: str | None, comb_min: float | None) -> None:
     shm = SharedMemory(name=shm_name)
     _worker.update(shm=shm, views=_slot_views(shm.buf, slots, *shapes), layout=layout, first=first,
-                   meter=FrameMeter(limits, strip_rows))
+                   comb_min=comb_min, meter=FrameMeter(limits, strip_rows))
 
 
 def _worker_measure(slot: int, index: int, previous_slot: int | None) -> dict:
@@ -542,12 +578,12 @@ def _worker_measure(slot: int, index: int, previous_slot: int | None) -> dict:
     scale, hsub, vsub = _worker["layout"]
     previous = None if previous_slot is None else views[previous_slot][0]
     frame = VideoFrame(index=index, y=y, cb=cb, cr=cr, scale=scale, hsub=hsub, vsub=vsub)
-    return _worker["meter"].measure(frame, previous, _worker["first"])
+    return _worker["meter"].measure(frame, previous, _worker["first"], _worker["comb_min"])
 
 
 def measure_frames(
     frames: Iterable[VideoFrame], limits: VideoLimits, workers: int, strip_rows: int | None = None,
-    first_field: str | None = None,
+    first_field: str | None = None, comb_min: float | None = None,
 ) -> Iterator[dict]:
     """Measure every frame, yielding the results in frame order.
 
@@ -559,7 +595,7 @@ def measure_frames(
         meter = FrameMeter(limits, strip_rows)
         previous: VideoFrame | None = None
         for frame in frames:
-            yield meter.measure(frame, None if previous is None else previous.y, first_field)
+            yield meter.measure(frame, None if previous is None else previous.y, first_field, comb_min)
             previous = frame
         return
 
@@ -576,7 +612,7 @@ def measure_frames(
         views = _slot_views(shm.buf, slots, h, w, ch, cw)
         pool = ProcessPoolExecutor(
             max_workers=workers, initializer=_worker_init,
-            initargs=(shm.name, slots, (h, w, ch, cw), layout, limits, strip_rows, first_field),
+            initargs=(shm.name, slots, (h, w, ch, cw), layout, limits, strip_rows, first_field, comb_min),
         )
         pending: deque[Future] = deque()
         try:

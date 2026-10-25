@@ -298,8 +298,8 @@ def _sequence_findings(ctx: _Context, excluded: np.ndarray, bars_mask: np.ndarra
     if p.pse.enabled:
         by_field = fields_measured(ctx)
         if by_field:  # interlaced pictures: the transitions between successive fields
-            up = np.column_stack([v["fu1"], v["fu2"]]).ravel()
-            down = np.column_stack([v["fd1"], v["fd2"]]).ravel()
+            up = np.column_stack(field_changes(v, "u")).ravel()
+            down = np.column_stack(field_changes(v, "d")).ravel()
             window = round(2 * ctx.fps)  # fields in one second
         else:
             up, down = v["d_up_pct"], v["d_down_pct"]
@@ -315,6 +315,16 @@ def _sequence_findings(ctx: _Context, excluded: np.ndarray, bars_mask: np.ndarra
                        f"sur plus de {_fmt(p.pse.flash_min_area_pct, 0)} % de l'image) : à vérifier avec un "
                        "analyseur Harding certifié",
             ))
+
+
+def field_changes(v, way: str) -> tuple[np.ndarray, np.ndarray]:
+    """(previous frame -> first field, first field -> second field) for ``way`` 'u' (rise) or 'd'
+    (fall). Frames left without field measures (neither they nor the frame before are combed: each
+    shows one picture in both fields) take the frame difference, then no change between fields."""
+    first, second = v[f"f{way}1"], v[f"f{way}2"]
+    unmeasured = np.isnan(second)
+    return (np.where(unmeasured, v[f"d_{'up' if way == 'u' else 'down'}_pct"], first),
+            np.where(unmeasured, 0.0, second))
 
 
 def fields_measured(ctx: _Context) -> bool:

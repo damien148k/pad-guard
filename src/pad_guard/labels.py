@@ -31,6 +31,7 @@ TYPE_LABELS = {
     "format_picture": "Profondeur et échantillonnage",
     "format_resolution": "Résolution",
     "format_frame_rate": "Cadence",
+    "format_color_tags": "Balises de colorimétrie",
     "integrity": "Intégrité du fichier",
     "alpha_channel": "Canal alpha",
     "audio_not_analysed": "Audio non analysé",
