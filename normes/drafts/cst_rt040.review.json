@@ -1,0 +1,116 @@
+{
+  "decisions": [
+    {
+      "path": "video.rgb_min_pct",
+      "action": "accept",
+      "value": 1.0,
+      "source": "CST-RT-040 V1.2, 2016 p. 5 : « La proportion de pixels dont les valeurs sont hors « Color Gamut » (voir tableau ci-dessus) ne doit pas excéder 1% du nombre total de pixels de l’image active. »"
+    },
+    {
+      "path": "audio.sample_rate",
+      "action": "accept",
+      "value": 48000,
+      "source": "CST-RT-040 V1.2, 2016 p. 10 : « Fréquence d’échantillonnage : 48 kHz »"
+    },
+    {
+      "path": "audio.bit_depth",
+      "action": "accept",
+      "value": 24,
+      "source": "CST-RT-040 V1.2, 2016 p. 10 : « Quantification linéaire : 24 Bits pour le format PCM »"
+    },
+    {
+      "path": "audio.bit_depth_allowed",
+      "action": "accept",
+      "value": [
+        24
+      ],
+      "source": "CST-RT-040 V1.2, 2016 p. 16 : « Chaque piste audio du fichier MXF transportera un flux de type AES3, de résolution audio 24 bits, à 48 kHz de fréquence d’échantillonnage. »"
+    },
+    {
+      "path": "audio.same_bit_depth_all_tracks",
+      "action": "accept",
+      "value": true,
+      "source": "CST-RT-040 V1.2, 2016 p. 16 : « Chaque piste audio du fichier MXF transportera un flux de type AES3, de résolution audio 24 bits, à 48 kHz de fréquence d’échantillonnage. »"
+    },
+    {
+      "path": "audio.channel_layout",
+      "action": "accept",
+      "value": "stereo_pairs",
+      "source": "CST-RT-040 V1.2, 2016 p. 16 : « Les fichiers MXF Prêts à Diffuser comporteront 8 canaux audio, chaque canal distinct étant transporté par une piste AES3 distincte. »"
+    },
+    {
+      "path": "audio.loudness.method",
+      "action": "empty",
+      "value": null,
+      "source": null
+    },
+    {
+      "path": "audio.loudness.long_program_min_seconds",
+      "action": "empty",
+      "value": null,
+      "source": null
+    },
+    {
+      "path": "audio.loudness.long.integrated_lufs",
+      "action": "accept",
+      "value": -23.0,
+      "source": "CST-RT-040 V1.2, 2016 p. 14 : « \"Dialog level\" - 23,0 LUFS ± 1 (A mesurer) »"
+    },
+    {
+      "path": "audio.loudness.long.lra_max_lu",
+      "action": "accept",
+      "value": 20.0,
+      "source": "CST-RT-040 V1.2, 2016 p. 9 : « Excursion dynamique (Loudness Range ou LRA) ≤ 20,0 LU »"
+    },
+    {
+      "path": "audio.loudness.short.integrated_lufs",
+      "action": "empty",
+      "value": null,
+      "source": null
+    },
+    {
+      "path": "audio.true_peak_max_dbtp",
+      "action": "accept",
+      "value": -3.0,
+      "source": "CST-RT-040 V1.2, 2016 p. 8 : « Le niveau des crêtes du signal audio, mesuré en True Peak, ne doit pas dépasser -3,0 dBTP. »"
+    },
+    {
+      "path": "audio.alignment_tone.hz",
+      "action": "accept",
+      "value": 1000.0,
+      "source": "CST-RT-040 V1.2, 2016 p. 8 : « Un signal d’alignement 1000 Hz à -18 dBFS doit afficher un niveau de Loudness de -18 LUFS sur un équipement de mesure en EBU Mode, si le signal est présent sur les canaux gauche et droite d’un programme stéréo. »"
+    },
+    {
+      "path": "audio.alignment_tone.dbfs",
+      "action": "accept",
+      "value": -18.0,
+      "source": "CST-RT-040 V1.2, 2016 p. 8 : « Un signal d’alignement 1000 Hz à -18 dBFS doit afficher un niveau de Loudness de -18 LUFS sur un équipement de mesure en EBU Mode, si le signal est présent sur les canaux gauche et droite d’un programme stéréo. »"
+    },
+    {
+      "path": "audio.av_sync_ms.audio_early_max",
+      "action": "accept",
+      "value": 20.0,
+      "source": "CST-RT-040 V1.2, 2016 p. 10 : « Soit une avance maximale du son sur l’image de 20ms »"
+    },
+    {
+      "path": "audio.av_sync_ms.audio_late_max",
+      "action": "accept",
+      "value": 40.0,
+      "source": "CST-RT-040 V1.2, 2016 p. 10 : « Soit un retard maximum du son sur l’image de 40ms. »"
+    }
+  ],
+  "references": [
+    {
+      "norm": "ebu_r128",
+      "source": "CST-RT-040 V1.2, 2016 p. 4 : « EBU-R128 et R128s1: normalisation de l’intensité sonore (ou sonie, ou loudness) et niveau maximum permis »"
+    },
+    {
+      "norm": "itu_bt709",
+      "source": "CST-RT-040 V1.2, 2016 p. 4 : « ITU-R BT.709 : Paramètres de codage vidéo HD »"
+    },
+    {
+      "norm": "ebu_r103",
+      "source": "CST-RT-040 V1.2, 2016 p. 5 : « Conformément à la recommandation EBU R 103 (v2.0 juin 2016), et afin de garantir le respect de l’espace »"
+    }
+  ]
+}

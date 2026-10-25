@@ -1,0 +1,1890 @@
+{
+  "meta": {
+    "kind": "norm",
+    "name": "cst_rt040",
+    "document": {
+      "title": "CST-RT-040 — Rec Tech PAD Fichiers Editeurs (TV)",
+      "version": "V1.2, 2016"
+    },
+    "source_pdf": "normes/sources/TV/cst-rt-040-tv-2016-pad_fichiers_editeurs_v1.2.pdf",
+    "source_pdf_sha256": "c3c2a86b10aed7c7b068b5b775d9f17366ebedfcfe619316f6dd793a78480b3c",
+    "notes": "Brouillon extrait par qwen3-vl:8b-instruct (draft_profile_v2) : chaque valeur est à vérifier.",
+    "extends": [
+      "ebu_r128"
+    ]
+  },
+  "model": "qwen3-vl:8b-instruct",
+  "prompt_version": "draft_profile_v2",
+  "pdf_sha256": "c3c2a86b10aed7c7b068b5b775d9f17366ebedfcfe619316f6dd793a78480b3c",
+  "pages": 19,
+  "batches": 10,
+  "num_ctx": 23552,
+  "capped_pages": [],
+  "cited_norms": [
+    {
+      "norm": "SMPTE 299M",
+      "title": "SMPTE 299M",
+      "available": false,
+      "page": 4,
+      "quote": "SMPTE 299M : Audio 24-bit pour HD TV",
+      "field": "audio.bit_depth"
+    },
+    {
+      "norm": "ebu_r128",
+      "title": "EBU R 128",
+      "available": true,
+      "page": 4,
+      "quote": "EBU-R128 et R128s1: normalisation de l’intensité sonore (ou sonie, ou loudness) et niveau maximum permis",
+      "field": "audio.loudness.method"
+    }
+  ],
+  "fields": [
+    {
+      "path": "format.bit_depth_allowed",
+      "description": "Profondeurs d'image acceptées en bits par composante (ex. 10)",
+      "status": "VALEUR_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "format.bit_depth_allowed",
+          "value": 10,
+          "page": 5,
+          "quote": "Conformément à la recommandation EBU R 103 (v2.0 juin 2016), et afin de garantir le respect de l’espace colorimétrique (« Color Gamut »), il est recommandé que les valeurs numériques des composantes RGB, ainsi que la valeur Y de luminance correspondante, se situent impérativement entre les valeurs minimum et maximum, soit 5-246 en 8 bits (voir le tableau ci-dessous).",
+          "unit": "bits",
+          "status": "VALEUR_INVALIDE",
+          "reason": "valeur 10 incompatible avec le champ (Input should be a valid list)",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "format.chroma_allowed",
+      "description": "Sous-échantillonnage de la chrominance accepté : 4:2:0, 4:2:2, 4:4:4, ou rgb (fichier RVB)",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "format.chroma_allowed",
+          "value": null,
+          "page": 4,
+          "quote": "Le signal vidéo correspond aux caractéristiques 1080i (entrelacé) à 25 images/seconde de ces normes, quel que soit le format du signal vidéo d’origine.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : 4[:.][24][:.][024]|chromin|echantillonnage|sampling|rvb|rgb)",
+          "batch": 2,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "format.chroma_allowed",
+          "value": "4:2:2",
+          "page": 5,
+          "quote": "1080i – 25 images/seconde - 4:2:2 - ratio image 16/9",
+          "unit": null,
+          "status": "VALEUR_INVALIDE",
+          "reason": "valeur '4:2:2' incompatible avec le champ (Input should be a valid list)",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "format.width",
+      "description": "Largeur de l'image en pixels (ex. 1920)",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "format.width",
+          "value": null,
+          "page": 4,
+          "quote": "Les formats 1080/25p et 1080/25PsF sont proscrits.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : d{3,4} ?x ?d{3,4}|resolution|definition|pixels)",
+          "batch": 2,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "format.height",
+      "description": "Hauteur de l'image en lignes (ex. 1080)",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "format.height",
+          "value": null,
+          "page": 4,
+          "quote": "Les formats 1080/25p et 1080/25PsF sont proscrits.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : d{3,4} ?x ?d{3,4}|resolution|definition|lignes)",
+          "batch": 2,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "format.height",
+          "value": 540,
+          "page": 5,
+          "quote": "Nombre de lignes 540",
+          "unit": "lignes",
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "format.height",
+          "value": 540,
+          "page": 5,
+          "quote": "Nombre de lignes 540",
+          "unit": "lignes",
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "format.height",
+          "value": 540,
+          "page": 5,
+          "quote": "Nombre de lignes 540",
+          "unit": "lignes",
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "format.height",
+          "value": 540,
+          "page": 5,
+          "quote": "Nombre de lignes 540",
+          "unit": "lignes",
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "format.height",
+          "value": 519,
+          "page": 5,
+          "quote": "Nombre de lignes 519*",
+          "unit": "lignes",
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "format.height",
+          "value": 409,
+          "page": 5,
+          "quote": "Nombre de lignes 409*",
+          "unit": "lignes",
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "format.height",
+          "value": 403,
+          "page": 5,
+          "quote": "Nombre de lignes 403*",
+          "unit": "lignes",
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "format.field_order",
+      "description": "Balayage attendu : progressive, psf (progressif en deux trames), tt, bb, tb ou bt (entrelacé)",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "format.field_order",
+          "value": null,
+          "page": 4,
+          "quote": "Les formats 1080/25p et 1080/25PsF sont proscrits.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "la citation ne nomme aucune norme",
+          "batch": 2,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "format.color_primaries",
+      "description": "Primaires colorimétriques attendues (ex. bt709 ; coherent : cohérentes avec le fichier)",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "format.color_primaries",
+          "value": null,
+          "page": 4,
+          "quote": "Le signal vidéo correspond aux caractéristiques 1080i (entrelacé) à 25 images/seconde de ces normes, quel que soit le format du signal vidéo d’origine.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : 709|2020|colorim|primaires|gamma|espace)",
+          "batch": 2,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "format.color_transfer",
+      "description": "Fonction de transfert attendue (ex. bt709 ; coherent : cohérente avec le fichier)",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "format.color_transfer",
+          "value": null,
+          "page": 4,
+          "quote": "Le signal vidéo correspond aux caractéristiques 1080i (entrelacé) à 25 images/seconde de ces normes, quel que soit le format du signal vidéo d’origine.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : 709|2020|colorim|primaires|gamma|espace)",
+          "batch": 2,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "format.color_space",
+      "description": "Matrice de couleur attendue (ex. bt709 ; coherent : cohérente avec le fichier)",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "format.color_space",
+          "value": null,
+          "page": 4,
+          "quote": "Le signal vidéo correspond aux caractéristiques 1080i (entrelacé) à 25 images/seconde de ces normes, quel que soit le format du signal vidéo d’origine.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : 709|2020|colorim|primaires|gamma|espace)",
+          "batch": 2,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "format.color_range",
+      "description": "Plage de codage : tv (légale, 64-940 en 10 bits) ou pc (pleine)",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "format.color_range",
+          "value": null,
+          "page": 4,
+          "quote": "Le signal vidéo correspond aux caractéristiques 1080i (entrelacé) à 25 images/seconde de ces normes, quel que soit le format du signal vidéo d’origine.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : 64|940|16|235|plage|range|legal)",
+          "batch": 2,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "format.delivery.scan",
+      "description": "Balayage du fichier livré : progressive, interlaced_tff, interlaced_bff ou psf",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "format.delivery.scan",
+          "value": null,
+          "page": 4,
+          "quote": "Les formats 1080/25p et 1080/25PsF sont proscrits.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "la citation ne nomme aucune norme",
+          "batch": 2,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "video.y_tolerance_low_pct",
+      "description": "Tolérance basse de la luminance Y en pourcentage de la plage nominale (ex. -1)",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "video.y_tolerance_low_pct",
+          "value": 1,
+          "page": 5,
+          "quote": "La proportion de pixels dont les valeurs sont hors « Color Gamut » (voir tableau ci-dessus) ne doit pas excéder 1% du nombre total de pixels de l’image active.",
+          "unit": "%",
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : luminance|y)",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "video.y_tolerance_high_pct",
+      "description": "Tolérance haute de la luminance Y en pourcentage de la plage nominale (ex. 103)",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "video.y_tolerance_high_pct",
+          "value": 103,
+          "page": 5,
+          "quote": "La proportion de pixels dont les valeurs sont hors « Color Gamut » (voir tableau ci-dessus) ne doit pas excéder 1% du nombre total de pixels de l’image active.",
+          "unit": "%",
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : luminance|y)",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "video.rgb_min_pct",
+      "description": "Tolérance basse des composantes R, V, B en pourcentage (ex. -5)",
+      "status": "A_VERIFIER",
+      "value": 1.0,
+      "findings": [
+        {
+          "field": "video.rgb_min_pct",
+          "value": 1.0,
+          "page": 5,
+          "quote": "La proportion de pixels dont les valeurs sont hors « Color Gamut » (voir tableau ci-dessus) ne doit pas excéder 1% du nombre total de pixels de l’image active.",
+          "unit": "%",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "video.rgb_max_pct",
+      "description": "Tolérance haute des composantes R, V, B en pourcentage (ex. 105)",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "video.rgb_max_pct",
+          "value": 103,
+          "page": 5,
+          "quote": "La proportion de pixels dont les valeurs sont hors « Color Gamut » (voir tableau ci-dessus) ne doit pas excéder 1% du nombre total de pixels de l’image active.",
+          "unit": "%",
+          "status": "CITATION_INVALIDE",
+          "reason": "la citation ne contient pas le nombre 103",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.sample_rate",
+      "description": "Fréquence d'échantillonnage audio en Hz (ex. 48000)",
+      "status": "A_VERIFIER",
+      "value": 48000,
+      "findings": [
+        {
+          "field": "audio.sample_rate",
+          "value": null,
+          "page": 4,
+          "quote": "SMPTE 299M : Audio 24-bit pour HD TV",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : khz|hz|echantillonnage|frequence)",
+          "batch": 2,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.sample_rate",
+          "value": 48000,
+          "page": 10,
+          "quote": "Fréquence d’échantillonnage : 48 kHz",
+          "unit": "kHz",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "audio.sample_rate",
+          "value": 48000,
+          "page": 16,
+          "quote": "Chaque piste audio du fichier MXF transportera un flux de type AES3, de résolution audio 24 bits, à 48 kHz de fréquence d’échantillonnage.",
+          "unit": "Hz",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 8,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "audio.sample_rate",
+          "value": 48000,
+          "page": 18,
+          "quote": "PCM Pulse Code Modulation : signal audio numérique non compressé, représentation d’un signal analogique dans les limites de sa fréquence d’échantillonnage et de son niveau de quantification numérique.",
+          "unit": "Hz",
+          "status": "CITATION_INVALIDE",
+          "reason": "la citation ne contient pas le nombre 48000",
+          "batch": 9,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.bit_depth",
+      "description": "Quantification audio en bits (ex. 24)",
+      "status": "A_VERIFIER",
+      "value": 24,
+      "findings": [
+        {
+          "field": "audio.bit_depth",
+          "value": null,
+          "page": 4,
+          "quote": "SMPTE 299M : Audio 24-bit pour HD TV",
+          "unit": null,
+          "status": "RENVOI_NORME",
+          "reason": "",
+          "batch": 2,
+          "source_type": "client_refers_to_norm",
+          "norm": "SMPTE 299M"
+        },
+        {
+          "field": "audio.bit_depth",
+          "value": 24,
+          "page": 10,
+          "quote": "Quantification linéaire : 24 Bits pour le format PCM",
+          "unit": "Bits",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "audio.bit_depth",
+          "value": 24,
+          "page": 16,
+          "quote": "Chaque piste audio du fichier MXF transportera un flux de type AES3, de résolution audio 24 bits, à 48 kHz de fréquence d’échantillonnage.",
+          "unit": "bits",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 8,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.bit_depth_allowed",
+      "description": "Quantifications audio acceptées en bits (ex. [24, 16])",
+      "status": "CONFLIT",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.bit_depth_allowed",
+          "value": [
+            24,
+            20
+          ],
+          "page": 10,
+          "quote": "Quantification linéaire : 24 Bits pour le format PCM et 20 Bits avant encodage Dolby E",
+          "unit": "Bits",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "audio.bit_depth_allowed",
+          "value": [
+            24
+          ],
+          "page": 16,
+          "quote": "Chaque piste audio du fichier MXF transportera un flux de type AES3, de résolution audio 24 bits, à 48 kHz de fréquence d’échantillonnage.",
+          "unit": "bits",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 8,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.same_bit_depth_all_tracks",
+      "description": "Toutes les pistes doivent avoir la même quantification",
+      "status": "A_VERIFIER",
+      "value": true,
+      "findings": [
+        {
+          "field": "audio.same_bit_depth_all_tracks",
+          "value": true,
+          "page": 16,
+          "quote": "Chaque piste audio du fichier MXF transportera un flux de type AES3, de résolution audio 24 bits, à 48 kHz de fréquence d’échantillonnage.",
+          "unit": null,
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 8,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.channel_layout",
+      "description": "Organisation des pistes : stereo_pairs (pistes gérées par paires AES)",
+      "status": "A_VERIFIER",
+      "value": "stereo_pairs",
+      "findings": [
+        {
+          "field": "audio.channel_layout",
+          "value": "stereo_pairs",
+          "page": 12,
+          "quote": "Le codage DolbyE prend en compte 4 ou 8 canaux audio selon les conditions suivantes : ... le codage Dolby E est réalisé en configuration 2/0 ... le codage Dolby E est réalisé en configuration 3/2 ...",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 6,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "audio.channel_layout",
+          "value": "stereo_pairs",
+          "page": 12,
+          "quote": "Ceci implique d’office la configuration obligatoire des métadonnées Dolby E suivantes : ... Program Config = 5.1+2 ou 2+2 ...",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 6,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "audio.channel_layout",
+          "value": "stereo_pairs",
+          "page": 12,
+          "quote": "Channel Mode = 3/2 ou 2/0 pour le programme 1 ... Channel Mode = 2/0 pour le programme 2",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 6,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "audio.channel_layout",
+          "value": "stereo_pairs",
+          "page": 16,
+          "quote": "Les fichiers MXF Prêts à Diffuser comporteront 8 canaux audio, chaque canal distinct étant transporté par une piste AES3 distincte.",
+          "unit": null,
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 8,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.max_pairs",
+      "description": "Nombre maximal de paires audio AES",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.max_pairs",
+          "value": 8,
+          "page": 16,
+          "quote": "Les fichiers MXF Prêts à Diffuser comporteront 8 canaux audio, chaque canal distinct étant transporté par une piste AES3 distincte.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : paires?|pistes)",
+          "batch": 8,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.dual_mono_must_be_identical",
+      "description": "Une version mono doit être livrée en double mono identique et en phase",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.dual_mono_must_be_identical",
+          "value": true,
+          "page": 10,
+          "quote": "Les formats Dolby E doivent être exempts d’erreur CRC (Cyclic Redundance Code)",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : mono)",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.groups",
+      "description": "Affectation des pistes audio (nom de version, numéros de pistes, stéréo/mono/5.1, obligatoire)",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.groups",
+          "value": [
+            {
+              "name": "programme 1",
+              "tracks": [
+                1,
+                2
+              ],
+              "layout": "stereo",
+              "required": true
+            },
+            {
+              "name": "programme 2",
+              "tracks": [
+                3,
+                4
+              ],
+              "layout": "stereo",
+              "required": true
+            }
+          ],
+          "page": 12,
+          "quote": "Channel Mode = 3/2 ou 2/0 pour le programme 1 ... Channel Mode = 2/0 pour le programme 2",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 6,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.method",
+      "description": "Méthode et norme de mesure du loudness (ex. EBU R 128, ITU-R BS.1770)",
+      "status": "RENVOI_NORME",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.loudness.method",
+          "value": null,
+          "page": 4,
+          "quote": "EBU-R128 et R128s1: normalisation de l’intensité sonore (ou sonie, ou loudness) et niveau maximum permis",
+          "unit": null,
+          "status": "RENVOI_NORME",
+          "reason": "",
+          "batch": 2,
+          "source_type": "client_refers_to_norm",
+          "norm": "ebu_r128"
+        },
+        {
+          "field": "audio.loudness.method",
+          "value": null,
+          "page": 4,
+          "quote": "EBU-Tech 3341, 3342, 3343, 3344 : recommandations techniques relatives à l’EBU R128 et R128s1",
+          "unit": null,
+          "status": "RENVOI_NORME",
+          "reason": "",
+          "batch": 2,
+          "source_type": "client_refers_to_norm",
+          "norm": "ebu_r128"
+        },
+        {
+          "field": "audio.loudness.method",
+          "value": null,
+          "page": 4,
+          "quote": "EBU-Tech 3276 et 3276s1 : calibration des systèmes d’écoute",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "la citation ne nomme aucune norme",
+          "batch": 2,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.method",
+          "value": null,
+          "page": 4,
+          "quote": "EBU Tech 3304 : Signaux de test audio 5.1",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "la citation ne nomme aucune norme",
+          "batch": 2,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.method",
+          "value": null,
+          "page": 4,
+          "quote": "ITU-R BS.1770-4 : Algorithme de mesure audio Leq RLB",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 2,
+          "source_type": "client_refers_to_norm",
+          "norm": "ITU-R BS.1770-4"
+        },
+        {
+          "field": "audio.loudness.method",
+          "value": null,
+          "page": 4,
+          "quote": "ITU-R BS.775 : Disposition des haut-parleurs 5.1",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : r ?128|1770|3341|3342|3343|3344|ebu)",
+          "batch": 2,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.method",
+          "value": null,
+          "page": 4,
+          "quote": "UER-R91-1998 : Allocation des canaux en audio 5.1",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : r ?128|1770|3341|3342|3343|3344|ebu)",
+          "batch": 2,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.method",
+          "value": null,
+          "page": 4,
+          "quote": "IEC 60268-5 : Ecoutes audio",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : r ?128|1770|3341|3342|3343|3344|ebu)",
+          "batch": 2,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.method",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "RENVOI_NORME",
+          "reason": "",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": "ebu_r128"
+        },
+        {
+          "field": "audio.loudness.method",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "RENVOI_NORME",
+          "reason": "",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": "ebu_r128"
+        },
+        {
+          "field": "audio.loudness.method",
+          "value": null,
+          "page": 18,
+          "quote": "LU ou LUFS Loudness Unit ou Loudness Unit relative à l’échelle Full Scale : unité de mesure d’intensité sonore définie par la recommandation EBU R128",
+          "unit": null,
+          "status": "RENVOI_NORME",
+          "reason": "",
+          "batch": 9,
+          "source_type": "client_refers_to_norm",
+          "norm": "ebu_r128"
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.long_program_min_seconds",
+      "description": "Durée en secondes au-delà de laquelle un programme est « long »",
+      "status": "RENVOI_NORME",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.loudness.long_program_min_seconds",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "RENVOI_NORME",
+          "reason": "",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": "ebu_r128"
+        },
+        {
+          "field": "audio.loudness.long_program_min_seconds",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "RENVOI_NORME",
+          "reason": "",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": "ebu_r128"
+        },
+        {
+          "field": "audio.loudness.long_program_min_seconds",
+          "value": 120,
+          "page": 9,
+          "quote": "Programme long : un programme dont la durée est supérieure à 2 minutes.",
+          "unit": "s",
+          "status": "CITATION_INVALIDE",
+          "reason": "la citation ne contient pas le nombre 120",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.long.integrated_lufs",
+      "description": "Loudness intégré cible du programme en LUFS (ex. -23)",
+      "status": "A_VERIFIER",
+      "value": -23.0,
+      "findings": [
+        {
+          "field": "audio.loudness.long.integrated_lufs",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "RENVOI_NORME",
+          "reason": "",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": "ebu_r128"
+        },
+        {
+          "field": "audio.loudness.long.integrated_lufs",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "RENVOI_NORME",
+          "reason": "",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": "ebu_r128"
+        },
+        {
+          "field": "audio.loudness.long.integrated_lufs",
+          "value": -23.0,
+          "page": 9,
+          "quote": "Mesure du niveau d’intensité sonore sur le programme complet (Integrated loudness) : -23,0 LUFS",
+          "unit": "LUFS",
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.long.integrated_lufs",
+          "value": -23.0,
+          "page": 14,
+          "quote": "\"Dialog level\" - 23,0 LUFS ± 1 (A mesurer)",
+          "unit": "LUFS",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 7,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.long.integrated_lufs",
+          "value": -23.0,
+          "page": 14,
+          "quote": "\"Dialog level\" - 23,0 LUFS ± 1 (A mesurer)",
+          "unit": "LUFS",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 7,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.long.integrated_lufs",
+          "value": -23.0,
+          "page": 14,
+          "quote": "\"Dialog level\" - 23,0 LUFS ± 1 (A mesurer)",
+          "unit": "LUFS",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 7,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.long.integrated_lufs",
+          "value": -23.0,
+          "page": 14,
+          "quote": "\"Dialog level\" - 23,0 LUFS ± 1 (A mesurer)",
+          "unit": "LUFS",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 7,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.long.integrated_lufs",
+          "value": -31.0,
+          "page": 14,
+          "quote": "Signal de référence - 31,0 LUFS",
+          "unit": "LUFS",
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 7,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.long.integrated_tolerance_lu",
+      "description": "Tolérance autour du loudness intégré cible, en LU (ex. 1 pour ± 1 LU)",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.loudness.long.integrated_tolerance_lu",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : toleran|±|+/-)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.long.integrated_tolerance_lu",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : toleran|±|+/-)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.long.integrated_tolerance_lu",
+          "value": 1.0,
+          "page": 9,
+          "quote": "Mesure du niveau d’intensité sonore sur le programme complet (Integrated loudness) : -23,0 LUFS ± 1,0 LU",
+          "unit": "LU",
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.long.lra_max_lu",
+      "description": "Plage de loudness (LRA) maximale en LU",
+      "status": "A_VERIFIER",
+      "value": 20.0,
+      "findings": [
+        {
+          "field": "audio.loudness.long.lra_max_lu",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : lra|loudness range)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.long.lra_max_lu",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : lra|loudness range)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.long.lra_max_lu",
+          "value": 20.0,
+          "page": 9,
+          "quote": "Excursion dynamique (Loudness Range ou LRA) ≤ 20,0 LU",
+          "unit": "LU",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.long.lra_recommended_range_lu",
+      "description": "Plage de LRA recommandée en LU [min, max] (information)",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.loudness.long.lra_recommended_range_lu",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : lra|loudness range)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.long.lra_recommended_range_lu",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : lra|loudness range)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.long.short_term_dialogue_excursion_lu",
+      "description": "Excursion admise du loudness short term (3 s) autour de la cible pour le dialogue, en LU",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.loudness.long.short_term_dialogue_excursion_lu",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : short.?term|court terme)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.long.short_term_dialogue_excursion_lu",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : short.?term|court terme)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.long.short_term_dialogue_excursion_lu",
+          "value": 7.0,
+          "page": 9,
+          "quote": "s’autoriser une excursion maximale de 7 LU autour de ce niveau cible",
+          "unit": "LU",
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : short.?term|court terme)",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.long.short_term_max_lufs",
+      "description": "Loudness short term (3 s) maximal en LUFS",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.loudness.long.short_term_max_lufs",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : short.?term|court terme)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.long.short_term_max_lufs",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : short.?term|court terme)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.long.short_term_max_lufs",
+          "value": -20.0,
+          "page": 9,
+          "quote": "Niveau maximum de la mesure d’intensité sonore court terme (Max Short Term Loudness) : ≤ -20,0 LUFS",
+          "unit": "LUFS",
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.long.short_term_excursion_above_lu",
+      "description": "Excursion maximale du short term au-dessus de la cible, en LU",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.loudness.long.short_term_excursion_above_lu",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : short.?term|court terme)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.long.short_term_excursion_above_lu",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : short.?term|court terme)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.short.integrated_lufs",
+      "description": "Loudness intégré cible du programme en LUFS (ex. -23)",
+      "status": "RENVOI_NORME",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.loudness.short.integrated_lufs",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "RENVOI_NORME",
+          "reason": "",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": "ebu_r128"
+        },
+        {
+          "field": "audio.loudness.short.integrated_lufs",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "RENVOI_NORME",
+          "reason": "",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": "ebu_r128"
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.short.integrated_tolerance_lu",
+      "description": "Tolérance autour du loudness intégré cible, en LU (ex. 1 pour ± 1 LU)",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.loudness.short.integrated_tolerance_lu",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : toleran|±|+/-)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.short.integrated_tolerance_lu",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : toleran|±|+/-)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.short.lra_max_lu",
+      "description": "Plage de loudness (LRA) maximale en LU",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.loudness.short.lra_max_lu",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : lra|loudness range)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.short.lra_max_lu",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : lra|loudness range)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.short.lra_recommended_range_lu",
+      "description": "Plage de LRA recommandée en LU [min, max] (information)",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.loudness.short.lra_recommended_range_lu",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : lra|loudness range)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.short.lra_recommended_range_lu",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : lra|loudness range)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.short.short_term_dialogue_excursion_lu",
+      "description": "Excursion admise du loudness short term (3 s) autour de la cible pour le dialogue, en LU",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.loudness.short.short_term_dialogue_excursion_lu",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : short.?term|court terme)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.short.short_term_dialogue_excursion_lu",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : short.?term|court terme)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.short.short_term_max_lufs",
+      "description": "Loudness short term (3 s) maximal en LUFS",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.loudness.short.short_term_max_lufs",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : short.?term|court terme)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.short.short_term_max_lufs",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : short.?term|court terme)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.short.short_term_excursion_above_lu",
+      "description": "Excursion maximale du short term au-dessus de la cible, en LU",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.loudness.short.short_term_excursion_above_lu",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : short.?term|court terme)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        },
+        {
+          "field": "audio.loudness.short.short_term_excursion_above_lu",
+          "value": null,
+          "page": 8,
+          "quote": "La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un équipement implémentant l’algorithme décrit dans la recommandation R 128 éditée par l’EBU, ainsi que dans ses annexes 3341, 3342, 3343 et 3344 et délivrant une valeur en dB LUFS.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : short.?term|court terme)",
+          "batch": 4,
+          "source_type": "client_refers_to_norm",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.true_peak_max_dbtp",
+      "description": "Niveau crête vrai (true peak) maximal en dBTP (ex. -1 ou -3)",
+      "status": "A_VERIFIER",
+      "value": -3.0,
+      "findings": [
+        {
+          "field": "audio.true_peak_max_dbtp",
+          "value": -3.0,
+          "page": 8,
+          "quote": "Le niveau des crêtes du signal audio, mesuré en True Peak, ne doit pas dépasser -3,0 dBTP.",
+          "unit": "dBTP",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 4,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "audio.true_peak_max_dbtp",
+          "value": -3.0,
+          "page": 9,
+          "quote": "Valeur maximum des crêtes instantanées (True peaks) : -3,0 dB TP",
+          "unit": "dBTP",
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.alignment_tone.hz",
+      "description": "Fréquence du signal d'alignement en Hz",
+      "status": "A_VERIFIER",
+      "value": 1000.0,
+      "findings": [
+        {
+          "field": "audio.alignment_tone.hz",
+          "value": 1000.0,
+          "page": 8,
+          "quote": "Un signal d’alignement 1000 Hz à -18 dBFS doit afficher un niveau de Loudness de -18 LUFS sur un équipement de mesure en EBU Mode, si le signal est présent sur les canaux gauche et droite d’un programme stéréo.",
+          "unit": "Hz",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 4,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.alignment_tone.dbfs",
+      "description": "Niveau du signal d'alignement en dBFS",
+      "status": "A_VERIFIER",
+      "value": -18.0,
+      "findings": [
+        {
+          "field": "audio.alignment_tone.dbfs",
+          "value": -18.0,
+          "page": 8,
+          "quote": "Un signal d’alignement 1000 Hz à -18 dBFS doit afficher un niveau de Loudness de -18 LUFS sur un équipement de mesure en EBU Mode, si le signal est présent sur les canaux gauche et droite d’un programme stéréo.",
+          "unit": "dBFS",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 4,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.phase_min_correlation",
+      "description": "Corrélation de phase stéréo minimale admise",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.phase_min_correlation",
+          "value": 0.99,
+          "page": 11,
+          "quote": "Phase audio ... Pour assurer la compatibilité du downmix mono, la phase doit être très majoritairement positive.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 6,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.av_sync_ms.audio_early_max",
+      "description": "Avance maximale du son sur l'image, en ms",
+      "status": "A_VERIFIER",
+      "value": 20.0,
+      "findings": [
+        {
+          "field": "audio.av_sync_ms.audio_early_max",
+          "value": 20.0,
+          "page": 10,
+          "quote": "Soit une avance maximale du son sur l’image de 20ms",
+          "unit": "ms",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.av_sync_ms.audio_late_max",
+      "description": "Retard maximal du son sur l'image, en ms",
+      "status": "A_VERIFIER",
+      "value": 40.0,
+      "findings": [
+        {
+          "field": "audio.av_sync_ms.audio_late_max",
+          "value": 40.0,
+          "page": 10,
+          "quote": "Soit un retard maximum du son sur l’image de 40ms.",
+          "unit": "ms",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "structure.leaders",
+      "description": "Amorces : classic (mire, noirs de tête et de queue) ou none (aucune amorce)",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "structure.leaders",
+          "value": "none",
+          "page": 15,
+          "quote": "La présence d’éléments d’amorce avant la première image, de même qu’après la dernière image utile du programme (noir, fonds neutres) restent à la discrétion de l'éditeur.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "la citation ne dit pas \"none\" pour ce champ",
+          "batch": 8,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "structure.timecode.file_start",
+      "description": "Timecode de la première image du fichier, HH:MM:SS:FF",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "structure.timecode.file_start",
+          "value": null,
+          "page": 16,
+          "quote": "Time Code de début de programme (TCP) Conforme au time code du début de fichier MXF livré",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 8,
+          "source_type": "client_refers_to_norm",
+          "norm": "Conforme au time code du début de fichier MXF livré"
+        }
+      ]
+    },
+    {
+      "path": "structure.timecode.program_start",
+      "description": "Timecode de la première image du programme, HH:MM:SS:FF (ex. 10:00:00:00)",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "structure.timecode.program_start",
+          "value": null,
+          "page": 16,
+          "quote": "Time Code de début de programme (TCP) Conforme au time code du début de fichier MXF livré",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 8,
+          "source_type": "client_refers_to_norm",
+          "norm": "Conforme au time code du début de fichier MXF livré"
+        }
+      ]
+    },
+    {
+      "path": "structure.timecode.drop_frame_allowed",
+      "description": "Timecode drop frame autorisé",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "structure.timecode.drop_frame_allowed",
+          "value": false,
+          "page": 16,
+          "quote": "Format du Time Code (TC) 25 i/s (STL25.01)",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : drop)",
+          "batch": 8,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "structure.timecode.must_be_continuous",
+      "description": "Timecode continu, sans saut ni recouvrement",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "structure.timecode.must_be_continuous",
+          "value": true,
+          "page": 15,
+          "quote": "Les différentes informations de Time Code que peut comporter un fichier MXF devront s’avérer cohérentes entre elles et seront obligatoirement présentes dans le “Material Package”, “Source Package” et le \"System Item\" du fichier MXF.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation sans rapport avec le champ (mots attendus : continu|saut|recouvrement|discontinu)",
+          "batch": 8,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "structure.first_frames.no_subtitles_first_frames",
+      "description": "Nombre de premières images sans sous-titre",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "structure.first_frames.no_subtitles_first_frames",
+          "value": 0,
+          "page": 16,
+          "quote": "Le Time Code de sortie du dernier sous-titre du programme sera positionné au plus tard 3 secondes avant la dernière image utile du programme pour éviter que ce dernier sous-titre ne reste figé en diffusion sur le programme suivant.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 8,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "structure.credits.end_credits_max_seconds",
+      "description": "Durée maximale du générique de fin par genre, en secondes",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "structure.credits.end_credits_max_seconds",
+          "value": null,
+          "page": 16,
+          "quote": "Le Time Code de sortie du dernier sous-titre du programme sera positionné au plus tard 3 secondes avant la dernière image utile du programme pour éviter que ce dernier sous-titre ne reste figé en diffusion sur le programme suivant.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 8,
+          "source_type": "client_refers_to_norm",
+          "norm": "Le Time Code de sortie du dernier sous-titre du programme sera positionné au plus tard 3 secondes avant la dernière image utile du programme pour éviter que ce dernier sous-titre ne reste figé en diffusion sur le programme suivant."
+        }
+      ]
+    },
+    {
+      "path": "structure.credits.silent_black_credits_forbidden",
+      "description": "Générique silencieux sur noir interdit",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "structure.credits.silent_black_credits_forbidden",
+          "value": true,
+          "page": 16,
+          "quote": "Le Time Code de sortie du dernier sous-titre du programme sera positionné au plus tard 3 secondes avant la dernière image utile du programme pour éviter que ce dernier sous-titre ne reste figé en diffusion sur le programme suivant.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 8,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "structure.safe_areas.title_safe_pct.horizontal",
+      "description": "Marge horizontale en pourcentage",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "structure.safe_areas.title_safe_pct.horizontal",
+          "value": null,
+          "page": 16,
+          "quote": "Le Time Code de sortie du dernier sous-titre du programme sera positionné au plus tard 3 secondes avant la dernière image utile du programme pour éviter que ce dernier sous-titre ne reste figé en diffusion sur le programme suivant.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 8,
+          "source_type": "client_refers_to_norm",
+          "norm": "Le Time Code de sortie du dernier sous-titre du programme sera positionné au plus tard 3 secondes avant la dernière image utile du programme pour éviter que ce dernier sous-titre ne reste figé en diffusion sur le programme suivant."
+        }
+      ]
+    },
+    {
+      "path": "structure.safe_areas.title_safe_pct.vertical",
+      "description": "Marge verticale en pourcentage",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "structure.safe_areas.title_safe_pct.vertical",
+          "value": null,
+          "page": 16,
+          "quote": "Le Time Code de sortie du dernier sous-titre du programme sera positionné au plus tard 3 secondes avant la dernière image utile du programme pour éviter que ce dernier sous-titre ne reste figé en diffusion sur le programme suivant.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 8,
+          "source_type": "client_refers_to_norm",
+          "norm": "Le Time Code de sortie du dernier sous-titre du programme sera positionné au plus tard 3 secondes avant la dernière image utile du programme pour éviter que ce dernier sous-titre ne reste figé en diffusion sur le programme suivant."
+        }
+      ]
+    },
+    {
+      "path": "structure.safe_areas.subtitle_safe",
+      "description": "Zone de sécurité des sous-titres",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "structure.safe_areas.subtitle_safe",
+          "value": null,
+          "page": 16,
+          "quote": "Le Time Code de sortie du dernier sous-titre du programme sera positionné au plus tard 3 secondes avant la dernière image utile du programme pour éviter que ce dernier sous-titre ne reste figé en diffusion sur le programme suivant.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 8,
+          "source_type": "client_refers_to_norm",
+          "norm": "Le Time Code de sortie du dernier sous-titre du programme sera positionné au plus tard 3 secondes avant la dernière image utile du programme pour éviter que ce dernier sous-titre ne reste figé en diffusion sur le programme suivant."
+        }
+      ]
+    },
+    {
+      "path": "structure.safe_areas.logo_corners_free",
+      "description": "Coins de l'image libres pour le logo",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "structure.safe_areas.logo_corners_free",
+          "value": null,
+          "page": 16,
+          "quote": "Le Time Code de sortie du dernier sous-titre du programme sera positionné au plus tard 3 secondes avant la dernière image utile du programme pour éviter que ce dernier sous-titre ne reste figé en diffusion sur le programme suivant.",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "citation introuvable dans la page",
+          "batch": 8,
+          "source_type": "client_refers_to_norm",
+          "norm": "Le Time Code de sortie du dernier sous-titre du programme sera positionné au plus tard 3 secondes avant la dernière image utile du programme pour éviter que ce dernier sous-titre ne reste figé en diffusion sur le programme suivant."
+        }
+      ]
+    }
+  ],
+  "not_found": [
+    "format.codecs",
+    "format.containers",
+    "format.pix_fmt",
+    "format.fps_allowed",
+    "format.unknown_color_tags_severity",
+    "format.letterbox.check",
+    "format.letterbox.formats",
+    "format.letterbox.tolerance_lines",
+    "format.delivery.fps",
+    "format.delivery.codec",
+    "video.bit_depth",
+    "video.y_min_legal",
+    "video.y_max_legal",
+    "video.max_out_of_range_area_pct",
+    "video.prefilter",
+    "video.prefilter_taps",
+    "video.measure_spaces",
+    "video.scan_detection.comb_ratio_min",
+    "video.scan_detection.motion_min",
+    "video.scan_detection.interlaced_min_pct",
+    "video.scan_detection.progressive_max_pct",
+    "video.scan_detection.min_moving_frames",
+    "video.range_detection.reserved_min_frames_pct",
+    "audio.no_silent_tracks",
+    "audio.silent_track_dbfs",
+    "audio.loudness_exempt_groups",
+    "audio.silence_dbfs",
+    "audio.silence_max_seconds",
+    "audio.phase_min_seconds",
+    "audio.exclude_head_tail",
+    "structure.timecode.tolerance_frames",
+    "structure.bars.required",
+    "structure.bars.forbidden",
+    "structure.bars.start_tc",
+    "structure.bars.min_seconds",
+    "structure.bars.pattern",
+    "structure.bars.tone_hz",
+    "structure.bars.tone_dbfs",
+    "structure.bars.tone_tolerance_db",
+    "structure.bars.tolerance",
+    "structure.black.head_min_seconds",
+    "structure.black.tail_min_seconds",
+    "structure.black.head_max_seconds",
+    "structure.black.tail_max_seconds",
+    "structure.black.y_max",
+    "structure.black.silence_dbfs",
+    "structure.freeze.threshold",
+    "structure.freeze.min_seconds",
+    "structure.pse.enabled",
+    "structure.pse.max_flashes_per_second",
+    "structure.pse.flash_min_delta_pct",
+    "structure.pse.flash_min_area_pct",
+    "structure.logo.forbidden"
+  ]
+}

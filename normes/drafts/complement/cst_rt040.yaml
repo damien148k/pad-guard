@@ -1,0 +1,145 @@
+# BROUILLON de norme « cst_rt040 » produit par pad-guard draft-profile : NE PAS UTILISER EN L'ÉTAT.
+# Source : normes/sources/TV/cst-rt-040-tv-2016-pad_fichiers_editeurs_v1.2.pdf (SHA-256 c3c2a86b10aed7c7b068b5b775d9f17366ebedfcfe619316f6dd793a78480b3c), 19 pages.
+# Modèle local : relevé manuel (Claude Code), citations vérifiées par le code, consigne draft_profile_v2, 10 lots de pages, contexte 23552 jetons.
+# Chaque valeur est à vérifier (A VERIFIER) : la citation a été retrouvée dans la page et contient le nombre,
+# mais seul un humain peut confirmer le sens. À relire avec : pad-guard review-profile <ce fichier>.
+# Statuts : 11 A_VERIFIER, 4 CITATION_INVALIDE, 94 champ(s) non trouvé(s).
+#
+# Normes citées par le document (celles de normes/ proposées dans meta.extends ; review-profile confirme
+# chaque renvoi, aucune valeur n'est recopiée) :
+#   (aucune)
+#
+# Champs pour lesquels le document renvoie à une norme sans écrire la valeur (absents : fournis par la
+# norme citée si review-profile confirme le renvoi) :
+#   (aucun)
+#
+# Champs non trouvés dans le document (absents de la norme) :
+#   - format.codecs
+#   - format.pix_fmt
+#   - format.field_order
+#   - format.color_primaries
+#   - format.color_transfer
+#   - format.color_space
+#   - format.unknown_color_tags_severity
+#   - format.letterbox.check
+#   - format.letterbox.formats
+#   - format.letterbox.tolerance_lines
+#   - format.delivery.scan
+#   - format.delivery.fps
+#   - format.delivery.codec
+#   - video.bit_depth
+#   - video.y_tolerance_low_pct
+#   - video.y_tolerance_high_pct
+#   - video.rgb_min_pct
+#   - video.rgb_max_pct
+#   - video.max_out_of_range_area_pct
+#   - video.prefilter
+#   - video.prefilter_taps
+#   - video.measure_spaces
+#   - video.scan_detection.comb_ratio_min
+#   - video.scan_detection.motion_min
+#   - video.scan_detection.interlaced_min_pct
+#   - video.scan_detection.progressive_max_pct
+#   - video.scan_detection.min_moving_frames
+#   - video.range_detection.reserved_min_frames_pct
+#   - audio.sample_rate
+#   - audio.bit_depth
+#   - audio.bit_depth_allowed
+#   - audio.same_bit_depth_all_tracks
+#   - audio.channel_layout
+#   - audio.max_pairs
+#   - audio.no_silent_tracks
+#   - audio.silent_track_dbfs
+#   - audio.groups
+#   - audio.loudness_exempt_groups
+#   - audio.loudness.method
+#   - audio.loudness.long.integrated_lufs
+#   - audio.loudness.long.lra_max_lu
+#   - audio.loudness.long.lra_recommended_range_lu
+#   - audio.loudness.long.short_term_max_lufs
+#   - audio.loudness.long.short_term_excursion_above_lu
+#   - audio.loudness.short.integrated_tolerance_lu
+#   - audio.loudness.short.lra_max_lu
+#   - audio.loudness.short.lra_recommended_range_lu
+#   - audio.loudness.short.short_term_dialogue_excursion_lu
+#   - audio.loudness.short.short_term_excursion_above_lu
+#   - audio.true_peak_max_dbtp
+#   - audio.alignment_tone.hz
+#   - audio.alignment_tone.dbfs
+#   - audio.silence_dbfs
+#   - audio.silence_max_seconds
+#   - audio.phase_min_correlation
+#   - audio.phase_min_seconds
+#   - audio.av_sync_ms.audio_early_max
+#   - audio.av_sync_ms.audio_late_max
+#   - audio.exclude_head_tail
+#   - structure.leaders
+#   - structure.timecode.file_start
+#   - structure.timecode.program_start
+#   - structure.timecode.tolerance_frames
+#   - structure.timecode.drop_frame_allowed
+#   - structure.timecode.must_be_continuous
+#   - structure.bars.required
+#   - structure.bars.forbidden
+#   - structure.bars.start_tc
+#   - structure.bars.min_seconds
+#   - structure.bars.pattern
+#   - structure.bars.tone_hz
+#   - structure.bars.tone_dbfs
+#   - structure.bars.tone_tolerance_db
+#   - structure.bars.tolerance
+#   - structure.black.head_min_seconds
+#   - structure.black.tail_min_seconds
+#   - structure.black.head_max_seconds
+#   - structure.black.tail_max_seconds
+#   - structure.black.y_max
+#   - structure.black.silence_dbfs
+#   - structure.freeze.threshold
+#   - structure.freeze.min_seconds
+#   - structure.pse.enabled
+#   - structure.pse.max_flashes_per_second
+#   - structure.pse.flash_min_delta_pct
+#   - structure.pse.flash_min_area_pct
+#   - structure.first_frames.no_subtitles_first_frames
+#   - structure.logo.forbidden
+#   - structure.credits.end_credits_max_seconds
+#   - structure.credits.silent_black_credits_forbidden
+#   - structure.safe_areas.title_safe_pct.horizontal
+#   - structure.safe_areas.title_safe_pct.vertical
+#   - structure.safe_areas.subtitle_safe
+#   - structure.safe_areas.logo_corners_free
+
+meta:
+  kind: norm
+  name: cst_rt040
+  document:
+    title: CST-RT-040 — Rec Tech PAD Fichiers Editeurs (TV)
+    version: V1.2, 2016
+  source_pdf: normes/sources/TV/cst-rt-040-tv-2016-pad_fichiers_editeurs_v1.2.pdf
+  source_pdf_sha256: c3c2a86b10aed7c7b068b5b775d9f17366ebedfcfe619316f6dd793a78480b3c
+  notes: 'Brouillon extrait par relevé manuel (Claude Code), citations vérifiées par le code (draft_profile_v2) : chaque valeur est à vérifier.'
+  extends: []
+
+format:
+  containers: null  # CITATION_INVALIDE : [mxf_op1a] (p. 15, CITATION_INVALIDE: paramètre interne à PAD Guard : il ne vient pas du document) « d’un seul fichier MXF Op1a contenant l’essence vidéo et les essences audio asso… »
+  bit_depth_allowed: [8]  # A VERIFIER (p. 6) « lors de la conformation du signal vidéo 8 bits destiné au fichier Prêt A Diffuser » [bits]
+  chroma_allowed: ['4:2:2']  # A VERIFIER (p. 5) « 1080i – 25 images/seconde - 4:2:2 - ratio image 16/9 »
+  width: 1920  # A VERIFIER (p. 4) « SMPTE 274M : Paramètres signal HD 1920x1080 » [pixels]
+  height: 1080  # A VERIFIER (p. 4) « SMPTE 274M : Paramètres signal HD 1920x1080 » [lignes]
+  fps_allowed: [25/1]  # A VERIFIER (p. 4) « Le signal vidéo correspond aux caractéristiques 1080i (entrelacé) à 25 images/seconde » ; aussi p. 5
+  color_range: tv  # A VERIFIER (p. 5) « 10 bits 64 – 940 20 – 984 4 - 1019 »
+
+video:
+  y_min_legal: 64  # A VERIFIER (p. 5) « 10 bits 64 – 940 20 – 984 4 - 1019 »
+  y_max_legal: 940  # A VERIFIER (p. 5) « 10 bits 64 – 940 20 – 984 4 - 1019 »
+
+audio:
+  dual_mono_must_be_identical: true  # A VERIFIER (p. 11) « ces deux pistes contenant le signal monophonique seront strictement identiques et en phase »
+  loudness:
+    long_program_min_seconds: null  # CITATION_INVALIDE : 120 (p. 9, CITATION_INVALIDE: la citation ne contient pas le nombre 120) « Programme long : un programme dont la durée est supérieure à 2 minutes. »
+    long:
+      integrated_tolerance_lu: 1.0  # A VERIFIER (p. 9) « ( | Mesure du niveau d’intensité | | -23,0 LUFS | -23,0 LUFS ± 1,0 LU » [LU]
+      short_term_dialogue_excursion_lu: null  # CITATION_INVALIDE : 7.0 (p. 9, CITATION_INVALIDE: le passage cité concerne les programmes courts) « la mesure d’intensité sonore court terme, sur les passages du programme comport… »
+    short:
+      integrated_lufs: null  # CITATION_INVALIDE : -23.0 (p. 9, CITATION_INVALIDE: le passage cité concerne les programmes longs) « ( | Mesure du niveau d’intensité | | -23,0 LUFS | -23,0 LUFS ± 1,0 LU »
+      short_term_max_lufs: -20.0  # A VERIFIER (p. 9) « ≤ -20,0 LUFS Non mesuré d’intensité sonore court terme (Max Short Term Loudness) » [LUFS]

@@ -1,148 +1,158 @@
-# Profil de contrôle PAD — exemple France Télévisions HD (SDR, 1080p25)
+# PROFIL PROVISOIRE : à refaire depuis l'annexe CDE 2023 + renvoi cst_rt040, valeurs sans citation à retirer.
+# meta.status: draft : le rapport est indicatif et n'affiche jamais CONFORME (CLAUDE.md, principe 7).
+# Version relue par Vincent le 25/10/2026 avec un serveur pad-guard ui antérieur, gardée en sauvegarde.
 #
-# ATTENTION : valeurs d'exemple fondées sur EBU R103, EBU R128 et CST RT-017.
-# Les valeurs marquées "A VERIFIER" doivent être relues dans le cahier des charges
-# officiel du diffuseur avant toute utilisation en production.
-# Les champs à null sont volontairement non renseignés : l'outil refuse de tourner
-# si une règle activée dépend d'un champ null.
-# Le document FTV n'a pas encore été relu : ses valeurs seront reprises du PDF (diffuseurs/) en
-# Phase 4b. En attendant, ce que le fichier ne fixe pas vient des normes (meta.extends) et
-# s'applique comme recommandation : toute anomalie qui en dépend est plafonnée à mineur
-# (CLAUDE.md, principe 2). `pad-checker explain-profile profiles/france_tv_hd.yaml` montre le
-# profil effectif. Hérité de normes/ebu_r103.yaml : Y légal 64-940, RVB -5 % / 105 %, surface 1 %,
-# préfiltre. Hérité de normes/ebu_r128.yaml : loudness cible -23 LUFS. Hérité de
-# normes/lumiris_maison.yaml : paramètres du PSE et de la détection du balayage.
-# Pas de format.delivery : le document FTV (diffuseurs/) n'a pas encore été relu.
+# Profil france_tv_hd relu avec pad-guard review-profile depuis france_tv_hd.yaml.
+# Document : diffuseurs/Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (SHA-256 3cdd935056d18335ddd561c0e61b60c138af317829db42cc44ac39a886481e28).
+# Chaque valeur citée a sa source dans la section « sources » ; « A VERIFIER » : valeur sans citation
+# du document du client (CLAUDE.md, principe 2).
 
 meta:
   name: france_tv_hd
-  version: "0.1"
-  broadcaster: "France Télévisions"
-  source_document: "Cahier des charges technique FTV HD — A VERIFIER (référence et date)"
-  notes: "Profil de démarrage, à valider par Vincent."
-  extends: [ebu_r128, ebu_r103, lumiris_maison]
-  status: draft                           # jamais validé par Vincent : rapport indicatif
+  version: '0.1'
+  broadcaster: France Télévisions
+  source_document: Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf
+  notes: Profil relu champ par champ depuis le brouillon france_tv_hd.yaml.
+  extends: [ebu_r103, ebu_r128, lumiris_maison]
+  refers_to:
+    - {norm: ebu_r128, source: 'Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 7 : « conformes à la norme R128 »'}
+  status: draft
+  source_pdf: diffuseurs/Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf
+  source_pdf_sha256: 3cdd935056d18335ddd561c0e61b60c138af317829db42cc44ac39a886481e28
 
 format:
-  codecs:
-    - {codec_name: prores, profile: "HQ"}          # ProRes 422 HQ
-    - {codec_name: dnxhd, profile: "DNXHR HQX"}    # DNxHR HQX (ffprobe l'annonce sous codec dnxhd)
-  containers: [mov, mxf]
-  bit_depth_allowed: [10]
-  chroma_allowed: ["4:2:2"]
+  codecs:  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+    - {codec_name: prores, profile: HQ}
+    - {codec_name: dnxhd, profile: DNXHR HQX}
+  containers: [mov, mxf]  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+  bit_depth_allowed: [10]  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+  chroma_allowed: ['4:2:2']  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
   width: 1920
   height: 1080
-  fps_allowed: ["25/1"]
-  field_order: progressive
-  color_primaries: bt709
-  color_transfer: bt709
-  color_space: bt709
-  color_range: tv
-  unknown_color_tags_severity: minor      # balises absentes = avertissement, pas blocage
+  fps_allowed: [25/1]  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+  field_order: progressive  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+  color_primaries: bt709  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+  color_transfer: bt709  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+  color_space: bt709  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+  color_range: tv  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+  unknown_color_tags_severity: minor  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
 
 video:
-  bit_depth: 10
-  y_tolerance_low_pct: -1.0               # valeur d'exemple, à reprendre du document FTV (Phase 4b)
-  y_tolerance_high_pct: 103.0             # valeur d'exemple, à reprendre du document FTV (Phase 4b)
-  prefilter_taps: 3                       # méthode non fixée par FTV : [1 2 1]/4 en attendant le filtre de R 103 (étape séparée)
+  bit_depth: 10  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+  y_tolerance_low_pct: -1.0  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+  y_tolerance_high_pct: 103.0  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+  prefilter_taps: 3  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
 
 audio:
   sample_rate: 48000
   bit_depth: 24
-  groups:                                 # A VERIFIER : mapping exigé par la chaîne
-    - {name: "VF stéréo", tracks: [1, 2], layout: stereo, required: true}
-    - {name: "VI stéréo", tracks: [3, 4], layout: stereo, required: false}
-  loudness:                               # pas de distinction programme court / long : "long" s'applique à tout
+  groups:  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+    - {layout: stereo, name: VF stéréo, required: true, tracks: [1, 2]}
+    - {layout: stereo, name: VI stéréo, required: false, tracks: [3, 4]}
+  loudness:
     long:
-      integrated_tolerance_lu: 1.0        # valeur d'exemple, à reprendre du document FTV (Phase 4b)
-      lra_max_lu: 20.0                    # A VERIFIER
-  true_peak_max_dbtp: -3.0                # CST RT-017 (France) ; EBU R128 seul dirait -1
-  silence_dbfs: -60.0
-  silence_max_seconds: 3.0                # hors tête et queue
-  phase_min_correlation: -0.3
-  phase_min_seconds: 2.0
-  exclude_head_tail: true                 # ne pas mesurer la mire/1 kHz ni les noirs
+      integrated_tolerance_lu: 1.0
+      lra_max_lu: 20.0
+      integrated_lufs: -23.0
+    method: -23LUFS (+/-1LU)
+  true_peak_max_dbtp: -3.0
+  silence_dbfs: -60.0  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+  silence_max_seconds: 3.0  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+  phase_min_correlation: -0.3  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+  phase_min_seconds: 2.0  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+  exclude_head_tail: true  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
 
 structure:
-  leaders: classic                        # mire + noir de tête, noir de queue
+  leaders: none
   timecode:
-    file_start: "09:59:30:00"             # A VERIFIER
-    program_start: "10:00:00:00"
-    tolerance_frames: 0
-    drop_frame_allowed: false
+    file_start: 00:00:00:00
+    program_start: '10:00:00:00'  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+    tolerance_frames: 0  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+    drop_frame_allowed: false  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
   bars:
-    required: true
-    start_tc: "09:59:30:00"
-    min_seconds: 20                       # A VERIFIER (souvent 30 s)
-    pattern: ebu_75                       # ebu_75 | ebu_100 | smpte_hd
-    tone_hz: 1000
-    tone_dbfs: -18.0                      # A VERIFIER (-18 dBFS est l'usage EBU)
-    tone_tolerance_db: 0.5                # SPEC §6.1 : niveau du 1 kHz à ± 0,5 dB (sinus, RMS × √2)
-    tolerance: 12                         # erreur moyenne max par barre, en valeurs de code 10 bits
+    required: false
+    start_tc: 09:59:30:00  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+    min_seconds: 20  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+    pattern: ebu_75  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+    tone_hz: 1000  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+    tone_dbfs: -18.0  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+    tone_tolerance_db: 0.5  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+    tolerance: 12  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
   black:
-    head_min_seconds: 5                   # noir + silence juste avant 10:00:00:00 — A VERIFIER
-    tail_min_seconds: 10                  # A VERIFIER
-    y_max: 68                             # une image est "noire" si y_p99 < 68
-    silence_dbfs: -60.0
+    head_min_seconds: 5  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+    tail_min_seconds: 10  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+    y_max: 68  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+    silence_dbfs: -60.0  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
   freeze:
-    threshold: 0.5                        # diff. absolue moyenne (code 10 bits) entre images consécutives
-    min_seconds: 2.0
+    threshold: 0.5  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+    min_seconds: 2.0  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
 
 rules:
-  # merge_gap_seconds (0,5 s) et min_event_seconds.freeze (2 s) : normes/lumiris_maison.yaml
   min_event_frames:
-    white_clip: 1
-    black_crush: 1
-    gamut: 3
-  max_major: 0                            # un seul "major" = NON-CONFORME
-  score_formula: "100 - 40*blocking - 10*major - 2*minor"
+    white_clip: 1  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+    black_crush: 1  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+    gamut: 3  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+  max_major: 0  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+  score_formula: 100 - 40*blocking - 10*major - 2*minor  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
   severity:
     white_clip:
-      - {if: "worst_value > 1004 or area_pct_max > 5", then: blocking, source: "A VERIFIER : pas de document FTV"}
-      - {if: "duration_s >= 1", then: major, source: "A VERIFIER : pas de document FTV"}
-      - {else: minor, source: "A VERIFIER : pas de document FTV"}
+      - {if: worst_value > 1004 or area_pct_max > 5, source: 'A VERIFIER : pas de document FTV', then: blocking}
+      - {if: duration_s >= 1, source: 'A VERIFIER : pas de document FTV', then: major}
+      - {else: minor, source: 'A VERIFIER : pas de document FTV'}
     black_crush:
-      - {if: "area_pct_max > 5", then: major, source: "A VERIFIER : pas de document FTV"}
-      - {else: minor, source: "A VERIFIER : pas de document FTV"}
+      - {if: area_pct_max > 5, source: 'A VERIFIER : pas de document FTV', then: major}
+      - {else: minor, source: 'A VERIFIER : pas de document FTV'}
     gamut:
-      - {if: "area_pct_max > 5 and duration_s >= 1", then: major, source: "A VERIFIER : pas de document FTV"}
-      - {else: minor, source: "A VERIFIER : pas de document FTV"}
+      - {if: area_pct_max > 5 and duration_s >= 1, source: 'A VERIFIER : pas de document FTV', then: major}
+      - {else: minor, source: 'A VERIFIER : pas de document FTV'}
     freeze:
-      - {if: "duration_s >= 5", then: blocking, source: "A VERIFIER : pas de document FTV"}
-      - {else: major, source: "A VERIFIER : pas de document FTV"}
+      - {if: duration_s >= 5, source: 'A VERIFIER : pas de document FTV', then: blocking}
+      - {else: major, source: 'A VERIFIER : pas de document FTV'}
     isolated_black_frame:
-      - {else: major, source: "A VERIFIER : pas de document FTV"}
+      - {else: major, source: 'A VERIFIER : pas de document FTV'}
     duplicate_frame:
-      - {else: minor, source: "A VERIFIER : pas de document FTV"}
+      - {else: minor, source: 'A VERIFIER : pas de document FTV'}
     pse:
-      - {else: major, source: "A VERIFIER : pas de document FTV"}
+      - {else: major, source: 'A VERIFIER : pas de document FTV'}
     audio_loudness:
-      - {else: blocking, source: "CST RT-017"}
+      - {else: blocking, source: CST RT-017}
     audio_true_peak:
-      - {else: blocking, source: "CST RT-017"}
+      - {else: blocking, source: CST RT-017}
     audio_lra:
-      - {else: major, source: "A VERIFIER : pas de document FTV"}                                # A VERIFIER
+      - {else: major, source: 'A VERIFIER : pas de document FTV'}
     audio_silence:
-      - {else: major, source: "A VERIFIER : pas de document FTV"}
+      - {else: major, source: 'A VERIFIER : pas de document FTV'}
     audio_phase:
-      - {else: minor, source: "A VERIFIER : pas de document FTV"}
+      - {else: minor, source: 'A VERIFIER : pas de document FTV'}
     structure_bars:
-      - {else: blocking, source: "A VERIFIER : pas de document FTV"}
+      - {else: blocking, source: 'A VERIFIER : pas de document FTV'}
     structure_black:
-      - {else: major, source: "A VERIFIER : pas de document FTV"}
+      - {else: major, source: 'A VERIFIER : pas de document FTV'}
     structure_timecode:
-      - {else: blocking, source: "A VERIFIER : pas de document FTV"}
+      - {else: blocking, source: 'A VERIFIER : pas de document FTV'}
     format:
-      - {else: blocking, source: "A VERIFIER : pas de document FTV"}
-    scan_interlaced:                               # images entrelacées alors que le profil attend du progressif
-      - {else: blocking, source: "A VERIFIER : pas de document FTV"}
-    integrity:                                     # fichier corrompu : erreur de décodage, images manquantes
-      - {else: blocking, source: "A VERIFIER : pas de document FTV"}
+      - {else: blocking, source: 'A VERIFIER : pas de document FTV'}
+    scan_interlaced:
+      - {else: blocking, source: 'A VERIFIER : pas de document FTV'}
+    integrity:
+      - {else: blocking, source: 'A VERIFIER : pas de document FTV'}
 
 llm:
-  backend: ollama
-  model: "qwen3-vl:32b-instruct"
-  fallback_model: "qwen3-vl:8b-instruct"
-  num_ctx: 8192
-  temperature: 0.1
-  language: fr
+  backend: ollama  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+  num_ctx: 8192  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+  temperature: 0.1  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+  language: fr  # A VERIFIER : sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf (valeur de france_tv_hd.yaml)
+
+sources:
+  audio.bit_depth: 'Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 8 : « Codec Audio: PCM Little Endian 24bit @ 48 kHz »'
+  audio.loudness.long.integrated_lufs: 'Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 7 : « ≤ -23 LUFS »'
+  audio.loudness.long.integrated_tolerance_lu: 'Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 7 : « -23 LUFS (+/- 1 LU) »'
+  audio.loudness.long.lra_max_lu: 'Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 9 : « Excursion dynamique (Loudness Range ou LRA) ≤ 20 LU (+5 LU) »'
+  audio.loudness.method: 'A VERIFIER : valeur saisie à la relecture, sans citation de Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf'
+  audio.sample_rate: 'Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 8 : « Codec Audio: PCM Little Endian 24bit @ 48 kHz »'
+  audio.true_peak_max_dbtp: 'Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 7 : « -3 dB TP »'
+  format.height: 'Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 5 : « 1920 x 1080 pixels carrés »'
+  format.width: 'Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 5 : « 1920 x 1080 pixels carrés »'
+  structure.bars.required: 'Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 3 : « doit commencer obligatoirement au Time Code 00:00:00:00, sans présence d’amorce en début de fichier (SOM et TC IN) »'
+  structure.leaders: 'Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 3 : « Le début de programme (première image et premier son utile) doit commencer obligatoirement au Time Code 00:00:00:00, sans présence d’amorce en début de fichier (SOM et TC IN). »'
+  structure.timecode.file_start: 'Annexe technique CDE fichiers HD VT PI 24-01-2023_FR_1.pdf p. 3 : « Le début de programme (première image et premier son utile) doit commencer obligatoirement au Time Code 00:00:00:00, sans présence d’amorce en début de fichier (SOM et TC IN). »'

@@ -1,0 +1,448 @@
+{
+  "meta": {
+    "kind": "norm",
+    "name": "cst_rt040",
+    "document": {
+      "title": "CST-RT-040 — Rec Tech PAD Fichiers Editeurs (TV)",
+      "version": "V1.2, 2016"
+    },
+    "source_pdf": "normes/sources/TV/cst-rt-040-tv-2016-pad_fichiers_editeurs_v1.2.pdf",
+    "source_pdf_sha256": "c3c2a86b10aed7c7b068b5b775d9f17366ebedfcfe619316f6dd793a78480b3c",
+    "notes": "Brouillon extrait par relevé manuel (Claude Code), citations vérifiées par le code (draft_profile_v2) : chaque valeur est à vérifier.",
+    "extends": []
+  },
+  "model": "relevé manuel (Claude Code), citations vérifiées par le code",
+  "prompt_version": "draft_profile_v2",
+  "pdf_sha256": "c3c2a86b10aed7c7b068b5b775d9f17366ebedfcfe619316f6dd793a78480b3c",
+  "pages": 19,
+  "batches": 10,
+  "num_ctx": 23552,
+  "capped_pages": [],
+  "cited_norms": [],
+  "fields": [
+    {
+      "path": "format.containers",
+      "description": "Conteneurs de fichier acceptés : mov, mp4, mxf (tout motif), mxf_op1a ou mxf_opatom",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "format.containers",
+          "value": [
+            "mxf_op1a"
+          ],
+          "page": 15,
+          "quote": "d’un seul fichier MXF Op1a contenant l’essence vidéo et les essences audio associées",
+          "unit": null,
+          "status": "CITATION_INVALIDE",
+          "reason": "paramètre interne à PAD Guard : il ne vient pas du document",
+          "batch": 8,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "format.bit_depth_allowed",
+      "description": "Profondeurs d'image acceptées en bits par composante (ex. 10)",
+      "status": "A_VERIFIER",
+      "value": [
+        8
+      ],
+      "findings": [
+        {
+          "field": "format.bit_depth_allowed",
+          "value": [
+            8
+          ],
+          "page": 6,
+          "quote": "lors de la conformation du signal vidéo 8 bits destiné au fichier Prêt A Diffuser",
+          "unit": "bits",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "format.chroma_allowed",
+      "description": "Sous-échantillonnage de la chrominance accepté : 4:2:0, 4:2:2, 4:4:4, ou rgb (fichier RVB)",
+      "status": "A_VERIFIER",
+      "value": [
+        "4:2:2"
+      ],
+      "findings": [
+        {
+          "field": "format.chroma_allowed",
+          "value": [
+            "4:2:2"
+          ],
+          "page": 5,
+          "quote": "1080i – 25 images/seconde - 4:2:2 - ratio image 16/9",
+          "unit": null,
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "format.width",
+      "description": "Largeur de l'image en pixels (ex. 1920)",
+      "status": "A_VERIFIER",
+      "value": 1920,
+      "findings": [
+        {
+          "field": "format.width",
+          "value": 1920,
+          "page": 4,
+          "quote": "SMPTE 274M : Paramètres signal HD 1920x1080",
+          "unit": "pixels",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 2,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "format.height",
+      "description": "Hauteur de l'image en lignes (ex. 1080)",
+      "status": "A_VERIFIER",
+      "value": 1080,
+      "findings": [
+        {
+          "field": "format.height",
+          "value": 1080,
+          "page": 4,
+          "quote": "SMPTE 274M : Paramètres signal HD 1920x1080",
+          "unit": "lignes",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 2,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "format.fps_allowed",
+      "description": "Cadences d'images acceptées, en fractions 'num/den' (ex. '25/1', '50/1')",
+      "status": "A_VERIFIER",
+      "value": [
+        "25/1"
+      ],
+      "findings": [
+        {
+          "field": "format.fps_allowed",
+          "value": [
+            "25/1"
+          ],
+          "page": 4,
+          "quote": "Le signal vidéo correspond aux caractéristiques 1080i (entrelacé) à 25 images/seconde",
+          "unit": null,
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 2,
+          "source_type": "client_value",
+          "norm": null
+        },
+        {
+          "field": "format.fps_allowed",
+          "value": [
+            "25/1"
+          ],
+          "page": 5,
+          "quote": "1080i – 25 images/seconde - 4:2:2 - ratio image 16/9",
+          "unit": null,
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "format.color_range",
+      "description": "Plage de codage : tv (légale, 64-940 en 10 bits) ou pc (pleine)",
+      "status": "A_VERIFIER",
+      "value": "tv",
+      "findings": [
+        {
+          "field": "format.color_range",
+          "value": "tv",
+          "page": 5,
+          "quote": "10 bits 64 – 940 20 – 984 4 - 1019",
+          "unit": null,
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "video.y_min_legal",
+      "description": "Niveau du noir de la luminance Y en valeur de code 10 bits (ex. 64)",
+      "status": "A_VERIFIER",
+      "value": 64,
+      "findings": [
+        {
+          "field": "video.y_min_legal",
+          "value": 64,
+          "page": 5,
+          "quote": "10 bits 64 – 940 20 – 984 4 - 1019",
+          "unit": null,
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "video.y_max_legal",
+      "description": "Niveau du blanc nominal de la luminance Y en valeur de code 10 bits (ex. 940)",
+      "status": "A_VERIFIER",
+      "value": 940,
+      "findings": [
+        {
+          "field": "video.y_max_legal",
+          "value": 940,
+          "page": 5,
+          "quote": "10 bits 64 – 940 20 – 984 4 - 1019",
+          "unit": null,
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 3,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.dual_mono_must_be_identical",
+      "description": "Une version mono doit être livrée en double mono identique et en phase",
+      "status": "A_VERIFIER",
+      "value": true,
+      "findings": [
+        {
+          "field": "audio.dual_mono_must_be_identical",
+          "value": true,
+          "page": 11,
+          "quote": "ces deux pistes contenant le signal monophonique seront strictement identiques et en phase",
+          "unit": null,
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 6,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.long_program_min_seconds",
+      "description": "Durée en secondes au-delà de laquelle un programme est « long »",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.loudness.long_program_min_seconds",
+          "value": 120,
+          "page": 9,
+          "quote": "Programme long : un programme dont la durée est supérieure à 2 minutes.",
+          "unit": "minutes",
+          "status": "CITATION_INVALIDE",
+          "reason": "la citation ne contient pas le nombre 120",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.long.integrated_tolerance_lu",
+      "description": "Tolérance autour du loudness intégré cible, en LU (ex. 1 pour ± 1 LU)",
+      "status": "A_VERIFIER",
+      "value": 1.0,
+      "findings": [
+        {
+          "field": "audio.loudness.long.integrated_tolerance_lu",
+          "value": 1.0,
+          "page": 9,
+          "quote": "( | Mesure du niveau d’intensité |  | -23,0 LUFS | -23,0 LUFS ± 1,0 LU",
+          "unit": "LU",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.long.short_term_dialogue_excursion_lu",
+      "description": "Excursion admise du loudness short term (3 s) autour de la cible pour le dialogue, en LU",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.loudness.long.short_term_dialogue_excursion_lu",
+          "value": 7.0,
+          "page": 9,
+          "quote": "la mesure d’intensité sonore court terme, sur les passages du programme comportant des dialogues, devra cibler le niveau moyen de -23,0 LUFS et s’autoriser une excursion maximale de 7 LU autour de ce niveau cible",
+          "unit": "LU",
+          "status": "CITATION_INVALIDE",
+          "reason": "le passage cité concerne les programmes courts",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.short.integrated_lufs",
+      "description": "Loudness intégré cible du programme en LUFS (ex. -23)",
+      "status": "CITATION_INVALIDE",
+      "value": null,
+      "findings": [
+        {
+          "field": "audio.loudness.short.integrated_lufs",
+          "value": -23.0,
+          "page": 9,
+          "quote": "( | Mesure du niveau d’intensité |  | -23,0 LUFS | -23,0 LUFS ± 1,0 LU",
+          "unit": "LUFS",
+          "status": "CITATION_INVALIDE",
+          "reason": "le passage cité concerne les programmes longs",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    },
+    {
+      "path": "audio.loudness.short.short_term_max_lufs",
+      "description": "Loudness short term (3 s) maximal en LUFS",
+      "status": "A_VERIFIER",
+      "value": -20.0,
+      "findings": [
+        {
+          "field": "audio.loudness.short.short_term_max_lufs",
+          "value": -20.0,
+          "page": 9,
+          "quote": "≤ -20,0 LUFS Non mesuré d’intensité sonore court terme (Max Short Term Loudness)",
+          "unit": "LUFS",
+          "status": "A_VERIFIER",
+          "reason": "",
+          "batch": 5,
+          "source_type": "client_value",
+          "norm": null
+        }
+      ]
+    }
+  ],
+  "not_found": [
+    "format.codecs",
+    "format.pix_fmt",
+    "format.field_order",
+    "format.color_primaries",
+    "format.color_transfer",
+    "format.color_space",
+    "format.unknown_color_tags_severity",
+    "format.letterbox.check",
+    "format.letterbox.formats",
+    "format.letterbox.tolerance_lines",
+    "format.delivery.scan",
+    "format.delivery.fps",
+    "format.delivery.codec",
+    "video.bit_depth",
+    "video.y_tolerance_low_pct",
+    "video.y_tolerance_high_pct",
+    "video.rgb_min_pct",
+    "video.rgb_max_pct",
+    "video.max_out_of_range_area_pct",
+    "video.prefilter",
+    "video.prefilter_taps",
+    "video.measure_spaces",
+    "video.scan_detection.comb_ratio_min",
+    "video.scan_detection.motion_min",
+    "video.scan_detection.interlaced_min_pct",
+    "video.scan_detection.progressive_max_pct",
+    "video.scan_detection.min_moving_frames",
+    "video.range_detection.reserved_min_frames_pct",
+    "audio.sample_rate",
+    "audio.bit_depth",
+    "audio.bit_depth_allowed",
+    "audio.same_bit_depth_all_tracks",
+    "audio.channel_layout",
+    "audio.max_pairs",
+    "audio.no_silent_tracks",
+    "audio.silent_track_dbfs",
+    "audio.groups",
+    "audio.loudness_exempt_groups",
+    "audio.loudness.method",
+    "audio.loudness.long.integrated_lufs",
+    "audio.loudness.long.lra_max_lu",
+    "audio.loudness.long.lra_recommended_range_lu",
+    "audio.loudness.long.short_term_max_lufs",
+    "audio.loudness.long.short_term_excursion_above_lu",
+    "audio.loudness.short.integrated_tolerance_lu",
+    "audio.loudness.short.lra_max_lu",
+    "audio.loudness.short.lra_recommended_range_lu",
+    "audio.loudness.short.short_term_dialogue_excursion_lu",
+    "audio.loudness.short.short_term_excursion_above_lu",
+    "audio.true_peak_max_dbtp",
+    "audio.alignment_tone.hz",
+    "audio.alignment_tone.dbfs",
+    "audio.silence_dbfs",
+    "audio.silence_max_seconds",
+    "audio.phase_min_correlation",
+    "audio.phase_min_seconds",
+    "audio.av_sync_ms.audio_early_max",
+    "audio.av_sync_ms.audio_late_max",
+    "audio.exclude_head_tail",
+    "structure.leaders",
+    "structure.timecode.file_start",
+    "structure.timecode.program_start",
+    "structure.timecode.tolerance_frames",
+    "structure.timecode.drop_frame_allowed",
+    "structure.timecode.must_be_continuous",
+    "structure.bars.required",
+    "structure.bars.forbidden",
+    "structure.bars.start_tc",
+    "structure.bars.min_seconds",
+    "structure.bars.pattern",
+    "structure.bars.tone_hz",
+    "structure.bars.tone_dbfs",
+    "structure.bars.tone_tolerance_db",
+    "structure.bars.tolerance",
+    "structure.black.head_min_seconds",
+    "structure.black.tail_min_seconds",
+    "structure.black.head_max_seconds",
+    "structure.black.tail_max_seconds",
+    "structure.black.y_max",
+    "structure.black.silence_dbfs",
+    "structure.freeze.threshold",
+    "structure.freeze.min_seconds",
+    "structure.pse.enabled",
+    "structure.pse.max_flashes_per_second",
+    "structure.pse.flash_min_delta_pct",
+    "structure.pse.flash_min_area_pct",
+    "structure.first_frames.no_subtitles_first_frames",
+    "structure.logo.forbidden",
+    "structure.credits.end_credits_max_seconds",
+    "structure.credits.silent_black_credits_forbidden",
+    "structure.safe_areas.title_safe_pct.horizontal",
+    "structure.safe_areas.title_safe_pct.vertical",
+    "structure.safe_areas.subtitle_safe",
+    "structure.safe_areas.logo_corners_free"
+  ]
+}

@@ -1,0 +1,155 @@
+# BROUILLON de norme « cst_rt040 » produit par pad-guard draft-profile : NE PAS UTILISER EN L'ÉTAT.
+# Source : normes/sources/TV/cst-rt-040-tv-2016-pad_fichiers_editeurs_v1.2.pdf (SHA-256 c3c2a86b10aed7c7b068b5b775d9f17366ebedfcfe619316f6dd793a78480b3c), 19 pages.
+# Modèle local : qwen3-vl:8b-instruct, consigne draft_profile_v2, 10 lots de pages, contexte 23552 jetons.
+# Chaque valeur est à vérifier (A VERIFIER) : la citation a été retrouvée dans la page et contient le nombre,
+# mais seul un humain peut confirmer le sens. À relire avec : pad-guard review-profile <ce fichier>.
+# Statuts : 12 A_VERIFIER, 39 CITATION_INVALIDE, 1 CONFLIT, 3 RENVOI_NORME, 1 VALEUR_INVALIDE, 53 champ(s) non trouvé(s).
+#
+# Normes citées par le document (celles de normes/ proposées dans meta.extends ; review-profile confirme
+# chaque renvoi, aucune valeur n'est recopiée) :
+#   - SMPTE 299M (absente de normes/ : à ajouter ou à saisir à la main) : p. 4 « SMPTE 299M : Audio 24-bit pour HD TV »
+#   - EBU R 128 (normes/ebu_r128.yaml) : p. 4 « EBU-R128 et R128s1: normalisation de l’intensité sonore (ou sonie, ou loudness) et niveau maximum permis »
+#
+# Champs pour lesquels le document renvoie à une norme sans écrire la valeur (absents : fournis par la
+# norme citée si review-profile confirme le renvoi) :
+#   - audio.loudness.method -> ebu_r128 (p. 4) « EBU-R128 et R128s1: normalisation de l’intensité sonore (ou sonie, ou loudness) et niveau maximum p… »
+#   - audio.loudness.long_program_min_seconds -> ebu_r128 (p. 8) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un é… »
+#   - audio.loudness.short.integrated_lufs -> ebu_r128 (p. 8) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme utile à l’aide d’un é… »
+#
+# Champs non trouvés dans le document (absents de la norme) :
+#   - format.codecs
+#   - format.containers
+#   - format.pix_fmt
+#   - format.fps_allowed
+#   - format.unknown_color_tags_severity
+#   - format.letterbox.check
+#   - format.letterbox.formats
+#   - format.letterbox.tolerance_lines
+#   - format.delivery.fps
+#   - format.delivery.codec
+#   - video.bit_depth
+#   - video.y_min_legal
+#   - video.y_max_legal
+#   - video.max_out_of_range_area_pct
+#   - video.prefilter
+#   - video.prefilter_taps
+#   - video.measure_spaces
+#   - video.scan_detection.comb_ratio_min
+#   - video.scan_detection.motion_min
+#   - video.scan_detection.interlaced_min_pct
+#   - video.scan_detection.progressive_max_pct
+#   - video.scan_detection.min_moving_frames
+#   - video.range_detection.reserved_min_frames_pct
+#   - audio.no_silent_tracks
+#   - audio.silent_track_dbfs
+#   - audio.loudness_exempt_groups
+#   - audio.silence_dbfs
+#   - audio.silence_max_seconds
+#   - audio.phase_min_seconds
+#   - audio.exclude_head_tail
+#   - structure.timecode.tolerance_frames
+#   - structure.bars.required
+#   - structure.bars.forbidden
+#   - structure.bars.start_tc
+#   - structure.bars.min_seconds
+#   - structure.bars.pattern
+#   - structure.bars.tone_hz
+#   - structure.bars.tone_dbfs
+#   - structure.bars.tone_tolerance_db
+#   - structure.bars.tolerance
+#   - structure.black.head_min_seconds
+#   - structure.black.tail_min_seconds
+#   - structure.black.head_max_seconds
+#   - structure.black.tail_max_seconds
+#   - structure.black.y_max
+#   - structure.black.silence_dbfs
+#   - structure.freeze.threshold
+#   - structure.freeze.min_seconds
+#   - structure.pse.enabled
+#   - structure.pse.max_flashes_per_second
+#   - structure.pse.flash_min_delta_pct
+#   - structure.pse.flash_min_area_pct
+#   - structure.logo.forbidden
+
+meta:
+  kind: norm
+  name: cst_rt040
+  document:
+    title: CST-RT-040 — Rec Tech PAD Fichiers Editeurs (TV)
+    version: V1.2, 2016
+  source_pdf: normes/sources/TV/cst-rt-040-tv-2016-pad_fichiers_editeurs_v1.2.pdf
+  source_pdf_sha256: c3c2a86b10aed7c7b068b5b775d9f17366ebedfcfe619316f6dd793a78480b3c
+  notes: 'Brouillon extrait par qwen3-vl:8b-instruct (draft_profile_v2) : chaque valeur est à vérifier.'
+  extends: [ebu_r128]
+
+format:
+  bit_depth_allowed: null  # VALEUR_INVALIDE : 10 (p. 5, VALEUR_INVALIDE: valeur 10 incompatible avec le champ (Input should be a valid list)) « Conformément à la recommandation EBU R 103 (v2.0 juin 2016), et afin de garanti… »
+  chroma_allowed: null  # CITATION_INVALIDE : null (p. 4, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : 4[:.][24][:.][024]|chromin|echantillonnage|sampling|rvb|rgb)) « Le signal vidéo correspond aux caractéristiques 1080i (entrelacé) à 25 images/s… » | '4:2:2' (p. 5, VALEUR_INVALIDE: valeur '4:2:2' incompatible avec le champ (Input should be a valid list)) « 1080i – 25 images/seconde - 4:2:2 - ratio image 16/9 »
+  width: null  # CITATION_INVALIDE : null (p. 4, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : d{3,4} ?x ?d{3,4}|resolution|definition|pixels)) « Les formats 1080/25p et 1080/25PsF sont proscrits. »
+  height: null  # CITATION_INVALIDE : null (p. 4, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : d{3,4} ?x ?d{3,4}|resolution|definition|lignes)) « Les formats 1080/25p et 1080/25PsF sont proscrits. » | 540 (p. 5, CITATION_INVALIDE: citation introuvable dans la page) « Nombre de lignes 540 » | 540 (p. 5, CITATION_INVALIDE: citation introuvable dans la page) « Nombre de lignes 540 » | 540 (p. 5, CITATION_INVALIDE: citation introuvable dans la page) « Nombre de lignes 540 » | 540 (p. 5, CITATION_INVALIDE: citation introuvable dans la page) « Nombre de lignes 540 » | 519 (p. 5, CITATION_INVALIDE: citation introuvable dans la page) « Nombre de lignes 519* » | 409 (p. 5, CITATION_INVALIDE: citation introuvable dans la page) « Nombre de lignes 409* » | 403 (p. 5, CITATION_INVALIDE: citation introuvable dans la page) « Nombre de lignes 403* »
+  field_order: null  # CITATION_INVALIDE : null (p. 4, CITATION_INVALIDE: la citation ne nomme aucune norme) « Les formats 1080/25p et 1080/25PsF sont proscrits. »
+  color_primaries: null  # CITATION_INVALIDE : null (p. 4, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : 709|2020|colorim|primaires|gamma|espace)) « Le signal vidéo correspond aux caractéristiques 1080i (entrelacé) à 25 images/s… »
+  color_transfer: null  # CITATION_INVALIDE : null (p. 4, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : 709|2020|colorim|primaires|gamma|espace)) « Le signal vidéo correspond aux caractéristiques 1080i (entrelacé) à 25 images/s… »
+  color_space: null  # CITATION_INVALIDE : null (p. 4, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : 709|2020|colorim|primaires|gamma|espace)) « Le signal vidéo correspond aux caractéristiques 1080i (entrelacé) à 25 images/s… »
+  color_range: null  # CITATION_INVALIDE : null (p. 4, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : 64|940|16|235|plage|range|legal)) « Le signal vidéo correspond aux caractéristiques 1080i (entrelacé) à 25 images/s… »
+  delivery:
+    scan: null  # CITATION_INVALIDE : null (p. 4, CITATION_INVALIDE: la citation ne nomme aucune norme) « Les formats 1080/25p et 1080/25PsF sont proscrits. »
+
+video:
+  y_tolerance_low_pct: null  # CITATION_INVALIDE : 1 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : luminance|y)) « La proportion de pixels dont les valeurs sont hors « Color Gamut » (voir tablea… »
+  y_tolerance_high_pct: null  # CITATION_INVALIDE : 103 (p. 5, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : luminance|y)) « La proportion de pixels dont les valeurs sont hors « Color Gamut » (voir tablea… »
+  rgb_min_pct: 1.0  # A VERIFIER (p. 5) « La proportion de pixels dont les valeurs sont hors « Color Gamut » (voir tableau ci-dessus) ne doit pas excéder 1% du nombre total de pixels de l’image active. » [%]
+  rgb_max_pct: null  # CITATION_INVALIDE : 103 (p. 5, CITATION_INVALIDE: la citation ne contient pas le nombre 103) « La proportion de pixels dont les valeurs sont hors « Color Gamut » (voir tablea… »
+
+audio:
+  sample_rate: 48000  # A VERIFIER (p. 10) « Fréquence d’échantillonnage : 48 kHz » [kHz] ; aussi p. 16
+  bit_depth: 24  # A VERIFIER (p. 10) « Quantification linéaire : 24 Bits pour le format PCM » [Bits] ; aussi p. 16
+  bit_depth_allowed: null  # CONFLIT : [24, 20] (p. 10, A_VERIFIER) « Quantification linéaire : 24 Bits pour le format PCM et 20 Bits avant encodage … » | [24] (p. 16, A_VERIFIER) « Chaque piste audio du fichier MXF transportera un flux de type AES3, de résolut… »
+  same_bit_depth_all_tracks: true  # A VERIFIER (p. 16) « Chaque piste audio du fichier MXF transportera un flux de type AES3, de résolution audio 24 bits, à 48 kHz de fréquence d’échantillonnage. »
+  channel_layout: stereo_pairs  # A VERIFIER (p. 16) « Les fichiers MXF Prêts à Diffuser comporteront 8 canaux audio, chaque canal distinct étant transporté par une piste AES3 distincte. »
+  max_pairs: null  # CITATION_INVALIDE : 8 (p. 16, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : paires?|pistes)) « Les fichiers MXF Prêts à Diffuser comporteront 8 canaux audio, chaque canal dis… »
+  dual_mono_must_be_identical: null  # CITATION_INVALIDE : true (p. 10, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : mono)) « Les formats Dolby E doivent être exempts d’erreur CRC (Cyclic Redundance Code) »
+  groups: null  # CITATION_INVALIDE : [{layout: stereo, name: programme 1, required: true, tracks: [1, 2]}, {layout: stereo, name: programme 2, required: true, tracks: [3, 4]}] (p. 12, CITATION_INVALIDE: citation introuvable dans la page) « Channel Mode = 3/2 ou 2/0 pour le programme 1 ... Channel Mode = 2/0 pour le pr… »
+  loudness:
+    long:
+      integrated_lufs: -23.0  # A VERIFIER (p. 14) « "Dialog level" - 23,0 LUFS ± 1 (A mesurer) » [LUFS] ; 1 autre(s) proposition(s) rejetée(s) avec une autre valeur : valeur peut-être incomplète
+      integrated_tolerance_lu: null  # CITATION_INVALIDE : null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : toleran|±|+/-)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… » | null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : toleran|±|+/-)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… » | 1.0 (p. 9, CITATION_INVALIDE: citation introuvable dans la page) « Mesure du niveau d’intensité sonore sur le programme complet (Integrated loudne… »
+      lra_max_lu: 20.0  # A VERIFIER (p. 9) « Excursion dynamique (Loudness Range ou LRA) ≤ 20,0 LU » [LU]
+      lra_recommended_range_lu: null  # CITATION_INVALIDE : null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : lra|loudness range)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… » | null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : lra|loudness range)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… »
+      short_term_dialogue_excursion_lu: null  # CITATION_INVALIDE : null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : short.?term|court terme)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… » | null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : short.?term|court terme)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… » | 7.0 (p. 9, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : short.?term|court terme)) « s’autoriser une excursion maximale de 7 LU autour de ce niveau cible »
+      short_term_max_lufs: null  # CITATION_INVALIDE : null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : short.?term|court terme)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… » | null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : short.?term|court terme)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… » | -20.0 (p. 9, CITATION_INVALIDE: citation introuvable dans la page) « Niveau maximum de la mesure d’intensité sonore court terme (Max Short Term Loud… »
+      short_term_excursion_above_lu: null  # CITATION_INVALIDE : null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : short.?term|court terme)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… » | null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : short.?term|court terme)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… »
+    short:
+      integrated_tolerance_lu: null  # CITATION_INVALIDE : null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : toleran|±|+/-)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… » | null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : toleran|±|+/-)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… »
+      lra_max_lu: null  # CITATION_INVALIDE : null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : lra|loudness range)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… » | null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : lra|loudness range)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… »
+      lra_recommended_range_lu: null  # CITATION_INVALIDE : null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : lra|loudness range)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… » | null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : lra|loudness range)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… »
+      short_term_dialogue_excursion_lu: null  # CITATION_INVALIDE : null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : short.?term|court terme)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… » | null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : short.?term|court terme)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… »
+      short_term_max_lufs: null  # CITATION_INVALIDE : null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : short.?term|court terme)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… » | null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : short.?term|court terme)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… »
+      short_term_excursion_above_lu: null  # CITATION_INVALIDE : null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : short.?term|court terme)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… » | null (p. 8, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : short.?term|court terme)) « La méthodologie de mesure retenue consiste à mesurer la totalité du programme u… »
+  true_peak_max_dbtp: -3.0  # A VERIFIER (p. 8) « Le niveau des crêtes du signal audio, mesuré en True Peak, ne doit pas dépasser -3,0 dBTP. » [dBTP]
+  alignment_tone:
+    hz: 1000.0  # A VERIFIER (p. 8) « Un signal d’alignement 1000 Hz à -18 dBFS doit afficher un niveau de Loudness de -18 LUFS sur un équipement de mesure en EBU Mode, si le signal est présent sur… » [Hz]
+    dbfs: -18.0  # A VERIFIER (p. 8) « Un signal d’alignement 1000 Hz à -18 dBFS doit afficher un niveau de Loudness de -18 LUFS sur un équipement de mesure en EBU Mode, si le signal est présent sur… » [dBFS]
+  phase_min_correlation: null  # CITATION_INVALIDE : 0.99 (p. 11, CITATION_INVALIDE: citation introuvable dans la page) « Phase audio ... Pour assurer la compatibilité du downmix mono, la phase doit êt… »
+  av_sync_ms:
+    audio_early_max: 20.0  # A VERIFIER (p. 10) « Soit une avance maximale du son sur l’image de 20ms » [ms]
+    audio_late_max: 40.0  # A VERIFIER (p. 10) « Soit un retard maximum du son sur l’image de 40ms. » [ms]
+
+structure:
+  leaders: null  # CITATION_INVALIDE : none (p. 15, CITATION_INVALIDE: la citation ne dit pas "none" pour ce champ) « La présence d’éléments d’amorce avant la première image, de même qu’après la de… »
+  timecode:
+    file_start: null  # CITATION_INVALIDE : null (p. 16, CITATION_INVALIDE: citation introuvable dans la page) « Time Code de début de programme (TCP) Conforme au time code du début de fichier… »
+    program_start: null  # CITATION_INVALIDE : null (p. 16, CITATION_INVALIDE: citation introuvable dans la page) « Time Code de début de programme (TCP) Conforme au time code du début de fichier… »
+    drop_frame_allowed: null  # CITATION_INVALIDE : false (p. 16, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : drop)) « Format du Time Code (TC) 25 i/s (STL25.01) »
+    must_be_continuous: null  # CITATION_INVALIDE : true (p. 15, CITATION_INVALIDE: citation sans rapport avec le champ (mots attendus : continu|saut|recouvrement|discontinu)) « Les différentes informations de Time Code que peut comporter un fichier MXF dev… »
+  first_frames:
+    no_subtitles_first_frames: null  # CITATION_INVALIDE : 0 (p. 16, CITATION_INVALIDE: citation introuvable dans la page) « Le Time Code de sortie du dernier sous-titre du programme sera positionné au pl… »
+  credits:
+    end_credits_max_seconds: null  # CITATION_INVALIDE : null (p. 16, CITATION_INVALIDE: citation introuvable dans la page) « Le Time Code de sortie du dernier sous-titre du programme sera positionné au pl… »
+    silent_black_credits_forbidden: null  # CITATION_INVALIDE : true (p. 16, CITATION_INVALIDE: citation introuvable dans la page) « Le Time Code de sortie du dernier sous-titre du programme sera positionné au pl… »
+  safe_areas:
+    title_safe_pct:
+      horizontal: null  # CITATION_INVALIDE : null (p. 16, CITATION_INVALIDE: citation introuvable dans la page) « Le Time Code de sortie du dernier sous-titre du programme sera positionné au pl… »
+      vertical: null  # CITATION_INVALIDE : null (p. 16, CITATION_INVALIDE: citation introuvable dans la page) « Le Time Code de sortie du dernier sous-titre du programme sera positionné au pl… »
+    subtitle_safe: null  # CITATION_INVALIDE : null (p. 16, CITATION_INVALIDE: citation introuvable dans la page) « Le Time Code de sortie du dernier sous-titre du programme sera positionné au pl… »
+    logo_corners_free: null  # CITATION_INVALIDE : null (p. 16, CITATION_INVALIDE: citation introuvable dans la page) « Le Time Code de sortie du dernier sous-titre du programme sera positionné au pl… »
