@@ -49,6 +49,10 @@ FIXTURE_FILES = (
     "hevc_lgop.mp4",
     "sd_pal_169.mov",
     "sd_dv.mov",
+    "refuse_hdr_pq.mov",
+    "refuse_dv_ntsc.mov",
+    "refuse_vfr.mp4",
+    "refuse_48p.mov",
 )
 
 

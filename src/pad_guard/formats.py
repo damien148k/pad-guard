@@ -43,12 +43,18 @@ LAYOUTS: dict[str, Layout] = {
     "yuva422p12le": Layout(12, 2, 1), "yuva444p12le": Layout(12, 1, 1),
 }
 MEASURABLE_PIX_FMTS: tuple[str, ...] = tuple(LAYOUTS)
+PIX_FMTS_TEXT = "Y'CbCr 4:2:0, 4:2:2 ou 4:4:4, ou RVB, en 8, 10 ou 12 bits"  # what LAYOUTS covers, in words
 
 # Codec families known to decode to a measurable pixel format (shown by the interface).
 FAMILIES: tuple[str, ...] = ("ProRes (Proxy à 4444 XQ)", "DNxHD / DNxHR (LB à 444)", "XAVC / AVC-Intra / H.264",
                              "XDCAM HD422 (MPEG-2)", "HEVC", "non compressé (v210, r210)")
 
 CONTAINERS: tuple[str, ...] = ("MOV", "MP4", "MXF")
+
+# HDR transfers (PQ, HLG) and the BT.2020 colour space: measured from Phase 7 (luminance in cd/m²,
+# BT.2100). Measured today as SDR BT.709 they would give false levels: refused.
+HDR_TRANSFERS = frozenset({"smpte2084", "arib-std-b67"})
+WIDE_GAMUT = frozenset({"bt2020nc", "bt2020c", "bt2020"})
 
 # Luma coefficients (Kr, Kb) of the colour matrices, by ffprobe color_space: definitions, not thresholds.
 # ITU-R BT.709-6, part 2, item 3.2: « E'Y = 0.2126 E'R + 0.7152 E'G + 0.0722 E'B ».

@@ -322,6 +322,27 @@ if need sd_dv.mov; then
         -c:v dvvideo -timecode 10:00:00:00 "$HERE/sd_dv.mov"
     echo "  sd_dv.mov"
 fi
+# What PAD Guard refuses (it cannot measure them): HDR PQ BT.2020 (Phase 7), DV NTSC 4:1:1,
+# a variable frame rate, 48 frames/s.
+if need refuse_hdr_pq.mov; then
+    "${FF[@]}" -f lavfi -i "testsrc2=s=640x360:r=25:d=1" \
+        -vf "format=yuv422p10le,setparams=field_mode=prog:range=tv:color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc" \
+        "${PRORES_HQ[@]}" "$HERE/refuse_hdr_pq.mov"
+    echo "  refuse_hdr_pq.mov"
+fi
+if need refuse_dv_ntsc.mov; then
+    "${FF[@]}" -f lavfi -i "testsrc2=s=720x480:r=30000/1001:d=1" -vf "format=yuv411p" -c:v dvvideo "$HERE/refuse_dv_ntsc.mov"
+    echo "  refuse_dv_ntsc.mov"
+fi
+if need refuse_vfr.mp4; then
+    "${FF[@]}" -f lavfi -i "testsrc2=s=640x360:r=25:d=4" -vf "setpts='PTS+if(gt(N,50),0.4/TB,0)'" -fps_mode vfr \
+        -c:v libx264 -pix_fmt yuv420p "$HERE/refuse_vfr.mp4"
+    echo "  refuse_vfr.mp4"
+fi
+if need refuse_48p.mov; then
+    "${FF[@]}" -f lavfi -i "testsrc2=s=640x360:r=48:d=1" -vf "format=yuv422p10le" "${PRORES_HQ[@]}" "$HERE/refuse_48p.mov"
+    echo "  refuse_48p.mov"
+fi
 # Resolutions: UHD letterboxed to 2.39 (3840x1608 active), 4K DCI full frame (4096x2160), 10 frames each.
 if need fmt_uhd_239.mov; then
     "${FF[@]}" -f lavfi -i "testsrc2=s=3840x1608:r=25:d=0.4" \

@@ -1,6 +1,6 @@
 # PAD Guard
 
-Outil de contrôle qualité automatisé de fichiers Prêt à Diffuser (PAD) pour **Lumiris Production** (restauration d'images). Il analyse un master **ProRes 422 HQ** ou **DNxHR HQX**, mesure les niveaux vidéo et audio, vérifie la structure du fichier (mire, noirs, timecode), compare le tout au profil de la chaîne cliente et produit un rapport.
+Outil de contrôle qualité automatisé de fichiers Prêt à Diffuser (PAD) pour **Lumiris Production** (restauration d'images). Il analyse un master dans les formats professionnels courants (ProRes, DNxHD/DNxHR, XAVC/AVC-Intra, XDCAM HD422, H.264/HEVC, non compressé ; SD à 4K ; 23,976 à 60 i/s ; liste dans `src/pad_guard/formats.py`), mesure les niveaux vidéo et audio, vérifie la structure du fichier (mire, noirs, timecode), compare le tout au profil de la chaîne cliente et produit un rapport.
 
 Utilisateur final : **Vincent**, responsable technique. Il n'est pas développeur. Il veut déposer un fichier, choisir une chaîne et lire un rapport clair.
 
@@ -64,8 +64,8 @@ Le flux est strictement linéaire : `profil effectif -> probe -> decode+measure 
 
 - Code et commentaires en anglais, messages utilisateur et rapport en français.
 - Timecodes au format `HH:MM:SS:FF` ; en interne, stocker aussi le numéro d'image absolu.
-- La cadence et le balayage du fichier d'entrée ne sont pas maîtrisés (ils dépendent du client) ; ils sont lus dans `probe.json` (`r_frame_rate`, `avg_frame_rate`, `field_order`) et confirmés par une détection de peignage pendant le décodage. Jusqu'à la Phase 6, seul le 25 i/s est pris en charge pour les mesures : toute autre cadence fait refuser l'analyse avec un message qui nomme la cadence trouvée. Aucun 25 ne doit plus être écrit en dur dans le code à partir de maintenant : utiliser la cadence de `probe.json`.
-- Niveaux vidéo exprimés en valeurs de code **10 bits** dans le JSON, et en pourcentage dans le rapport. Pour un fichier 8 bits (ne devrait pas arriver avec ces codecs), convertir en 10 bits avant toute comparaison.
+- La cadence et le balayage du fichier d'entrée ne sont pas maîtrisés (ils dépendent du client) ; ils sont lus dans `probe.json` (`r_frame_rate`, `avg_frame_rate`, `field_order`) et confirmés par une détection de peignage pendant le décodage. Depuis la Phase 6, les cadences 23,976 à 60 i/s sont mesurées ; PAD Guard ne refuse que ce qu'il ne sait pas mesurer (`formats.py`), un écart avec le profil est une anomalie de format. Aucun 25 en dur dans le code : la cadence vient de `probe.json`, la base du timecode du fichier (`timecode_format`), les durées des règles sont en secondes.
+- Niveaux vidéo exprimés en valeurs de code **10 bits** dans le JSON, et en pourcentage dans le rapport. Un fichier 8 bits est converti en 10 bits avant toute comparaison ; un fichier 12 bits est mesuré en 12 bits avec les seuils 10 bits x 4 ; plage pleine et R'G'B' sont convertis en plage légale avant la mesure.
 - Un événement = une plage continue d'images (`frame_start`, `frame_end`) partageant la même anomalie. Jamais une ligne par image dans le rapport.
 - Gravité : `blocking` (fait échouer le PAD), `major` (à corriger, verdict NON-CONFORME), `minor` (toléré, signalé), `info`.
 - Les tests ne dépendent d'aucun fichier externe au dépôt.

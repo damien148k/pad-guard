@@ -243,7 +243,7 @@ def _check_measurable(c: _Checks, v: VideoInfo) -> None:
     c.add("decoder", "Décodeur disponible", "format", "décodeur FFmpeg pour ce codec", v.codec_name,
           formats.decoder_available(v.codec_name), refusal=True)
     c.add("pix_fmt_measurable", "Format de pixel mesurable par PAD Guard", "format",
-          " ou ".join(formats.MEASURABLE_PIX_FMTS), v.pix_fmt or "inconnu",
+          formats.PIX_FMTS_TEXT, v.pix_fmt or "inconnu",
           v.pix_fmt in formats.MEASURABLE_PIX_FMTS, refusal=True)
     r, avg = _fps(v.r_frame_rate), _fps(v.avg_frame_rate)
     c.add("frame_rate_measurable", "Cadence prise en charge par PAD Guard", "format",
@@ -255,6 +255,11 @@ def _check_measurable(c: _Checks, v: VideoInfo) -> None:
         str(v.duration_s)) >= 1))
     c.add("frame_rate_variable", "Cadence fixe", "format", "cadence fixe (r_frame_rate = avg_frame_rate)",
           f"{v.r_frame_rate} / {v.avg_frame_rate}", not variable, refusal=True)
+    hdr = v.color_transfer in formats.HDR_TRANSFERS or {v.color_space, v.color_primaries} & formats.WIDE_GAMUT
+    if hdr:
+        c.add("sdr", "Signal SDR (BT.709 ou BT.601)", "format", "SDR",
+              f"transfert {v.color_transfer or '?'}, primaires {v.color_primaries or '?'}, matrice {v.color_space or '?'}",
+              False, refusal=True)
 
 
 ANY_LABEL = "tout (contrôle technique)"
@@ -410,6 +415,8 @@ def _refusal(ch: Check) -> str:
         return f"format de pixel {ch.actual} : PAD Guard ne sait mesurer que {ch.expected}."
     if ch.id == "decoder":
         return f"codec {ch.actual} : aucun décodeur disponible, le fichier ne peut pas être lu."
+    if ch.id == "sdr":
+        return f"HDR ou BT.2020 ({ch.actual}) : mesures prévues en Phase 7 (BT.2100), pas encore prises en charge."
     if ch.id == "frame_rate_variable":
         return f"cadence variable ({ch.actual}) : les images ne sont pas régulièrement espacées, PAD Guard ne la mesure pas."
     return f"{ch.label} : {ch.actual} n'est pas accepté (attendu : {ch.expected})."

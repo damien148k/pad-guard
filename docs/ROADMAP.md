@@ -144,12 +144,25 @@ Orientation v3 du 23 octobre 2026 : multi-diffuseurs, profils hérités de norme
 
 ---
 
-## Phase 6 : formats SDR étendus
+## Phase 6 : formats SDR étendus — faite (24-25 octobre 2026)
+
+Décision de Damien (24 octobre 2026) : PAD Guard refuse seulement ce qu'il ne sait pas mesurer ; tout le reste est analysé, et un écart avec le profil du client est une anomalie de format, pas un refus.
 
 **Livrables**
-- Codecs : ProRes 4444 et 4444 XQ, DNxHR 444, XAVC Intra en MXF ; résolution UHD.
-- Cadences 23,976 / 24 / 25 / 29,97 / 50 / 59,94 i/s et timecode drop frame : fin du 25 i/s figé (toutes les durées et tous les timecodes viennent de la cadence de `probe.json`).
-- Norme `normes/itu_bt709.yaml` (à partir de `normes/sources/`).
+- `formats.py` : capacités de mesure, source unique des refus et du texte de l'écran de dépôt. Refusés : pas de décodeur, format de pixel hors liste, cadence variable ou hors liste, HDR / BT.2020 (Phase 7).
+- Cadences 23,976 à 60 i/s ; timecode drop frame ; base du timecode lue dans le fichier (`tmcd`, TimecodeComponent MXF : ffprobe ne la donne pas) ; durées des règles en secondes (`merge_gap_seconds`, `min_event_seconds`, `duration_s`, `rules.params`), choix de regroupement dans `lumiris_maison` (A VERIFIER avec Vincent).
+- Codecs ProRes (Proxy à 4444 XQ), DNxHD/DNxHR (LB à 444), XAVC/AVC-Intra/H.264, XDCAM HD422, HEVC, non compressé, DV ; conteneurs MOV, MP4, MXF OP1a et OP-Atom (vidéo seule).
+- 8, 10 et 12 bits ; 4:2:0, 4:2:2, 4:4:4, R'G'B' ; alpha signalé ; plage pleine convertie, contenu plein-plage annoncé légal détecté.
+- Toutes résolutions (SD à 4K DCI), pixels anamorphiques ; SD en BT.601 (coefficients usuels A VERIFIER : PDF à ajouter).
+- Entrelacé : PSE trame par trame ; PsF. GOP long : erreur étendue à l'image clé suivante.
+- Arte 1.2 : codecs du §3.2.2.2, 4:2:2 10 bits (§3.1), durées en secondes.
+- Profil `lumiris_controle_technique` : « Rapport technique », sans verdict.
+- Norme `normes/itu_bt709.yaml`.
+- Performance : bandes adaptées à la largeur, 12 processus : UHD 25p à 1,4x le temps réel.
+
+**Acceptation** : non-régression sur le vrai master Arte (événements identiques à l'image près, mesures identiques à l'octet après le nouveau décodeur), recette du 50p « destroyed » et d'ASTERIX (2K 23,976 DNxHR HQ 8 bits) ; tableau des formats dans `docs/PHASE6_RECETTE.md`.
+
+**Reporté** : arte_uhd_sdr (via draft-profile) ; détection d'une inversion de l'ordre des trames ; audio des fichiers OP-Atom voisins ; séquences d'images (DPX, TIFF, EXR).
 
 ---
 

@@ -14,12 +14,16 @@ Le navigateur s'ouvre sur `http://127.0.0.1:8765/`. Laisser le terminal ouvert p
 
 ## Contrôler un film
 
-1. **Dépôt.** « Parcourir… » ouvre la fenêtre Windows de choix de fichier : choisir le master (.mov ou .mxf). On peut aussi coller le chemin du fichier. Le film n'est pas copié : PAD Guard le lit là où il est. Choisir ensuite le profil de la chaîne (par exemple `arte_hd_sdr`). PAD Guard lit alors le format du fichier ; un fichier que PAD Guard ne sait pas mesurer est signalé avec le motif ; les formats mesurés sont rappelés sur l'écran de dépôt.
+1. **Dépôt.** « Parcourir… » ouvre la fenêtre Windows de choix de fichier : choisir le film (.mov, .mxf ou .mp4 : ProRes, DNxHD/DNxHR, XAVC, AVC-Intra, XDCAM HD422, H.264, HEVC… de la SD à la 4K, de 23,976 à 60 i/s). On peut aussi coller le chemin du fichier. Le film n'est pas copié : PAD Guard le lit là où il est. Choisir ensuite le profil de la chaîne (par exemple `arte_hd_sdr`). PAD Guard lit alors le format du fichier ; un fichier que PAD Guard ne sait pas mesurer est signalé avec le motif ; les formats mesurés sont rappelés sur l'écran de dépôt.
 2. **Récapitulatif.** Vérifier les caractéristiques du master, le profil appliqué et ses exigences principales (avec le paragraphe du cahier des charges), et la correspondance des pistes audio : un bouton par piste pour choisir son groupe (VO, VF…). Cocher « Synthèse … par l'IA locale » pour une synthèse rédigée (à relire ; le verdict n'en dépend pas). Puis « Lancer l'analyse ».
 3. **Analyse.** La progression montre les étapes, les images mesurées et le temps restant estimé. La lecture du fichier (calcul de son empreinte) et les mesures audio n'ont pas de compteur. Sur un long métrage, compter environ 20 minutes. On peut fermer le navigateur : l'analyse continue, et on la retrouve en rouvrant la page. « Annuler » arrête l'analyse, et le dossier reste incomplet.
 4. **Rapport.** Le verdict, le score, les anomalies (filtrables par gravité) et, pour chacune, le timecode, la valeur mesurée, le seuil appliqué, la règle du profil et une vignette quand il s'agit d'une anomalie d'image. « Télécharger le PDF » enregistre le rapport. « Dossier de données » ouvre le dossier de l'analyse dans l'Explorateur.
 
 Avec un profil brouillon, le rapport porte en tête « PROFIL NON VALIDÉ — résultat indicatif » et n'affiche jamais CONFORME.
+
+Un fichier que la chaîne n'accepte pas tel quel (un scan 2K à 23,976 i/s contre le profil Arte, par exemple) est quand même analysé : le codec, la résolution, la cadence ou la profondeur qui diffèrent apparaissent comme des anomalies de format dans le rapport.
+
+**Fichiers de travail (scans, intermédiaires de restauration).** Choisir le profil `lumiris_controle_technique` : tout est mesuré et les anomalies sont listées selon les règles Lumiris, sans diffuseur. Le rapport s'intitule « Rapport technique » et n'affiche ni CONFORME ni NON-CONFORME. Les pistes audio d'un scan ne sont pas connues d'avance : les attribuer au récapitulatif.
 
 Les analyses sont rangées par défaut dans `Documents\PAD Guard\analyses\<nom du film>_<date-heure>\`. Le bouton « Réglages » permet de changer ce dossier. Les analyses récentes sont listées sous l'écran de dépôt.
 

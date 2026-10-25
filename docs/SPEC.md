@@ -23,14 +23,24 @@ Lumiris Production restaure des films et livre des masters aux diffuseurs. Chaqu
 
 ### 2.1 Fichiers vidéo acceptés
 
-| Codec | Conteneur | Profondeur | Sous-échantillonnage | `pix_fmt` FFmpeg attendu |
-|---|---|---|---|---|
-| Apple ProRes 422 HQ | `.mov` | 10 bits | 4:2:2 | `yuv422p10le` |
-| Avid DNxHR HQX | `.mxf` (OP1a) ou `.mov` | 10 bits | 4:2:2 | `yuv422p10le` |
+Phase 6 (décision de Damien, 24 octobre 2026) : PAD Guard **refuse seulement ce qu'il ne sait pas mesurer** ; tout le reste est analysé, et un écart avec le profil du client (codec, résolution, cadence, profondeur…) est une anomalie du rapport (`format_codec`, `format_container`, `format_picture`, `format_resolution`, `format_frame_rate`, gravité du profil, à défaut celle de `format`), jamais un refus. La liste des capacités est dans `src/pad_guard/formats.py` (source unique des refus et du texte de l'écran de dépôt).
 
-Tout autre codec, profil (ex. ProRes 422 LT, DNxHR HQ 8 bits) ou `pix_fmt` est **refusé** avec un message explicite. L'outil ne convertit jamais le fichier.
+Mesuré :
 
-Caractéristiques attendues par défaut (modifiables par le profil) : 1920×1080, 25 i/s progressif, Rec. 709, plage légale (`color_range=tv`), audio PCM 24 bits 48 kHz.
+| Caractéristique | Pris en charge |
+|---|---|
+| Codecs (décodeur FFmpeg de PyAV) | ProRes (Proxy à 4444 XQ), DNxHD / DNxHR (LB à 444), XAVC Intra / AVC-Intra / H.264, XDCAM HD422 (MPEG-2), HEVC, non compressé (v210, r210), DV |
+| Conteneurs | MOV, MP4, MXF (OP1a, OP-Atom : vidéo seule, audio signalé « non analysé ») |
+| Cadences | 23,976, 24, 25, 29,97, 30, 50, 59,94 et 60 i/s, fixes ; timecode drop frame et non drop frame |
+| Balayage | progressif, entrelacé (trame haute ou basse en premier), PsF |
+| Image | toute résolution (SD à 4K DCI), pixels carrés ou anamorphiques |
+| Profondeur, échantillonnage | Y'CbCr 4:2:0, 4:2:2, 4:4:4 ou R'G'B', 8, 10 ou 12 bits ; canal alpha ignoré et signalé |
+| Plage | légale ou pleine (convertie en plage légale avant la mesure) |
+| Colorimétrie | SDR BT.709 ou BT.601 |
+
+Refusé (code 2, motif nommé) : pas de décodeur, format de pixel hors de cette liste (4:1:1, Bayer, flottant…), cadence variable ou hors de la liste, HDR (PQ, HLG) ou BT.2020 (Phase 7). L'outil ne convertit jamais le fichier source.
+
+Caractéristiques attendues : celles du profil (`format`), le profil `lumiris_controle_technique` n'en attendant aucune (`any`).
 
 ### 2.2 Audio
 
@@ -232,6 +242,7 @@ Noir : `y_p99 < structure.black.y_max` (défaut 68, soit 1 % au-dessus de 64) et
 - Première image non noire après la tête = `structure.timecode.program_start` (10:00:00:00), tolérance ± `structure.timecode.tolerance_frames`.
 - Continuité : aucun saut de TC (vérifié par cohérence `nb_frames` ↔ durée ; les conteneurs MOV/MXF ne portent qu'un TC de départ).
 - Drop frame interdit en 25 i/s.
+- Format du timecode (Phase 6) : ffprobe donne le TC de départ dans la base de la piste timecode sans dire laquelle (un 50p dont la piste compte 25 images par seconde affiche `10:00:00:15` comme un 25p). La base, le drop frame et le nombre d'images par valeur de TC sont lus dans le fichier (`probe/tc_reader.py` : description de la piste `tmcd` en MOV/MP4, TimecodeComponent MXF) et écrits dans `probe.json` (`timecode_format`) ; à défaut, déduits de la cadence et signalés. Le TC s'affiche tel qu'il est stocké (base 50 : images 00 à 49) ; une base de moitié de la cadence donne une valeur pour deux images, suffixées `.1` et `.2` (`timecode.PAIR_SUFFIX`, en attendant la réponse de Vincent). Drop frame à 29,97 et 59,94 (SMPTE ST 12-1) ; les durées en secondes utilisent la vraie cadence, jamais la base du TC.
 
 ### 6.4 Images figées, noires isolées, dupliquées
 
@@ -260,7 +271,7 @@ Sortie : `structure.json` avec, pour chaque contrôle, `expected`, `actual`, `ok
 - Images figées et dupliquées : `d_mean < structure.freeze.threshold` ; une suite de `n` images « identiques à la précédente » est une image tenue sur `n + 1` images. Les images noires et la mire sont exclues. Durée minimale : `structure.freeze.min_seconds` (au moins, bornes incluses).
 - Noir isolé : une seule image noire entre deux images non noires, sauf si `y_mean` décroît strictement sur les 3 images qui précèdent (fin de fondu) ou croît strictement sur les 3 qui suivent (début de fondu).
 - PSE : une transition est une image où plus de `flash_min_area_pct` % de l'image a éclairci (ou assombri) de plus de `flash_min_delta_pct` ; deux transitions de même sens sur des images consécutives n'en font qu'une ; `n` transitions dans une fenêtre d'une seconde font `n // 2` flashs.
-- Fichier entrelacé : figées, dupliquées et PSE sont mesurés sur des images entières (deux trames) ; le rapport l'indique.
+- Fichier entrelacé : figées et dupliquées sont mesurées sur des images entières (deux trames) ; le PSE l'est trame par trame quand les images sont détectées entrelacées (Phase 6) : changement de luminance entre trames successives, la précédente interpolée sur les lignes de la suivante (« bob »), 50 transitions par seconde en 50i (champs `fu1`, `fd1`, `fu2`, `fd2`, mesurés pour tout fichier marqué entrelacé). Le rapport l'indique.
 - Format d'image : une ligne (colonne) est active si son 99,9e centile atteint `structure.black.y_max` (même critère que l'image noire). Seuls les nombres de lignes et de pixels actifs sont comparés au profil (la correspondance des numéros de ligne SMPTE reste à vérifier). Un format différent sur au moins 3 échantillons consécutifs est signalé en information.
 
 ---
@@ -271,7 +282,8 @@ Sortie : `structure.json` avec, pour chaque contrôle, `expected`, `actual`, `ok
 
 Une anomalie par image devient un **événement** quand elle persiste. Règle d'agrégation :
 
-- deux images en anomalie séparées de moins de `rules.merge_gap_frames` (défaut 12, soit 0,5 s) appartiennent au même événement ;
+- deux images en anomalie séparées de moins de `rules.merge_gap_seconds` (0,5 s dans `lumiris_maison`, convertie à la cadence du fichier, arrondie vers le bas : 12 images à 25 i/s, 25 à 50 i/s) appartiennent au même événement ; l'ancienne forme en images (`merge_gap_frames`) reste acceptée ;
+- les durées des conditions de gravité s'écrivent en secondes (`duration_s`), les valeurs nommées dans `rules.params` (Phase 6 : une durée en images ne veut pas dire la même chose en 25 et en 50 i/s) ;
 - un événement de durée inférieure à `rules.min_event_frames` (défaut 1 pour les blancs clippés, car un flash d'une image compte ; défaut 3 pour le gamut) est ignoré, sauf si le profil dit le contraire ;
 - un événement porte : `type`, `frame_start`, `frame_end`, `tc_start`, `tc_end`, `duration_frames`, `worst_value`, `worst_frame`, `threshold`, `severity`, `area_pct_max`.
 
@@ -455,12 +467,29 @@ Un profil `draft` peut servir, mais le rapport porte en tête « PROFIL NON VALI
 
 ### 12.5 Cadence, balayage et livraison
 
-- Cadence : `probe.json` donne `r_frame_rate` et `avg_frame_rate` (fractions exactes). Jusqu'à la Phase 6, seule la cadence 25/1 est mesurée : toute autre cadence fait refuser le fichier (code 2) avec un message qui la nomme.
+- Cadence : `probe.json` donne `r_frame_rate` et `avg_frame_rate` (fractions exactes). Depuis la Phase 6, les cadences 23,976 à 60 i/s sont mesurées (`formats.MEASURABLE_RATES`) ; une cadence variable ou hors de cette liste fait refuser le fichier (code 2) avec un message qui la nomme.
 - Balayage : `field_order` vient de `probe.json` ; la passe de mesure calcule pour chaque image un indicateur de peignage `comb` = moyenne de |Y(l) − Y(l+1)| (lignes voisines, trames opposées) divisée par la moyenne de |Y(l) − Y(l+2)| (lignes de même trame). Une image en mouvement (`d_mean` ≥ `video.scan_detection.motion_min`) est « peignée » si `comb` ≥ `comb_ratio_min`. Selon la part d'images peignées parmi les images en mouvement, `scan_detected` vaut `interlaced`, `progressive` ou `undetermined` (moins de `min_moving_frames` images en mouvement, ou part intermédiaire). Un avertissement est émis si le drapeau `field_order` et la détection ne concordent pas.
 - Règle de balayage (`rules/scan.py`, décision du 24 octobre 2026) : c'est le balayage détecté qui décide, pas le drapeau seul. Avec un profil progressif (`format.field_order: progressive`) et une détection déterminée : images progressives sous un drapeau entrelacé → `scan_flag_mismatch` (« Drapeau de balayage incorrect (tb) sur un master progressif : corriger l'étiquette à l'export », règle Lumiris `major` de `normes/lumiris_maison.yaml`) ; images entrelacées → `scan_interlaced`, de gravité fixée par le profil (Arte : `minor`, §3.2.2.1, 1080i50 accepté jusqu'au 31/12/2027). Aucune règle ne lit la date du jour (reproductibilité) : c'est une nouvelle version du profil qui change la gravité. Dans les autres cas (profil entrelacé, détection indéterminée, drapeau absent), le contrôle du drapeau `field_order` de `probe.json` (type `format`) s'applique tel quel. La ligne « Balayage » du tableau « Contrôles de format » montre le balayage détecté et le drapeau.
 - Livraison : le balayage du master (détecté, sinon le drapeau) et sa cadence sont comparés à `format.delivery`. S'ils diffèrent, la section « Livraison » du rapport l'explique et un événement `delivery_conversion_required` est émis, de gravité `info` (règle `rules.severity.delivery_conversion_required`) : ce n'est pas une non-conformité du master. Le codec de livraison est rappelé dans la section mais ne déclenche pas l'événement (le master ProRes ou DNxHR est toujours transcodé par le prestataire).
 
 ---
+
+## 12 bis. Formats (Phase 6)
+
+- **Profondeur.** Un fichier 8 bits est converti en 10 bits (x 4) avant toute comparaison ; un fichier 12 bits est mesuré en 12 bits, avec les seuils 10 bits multipliés par 4 exactement (décision de Damien, 24 octobre 2026), et ses valeurs écrites en codes 10 bits au quart près.
+- **Échantillonnage.** 4:2:2 : chroma interpolée linéairement sur les colonnes impaires ; 4:2:0 : chaque ligne de chroma couvre les deux lignes de luminance ; 4:4:4 : sans interpolation.
+- **Plage et RVB.** Un fichier en plage pleine (balise `pc`, `yuvj*`) ou en R'G'B' est converti en Y'CbCr plage légale (codes 12 bits) avant la mesure, d'après BT.2100-3 tableau 9 et BT.709-6 §3.2 à 3.4 : les seuils du profil, exprimés sur la plage légale, s'appliquent aux bons niveaux. Un fichier annoncé en plage légale dont au moins 1 % des images atteignent les bornes 4 ou 1019 (BT.709-6 §4.7 ; ProRes et DNxHR écrêtent à 4-1019) a un contenu en plage pleine probable : `range_content_mismatch` (règle maison, A VERIFIER). Une balise plage pleine dont le contenu reste dans 64-940 : `range_tag_suspect` (info).
+- **Matrices.** BT.709 (`bt709`) et BT.601 (`bt470bg`, `smpte170m`, coefficients usuels A VERIFIER tant que le PDF manque) ; la mire de référence est générée dans la matrice du profil.
+- **Alpha.** Le plan alpha est ignoré, signalé (`alpha_channel`, info).
+- **Format d'image.** Rapport largeur / hauteur de la zone active avec le rapport des pixels (`sample_aspect_ratio`) ; un profil sans tableau de formats (`formats: []`) relève la zone active sans comparer.
+- **GOP long.** Le décodeur relève les images clés ; une erreur de décodage couvre les images jusqu'à l'image clé suivante. L'accès direct (vignettes, mire, format d'image) part de l'image clé précédente : exact, vérifié sur MPEG-2, H.264 et HEVC.
+- **MXF OP-Atom.** Vidéo seule : l'audio, dans d'autres fichiers, n'est pas analysé (`audio_not_analysed`, info) au lieu de pistes manquantes.
+- **PsF.** `format.field_order: psf` : des images progressives marquées entrelacées sont conformes ; des images entrelacées restent `scan_interlaced`.
+- **Performance.** Chaque image est mesurée par bandes d'environ 61 000 pixels, 12 processus : UHD 25p à 1,4x le temps réel (README).
+
+### 12 ter. Profil « contrôle technique Lumiris »
+
+`profiles/lumiris_controle_technique.yaml` (`meta.purpose: technical`) : fichiers de travail sans diffuseur. Les valeurs de comparaison du format et le TC de départ valent `any` (tout accepté, explicitement : jamais par une valeur absente), les amorces `unchecked`. Niveaux EBU R 103 et loudness EBU R 128 en recommandation (plafonnés à mineur), règles maison avec leur gravité. Le rapport, la CLI (code 0), l'interface et la synthèse IA affichent « Rapport technique », jamais CONFORME ni NON-CONFORME.
 
 ## 13. `draft-profile`, `review-profile`, `compare-profiles` (v3, Phase 4b)
 
