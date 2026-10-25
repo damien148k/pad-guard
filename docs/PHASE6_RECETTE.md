@@ -1,6 +1,6 @@
 # Recette de la Phase 6 (25 octobre 2026)
 
-Code du commit `0b55d80` (sources figées), machine de développement (AMD Ryzen 9 5950X, 16 cœurs, Windows 11). Les fixtures sont générées par `tests/fixtures/make_fixtures.sh` ; chaque ligne est une analyse complète (`analyze`) avec le profil `lumiris_controle_technique` (aucun refus pour une raison de profil). « Lu » : ffprobe et PyAV ouvrent le fichier ; « Analysé » : mesures, structure, règles et rapport écrits.
+Fichiers réels : code du commit `0b55d80` (sources figées) ; tableau des formats : code du commit `b641b3b` (refus HDR compris). Machine de développement (AMD Ryzen 9 5950X, 16 cœurs, Windows 11). Les fixtures sont générées par `tests/fixtures/make_fixtures.sh` ; chaque ligne est une analyse complète (`analyze`) avec le profil `lumiris_controle_technique` (aucun refus pour une raison de profil). « Lu » : ffprobe et PyAV ouvrent le fichier ; « Analysé » : mesures, structure, règles et rapport écrits.
 
 ## Fichiers réels
 
