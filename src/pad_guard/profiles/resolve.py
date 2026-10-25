@@ -85,6 +85,9 @@ class ResolvedProfile:
     layers: list[Layer]
     origins: dict[str, Origin]
     conflicts: list[Conflict]
+    # Information for the report: a norm cited in a version other than the one of normes/
+    # (« CST-RT-040 cite EBU R 103 v2.0 (juin 2016), version appliquée : version 3.0, mai 2020 »).
+    notes: list[str] = field(default_factory=list)
 
     @property
     def values(self) -> dict[str, Any]:
@@ -105,6 +108,7 @@ class ResolvedProfile:
             "values": self.values,
             "origins": {path: o.to_json() for path, o in self.origins.items()},
             "conflicts": [vars(c) for c in self.conflicts],
+            **({"notes": self.notes} if self.notes else {}),  # same file as before when there is none
         }
 
     def dumps(self) -> str:
@@ -147,6 +151,7 @@ def from_json(data: dict[str, Any], where: Path) -> ResolvedProfile:
             layers=[Layer(**layer) for layer in data["layers"]],
             origins={path: Origin(**o) for path, o in data["origins"].items() if path not in REMOVED_FIELDS},
             conflicts=[Conflict(**c) for c in data["conflicts"] if c.get("path") not in REMOVED_FIELDS],
+            notes=list(data.get("notes", [])),
         )
     except (KeyError, TypeError, AttributeError, ValidationError) as exc:
         raise ProfileError(where, [f"profil effectif illisible ({exc.__class__.__name__}) : relancer « analyze »"]) from None
@@ -374,6 +379,7 @@ class Merged:
     layers: list[Layer]
     origins: dict[str, Origin]
     conflicts: list[Conflict]
+    notes: list[str] = field(default_factory=list)  # see ResolvedProfile.notes
 
 
 def merge_layers(path: str | Path, norms_dir: Path | None = None) -> Merged:
@@ -415,16 +421,34 @@ def merge_layers(path: str | Path, norms_dir: Path | None = None) -> Merged:
     merge.apply(body, shown, sources)
     layers.append(Layer(kind="profile", name=str(meta.get("name", path.stem)), file=shown,
                         document=str(meta.get("source_document", "")), sha256=file_sha256(path)))
-    _mark_references(meta, meta_key, extends, {n.name: n for n in order}, merge.origins, path)
+    notes = _mark_references(meta, meta_key, extends, {n.name: n for n in order}, merge.origins, path)
 
     return Merged(values={"meta": {"status": "draft", **meta}, **merge.values}, profile_file=shown, layers=layers,
-                  origins=merge.origins, conflicts=merge.conflicts)
+                  origins=merge.origins, conflicts=merge.conflicts, notes=notes)
+
+
+def _short(title: str) -> str:
+    return title.split(" — ")[0]
+
+
+def _where(source: str) -> str:
+    """« CST-RT-040 V1.2 (2016) p. 5 » of « CST-RT-040 V1.2 (2016) p. 5 : « Conformément à … » »."""
+    return source.split(" : «")[0].strip()
+
+
+def _covered(path: str, excluded: list[str]) -> bool:
+    return not any(path == e or path.startswith(e + ".") for e in excluded)
 
 
 def _mark_references(meta: dict[str, Any], meta_key: str, extends: list[str], norms: dict[str, _Norm],
-                     origins: dict[str, Origin], path: Path) -> None:
+                     origins: dict[str, Origin], path: Path) -> list[str]:
     """Values still coming from a norm of ``meta.refers_to`` (the client wrote no value of its own,
-    no later layer replaced it) cite the client's reference: « <citation>, par renvoi à <norme> »."""
+    no later layer replaced it) cite the client's reference: « <citation>, par renvoi à <norme> ».
+    The reference goes on through the norms that norm refers to itself (its meta.refers_to): « …, par
+    renvoi à CST-RT-040, puis à EBU R 103 (CST-RT-040 V1.2 (2016) p. 5) » (decision of Damien,
+    25 October 2026); the fields of ``except`` stay out of it, down the chain. The client's own
+    references come first, then the next level, so a direct reference wins. Returns the information
+    lines on cited versions that differ from the version of normes/."""
     refs = meta.get("refers_to") or []
     if not isinstance(refs, list) or not all(isinstance(r, dict) for r in refs):
         raise ProfileError(path, [f"« {meta_key}.refers_to » : liste de {{norm, source}} attendue"])
@@ -437,16 +461,41 @@ def _mark_references(meta: dict[str, Any], meta_key: str, extends: list[str], no
             errors.append(f"« {meta_key}.refers_to » : la norme « {name} » doit figurer dans {meta_key}.extends")
         elif not isinstance(source, str) or not source.strip():
             errors.append(f"« {meta_key}.refers_to » : renvoi à « {name} » sans citation du document du client")
+        elif not isinstance(r.get("except", []), list):
+            errors.append(f"« {meta_key}.refers_to » : « except » de « {name} » : liste de chemins attendue")
     if errors:
         raise ProfileError(path, errors)
+    notes: list[str] = []
+    # (norm, client citation, chain text, excluded fields)
+    level = [(r["norm"], r["source"], f"{r['source']}, par renvoi à {_short(norms[r['norm']].meta.document.title)}",
+              list(r.get("except") or [])) for r in refs]
+    seen: set[str] = set()
+    while level:
+        following = []
+        for name, client, chain, excluded in level:
+            if name in seen:
+                continue
+            seen.add(name)
+            norm = norms[name]
+            file = f"{NORMS_DIR}/{norm.name}.yaml"
+            for key, o in origins.items():
+                if o.file == file and o.referred_by is None and _covered(key, excluded):
+                    o.referred_by = client
+                    o.source = chain + (f" (norme : {o.source})" if o.source else "")
+            for sub in norm.meta.refers_to:
+                title = _short(norms[sub.norm].meta.document.title)
+                following.append((sub.norm, client, f"{chain}, puis à {title} ({_where(sub.source)})",
+                                  excluded + sub.except_))
+                if sub.cited_version:
+                    notes.append(f"{_short(norm.meta.document.title)} cite {title} {sub.cited_version}, version "
+                                 f"appliquée : {norms[sub.norm].meta.document.version}")
+        level = following
     for r in refs:
-        norm = norms[r["norm"]]
-        title = norm.meta.document.title.split(" — ")[0]
-        file = f"{NORMS_DIR}/{norm.name}.yaml"
-        for o in origins.values():
-            if o.file == file and o.referred_by is None:
-                o.referred_by = r["source"]
-                o.source = f"{r['source']}, par renvoi à {title}" + (f" (norme : {o.source})" if o.source else "")
+        if r.get("cited_version"):
+            notes.append(f"{meta.get('source_document') or meta.get('name')} cite "
+                         f"{_short(norms[r['norm']].meta.document.title)} {r['cited_version']}, version appliquée : "
+                         f"{norms[r['norm']].meta.document.version}")
+    return notes
 
 
 def resolve_profile(path: str | Path, norms_dir: Path | None = None) -> ResolvedProfile:
@@ -459,7 +508,7 @@ def resolve_profile(path: str | Path, norms_dir: Path | None = None) -> Resolved
         raise ProfileError(path, [_with_origin(translate(e), e["loc"], m.origins, m.profile_file)
                                   for e in exc.errors()]) from None
     return ResolvedProfile(profile=profile, profile_file=m.profile_file, layers=m.layers, origins=m.origins,
-                           conflicts=m.conflicts)
+                           conflicts=m.conflicts, notes=m.notes)
 
 
 def _with_origin(message: str, loc: tuple[Any, ...], origins: dict[str, Origin], profile_file: str) -> str:

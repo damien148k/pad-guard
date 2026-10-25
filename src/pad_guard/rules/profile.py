@@ -114,6 +114,20 @@ class NormReference(_Model):
 
     norm: str = Field(description="Nom de la norme dans normes/ (doit figurer dans meta.extends)")
     source: str = Field(description="Citation du renvoi dans le document du client (paragraphe ou page, phrase)")
+    # Fields of that norm the reference does not cover (« sauf le nombre de canaux audio »): they stay
+    # recommendations, capped (decision of Damien, 25 October 2026).
+    except_: list[str] = Field(default=[], alias="except",
+                               description="Chemins des champs exclus du renvoi (ex. audio.groups)")
+    # Version of the norm the document cites, when it is not the one of normes/ (« R 103 v2.0 »): the
+    # version of normes/ applies, the report says so (decision of Damien, 25 October 2026).
+    cited_version: str | None = Field(default=None, description="Version citée par le document, si elle diffère")
+
+    @field_validator("source")
+    @classmethod
+    def _cited(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("renvoi sans citation du document")
+        return v
 
 
 class ProfileMeta(_Model):
@@ -163,8 +177,32 @@ class NormMeta(_Model):
     name: str
     document: NormDocument
     source_pdf: str | None = None  # in normes/sources/
+    source_pdf_sha256: str | None = None
     notes: str | None = None
     extends: list[str] = []
+    # Norms of extends this norm explicitly refers to (« conformément à EBU R 103 »): when a client
+    # refers to this norm, their values are the client's requirements too (transitive reference).
+    refers_to: list[NormReference] = []
+    # always: proposed to every new draft profile; on_reference: only when the document cites it
+    # (a national recommendation such as CST-RT-040).
+    applies: Literal["always", "on_reference"] = "always"
+    # A norm drafted from its PDF by the local AI is validated field by field by a human (review-profile).
+    validated_by: str | None = None
+    validated_at: dt.date | None = None
+
+    @field_validator("source_pdf_sha256")
+    @classmethod
+    def _sha(cls, v: str | None) -> str | None:
+        if v is not None and not _SHA256.match(v):
+            raise ValueError("empreinte SHA-256 attendue : 64 caractères hexadécimaux en minuscules")
+        return v
+
+    @model_validator(mode="after")
+    def _references_extended(self) -> NormMeta:
+        missing = [r.norm for r in self.refers_to if r.norm not in self.extends]
+        if missing:
+            raise ValueError(f"refers_to : {', '.join(missing)} doit figurer dans extends")
+        return self
 
 
 # --- format -------------------------------------------------------------------------------

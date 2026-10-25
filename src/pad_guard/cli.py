@@ -52,6 +52,11 @@ EXIT_NON_CONFORME = 4  # the analysis ran to the end and the verdict is NON-CONF
 _STATUS = {"ok": "[green]OK[/green]", "fail": "[red]ÉCHEC[/red]", "unknown": "[yellow]?[/yellow]"}
 
 
+class DraftKind(str, Enum):
+    profil = "profil"
+    norme = "norme"
+
+
 class LlmBackend(str, Enum):
     none = "none"
     ollama = "ollama"
@@ -567,12 +572,19 @@ def explain_profile(
 
 @app.command("draft-profile")
 def draft_profile(
-    pdf_file: Path = typer.Argument(..., help="PDF du cahier des charges du diffuseur (dans diffuseurs/)."),
-    name: str = typer.Option(..., "--name", "-n", help="Nom du profil, ex. france_tv_hd."),
+    pdf_file: Path = typer.Argument(
+        ..., help="PDF du cahier des charges du diffuseur (dans diffuseurs/), ou d'une norme (normes/sources/)."),
+    name: str = typer.Option(..., "--name", "-n", help="Nom du profil ou de la norme, ex. france_tv_hd, cst_rt040."),
+    kind: DraftKind = typer.Option(
+        DraftKind.profil, "--kind", help="profil (défaut) ou norme : brouillon dans normes/drafts/."),
+    title: str | None = typer.Option(
+        None, "--title", help="Norme : titre du document, ex. « CST-RT-040 — Rec Tech PAD fichiers Diffuseurs »."),
+    doc_version: str | None = typer.Option(None, "--doc-version", help="Norme : version du document, ex. « V1.2, 2016 »."),
     model: str | None = typer.Option(
         None, "--model", help=f"Modèle Ollama (défaut : {llm.DEFAULT_MODEL})."),
     broadcaster: str | None = typer.Option(None, "--broadcaster", help="Nom du diffuseur (défaut : le nom du profil)."),
-    out_dir: Path = typer.Option(draft.DRAFTS, "--out-dir", help="Dossier des brouillons."),
+    out_dir: Path | None = typer.Option(
+        None, "--out-dir", help="Dossier des brouillons (défaut : profiles/drafts/, normes/drafts/ pour une norme)."),
     num_ctx: int | None = typer.Option(
         None, "--num-ctx", min=2048,
         help="Taille du contexte en jetons (défaut : calculée sur la plus grosse demande, plus la réponse)."),
@@ -581,7 +593,14 @@ def draft_profile(
         help="Pénalité de répétition d'Ollama (1.0 : aucune ; enregistrée dans le .llm.jsonl)."),
     progress_json: Path | None = _progress_option(),
 ) -> None:
-    """Propose un profil brouillon à partir du PDF d'un diffuseur, avec le modèle local (Ollama)."""
+    """Propose un profil brouillon à partir du PDF d'un diffuseur (ou une norme brouillon à partir du PDF de
+    la norme), avec le modèle local (Ollama)."""
+    norm = kind == DraftKind.norme
+    if norm and not (title and doc_version):
+        err_console.print("[red]Brouillon de norme : --title et --doc-version sont nécessaires (titre et version "
+                          "exacts du document).[/red]")
+        raise typer.Exit(EXIT_USAGE)
+    out_dir = out_dir or (draft.NORM_DRAFTS if norm else draft.DRAFTS)
     pf = ProgressFile(progress_json)
     pf.emit("read", "Lecture du PDF")
     client = _ollama_or_exit(model)
@@ -608,7 +627,8 @@ def draft_profile(
 
         try:
             x, files = draft.make_draft(pdf_file, name, client, out_dir, broadcaster, progress=on_progress,
-                                        on_read=on_read)
+                                        on_read=on_read, kind="norm" if norm else "profile", title=title,
+                                        doc_version=doc_version)
         except draft.DraftError as exc:
             err_console.print(f"[red]Brouillon impossible : {exc}[/red]")
             raise typer.Exit(EXIT_USAGE) from None
@@ -626,7 +646,9 @@ def draft_profile(
         console.print(f"[bold red]Page {n} : {CAPPED}[/bold red]")
     cited = x.cited_norms()
     console.print("Normes citées par le document : " + (", ".join(cited) if cited else "aucune"))
-    console.print(f"meta.extends proposé : {', '.join(draft.proposed_extends(list(cited)))}", highlight=False)
+    proposed = (json.loads(files["findings"].read_text(encoding="utf-8"))["meta"]["extends"] if norm
+                else draft.proposed_extends(list(cited)))
+    console.print(f"meta.extends proposé : {', '.join(proposed) or 'aucune'}", highlight=False)
     console.print(f"Brouillon : {files['yaml']}\n  détail : {files['findings']}\n  réponses du modèle : {files['log']}")
     console.print(f"À relire avec : pad-guard review-profile {files['yaml']}")
     pf.emit("done", "Brouillon écrit", draft=str(files["yaml"]))
@@ -645,19 +667,24 @@ def _ollama_or_exit(model: str | None) -> llm.OllamaClient:
 
 @app.command("review-profile")
 def review_profile(
-    draft_file: Path = typer.Argument(..., help="Brouillon produit par draft-profile (profiles/drafts/<nom>.yaml)."),
+    draft_file: Path = typer.Argument(
+        ..., help="Brouillon produit par draft-profile (profiles/drafts/<nom>.yaml, normes/drafts/<nom>.yaml)."),
     base: Path | None = typer.Option(
         None, "--base", help="Profil de base pour les valeurs absentes du PDF (défaut : profiles/<nom>.yaml, sinon le gabarit)."),
-    out: Path | None = typer.Option(None, "--out", help="Profil validé à écrire (défaut : profiles/<nom>.yaml)."),
+    out: Path | None = typer.Option(
+        None, "--out", help="Fichier validé à écrire (défaut : profiles/<nom>.yaml, normes/<nom>.yaml pour une norme)."),
     everything: bool = typer.Option(
         False, "--tous", help="Relire aussi les champs dont toutes les propositions ont été rejetées."),
 ) -> None:
-    """Relit un brouillon champ par champ, puis écrit le profil validé (status: validated)."""
+    """Relit un brouillon champ par champ, puis écrit le profil validé (status: validated), ou la norme."""
     try:
         rv = review.load(draft_file, base)
     except review.ReviewError as exc:
         err_console.print(f"[red]{exc}[/red]")
         raise typer.Exit(EXIT_USAGE) from None
+    if rv.is_norm:
+        _review_norm(rv, out or rv.norms / f"{rv.meta['name']}.yaml", everything)
+        return
     out = out or (review.ROOT / "profiles" / f"{rv.meta['name']}.yaml")
     console.print(f"Relecture de [bold]{draft_file}[/bold] : {len(rv.fields)} champ(s) extrait(s) ; "
                   f"profil de base {rv.base}")
@@ -715,6 +742,43 @@ def review_profile(
     resolved, tmp = review.write(rv, out, data, comments)
     review.finish(tmp, out)
     console.print(f"[green]Profil validé[/green] : {out} (validé par {who}), empreinte {resolved.fingerprint}")
+
+
+def _review_norm(rv: review.Review, out: Path, everything: bool) -> None:
+    """review-profile of a norm draft: the fields, the references to other norms (extends, no value
+    copied), then the norm, checked, in normes/."""
+    ask = lambda text: typer.prompt(text, default="", show_default=False)  # noqa: E731
+    say = lambda text: console.print(text, markup=False, highlight=False)  # noqa: E731
+    alert = lambda text: console.print(f"[bold red]{escape(text)}[/bold red]", highlight=False)  # noqa: E731
+    console.print(f"Relecture de la norme [bold]{rv.meta['name']}[/bold] ({rv.doc}) : {len(rv.fields)} champ(s) "
+                  "extrait(s) ; une valeur refusée ou laissée vide est absente de la norme.")
+    skipped = review.ask_fields(rv, ask=ask, say=say, everything=everything, alert=alert)
+    if skipped:
+        console.print(f"\n{len(skipped)} champ(s) dont toutes les propositions ont été rejetées n'ont pas été relus "
+                      "(absents de la norme). Les relire avec --tous :")
+        console.print(", ".join(f["path"] for f in skipped), markup=False, highlight=False)
+    review.ask_references(rv, ask=ask, say=say, alert=alert)
+    answers = review.save_answers(rv)
+    console.print(f"Réponses enregistrées dans {answers}")
+    data = review.build_norm(rv)
+    data["meta"]["applies"] = ("always" if _yes("Proposer cette norme à tout nouveau brouillon de profil, même quand "
+                                                "le document ne la cite pas ? [o/N]") else "on_reference")
+    who = ""
+    while not who:
+        who = typer.prompt("Nom du validateur").strip()
+    if out.exists() and not _yes(f"{out} existe : la remplacer ? [o/N]"):
+        raise typer.Exit(EXIT_USAGE)
+    review.validate(data, who)
+    try:
+        tmp = review.write_norm(rv, out, data)
+    except review.ReviewError as exc:
+        err_console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(EXIT_USAGE) from None
+    review.finish(tmp, out)
+    tmp.parent.rmdir()
+    values = len(data.get("sources", {}))
+    console.print(f"[green]Norme validée[/green] : {out} (validée par {who}), {values} valeur(s) citée(s), "
+                  f"extends : {', '.join(data['meta']['extends']) or 'aucune'}")
 
 
 def _yes(question: str) -> bool:

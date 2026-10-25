@@ -39,7 +39,10 @@ from pad_guard.draft.schema import catalogue, check_value
 from pad_guard.draft.write import CAPPED, dump, one_line, scalar
 from pad_guard.profiles.resolve import (
     HOUSE,
+    NORMS_DIR,
+    REPO_NORMS,
     ResolvedProfile,
+    _norm_chain,
     capped_norm_values,
     leaves,
     load_norm,
@@ -74,12 +77,29 @@ class Review:
     draft: Path
     meta: dict[str, Any]
     fields: list[dict]  # findings.json "fields"
-    base: Path
+    base: Path | None  # None for a norm: partial, no base profile
     decisions: list[Decision] = field(default_factory=list)
     glossary: glossary_mod.Glossary | None = None
     cited_norms: list[dict] = field(default_factory=list)  # findings.json "cited_norms"
     capped_pages: list[int] = field(default_factory=list)  # findings.json "capped_pages"
     references: list[dict] = field(default_factory=list)  # confirmed: {norm, source} for meta.refers_to
+    norms_dir: Path | None = None  # norms of a norm draft (normes/ above normes/drafts/)
+
+    @property
+    def is_norm(self) -> bool:
+        return self.meta.get("kind") == "norm"
+
+    @property
+    def norms(self) -> Path:
+        return self.norms_dir if self.base is None else norms_dir_for(self.base)
+
+    @property
+    def doc(self) -> str:
+        """The document as cited in a source: « CST-RT-040 V1.2, 2016 » for a norm, else the client's file name."""
+        if self.is_norm:
+            d = self.meta["document"]
+            return f"{d['title'].split(' — ')[0]} {d['version']}"
+        return self.meta.get("source_document", "document")
 
 
 def load(draft: Path, base: Path | None) -> Review:
@@ -88,16 +108,23 @@ def load(draft: Path, base: Path | None) -> Review:
         raise ReviewError(f"{sidecar.name} absent à côté de {draft} : relancer « draft-profile »")
     data = json.loads(sidecar.read_text(encoding="utf-8"))
     meta = data["meta"]
-    if base is None:
+    norms_dir = None
+    if meta.get("kind") == "norm":
+        if base is not None:
+            raise ReviewError("une norme n'a pas de profil de base (--base) : ses valeurs viennent de son seul document")
+        folder = draft.resolve().parent
+        norms_dir = folder.parent if folder.name == "drafts" and folder.parent.name == NORMS_DIR else REPO_NORMS
+    elif base is None:
         own = ROOT / "profiles" / f"{meta['name']}.yaml"
         base = own if own.is_file() else TEMPLATE
-    terms = norms_dir_for(base) / glossary_mod.GLOSSARY.name
+    terms = (norms_dir or norms_dir_for(base)) / glossary_mod.GLOSSARY.name
     try:
         g = glossary_mod.load(terms) if terms.is_file() else None
     except glossary_mod.GlossaryError as exc:
         raise ReviewError(str(exc)) from None
     return Review(draft=draft, meta=meta, fields=data["fields"], base=base, glossary=g,
-                  cited_norms=data.get("cited_norms", []), capped_pages=data.get("capped_pages", []))
+                  cited_norms=data.get("cited_norms", []), capped_pages=data.get("capped_pages", []),
+                  norms_dir=norms_dir)
 
 
 def norm_values(extends: list[str], norms_dir: Path) -> dict[str, tuple[Any, str]]:
@@ -186,8 +213,8 @@ def questions(review: Review, everything: bool = False) -> tuple[list[Question],
     """(questions, fields not asked about) for the fields to verify (A_VERIFIER, INVRAISEMBLABLE,
     RENVOI_NORME) and in conflict; with ``everything``, also the fields whose proposals were all
     refused. The fields not asked about keep the value of the base profile."""
-    base_raw = read_yaml(review.base)
-    norms = norm_values(review.meta.get("extends", []), norms_dir_for(review.base))
+    base_raw = read_yaml(review.base) if review.base else {}
+    norms = norm_values(review.meta.get("extends", []), review.norms)
     asked = [f for f in review.fields if everything or f["status"] in ASKED]
     skipped = [f for f in review.fields if f not in asked]
     out = []
@@ -219,7 +246,7 @@ def decide(review: Review, q: Question, answer: str, correction: Decision | None
     (see ``corrected``). A new decision about the same field replaces the previous one."""
     if answer not in q.choices:
         raise ReviewError(f"{q.path} : réponse attendue parmi {', '.join(q.choices)}")
-    doc = review.meta.get("source_document", "document")
+    doc = review.doc
     if answer == "a":
         d = Decision(q.path, "accept", q.value, _citation(doc, q.proposal))
     elif answer.isdigit():
@@ -237,14 +264,18 @@ def decide(review: Review, q: Question, answer: str, correction: Decision | None
     return d
 
 
-def corrected(review: Review, path: str, value: Any, page: str = "", quote: str = "") -> Decision:
-    """The correction of ``path`` by the reviewer; ReviewError if the value is not acceptable."""
+def corrected(review: Review, path: str, value: Any, page: str = "", quote: str = "",
+              check_only: bool = False) -> Decision:
+    """The correction of ``path`` by the reviewer; ReviewError if the value is not acceptable. A value
+    of a norm always cites its document (page and quote), unless ``check_only`` (the value alone)."""
     spec = {s.path: s for s in catalogue()}.get(path)
     checked, why = check_value(spec, value) if spec else (value, None)
     if why:
         raise ReviewError(why)
-    doc = review.meta.get("source_document", "document")
+    doc = review.doc
     page, quote = str(page).strip(), quote.strip()
+    if review.is_norm and not check_only and not (page and quote):
+        raise ReviewError("valeur d'une norme : la page et la citation exacte du document sont obligatoires")
     if page and quote:
         source = f"{doc} p. {page} : « {quote} » (corrigé à la relecture)"
     else:
@@ -286,7 +317,9 @@ def ask_fields(review: Review, ask: Ask, say: Say, everything: bool = False, ale
                 line = (f"  {mark}{scalar(x['value'])} (p. {x['page']}, {x['status']}"
                         f"{' : ' + x['reason'] if x.get('reason') else ''}) « {one_line(x['quote'], 160)} »")
                 (alert if x["status"] == IMPLAUSIBLE else say)(line)
-        say(f"  Profil de base ({review.base.name}) : {scalar(q.base_value) if q.base_value is not None else '—'}")
+        if review.base is not None:
+            say(f"  Profil de base ({review.base.name}) : "
+                f"{scalar(q.base_value) if q.base_value is not None else '—'}")
         if q.norm:
             say(f"  Norme (information) : {scalar(q.norm[0])} ({q.norm[1]})")
         menu = " ".join(f"[{c}] {CHOICE_LABELS.get(c, 'choisir ce candidat')}" for c in q.choices)
@@ -304,11 +337,11 @@ def ask_fields(review: Review, ask: Ask, say: Say, everything: bool = False, ale
 
 def reference_questions(review: Review) -> list[ReferenceQuestion]:
     """The references of the document to a norm of normes/ cited in extends (not the house rules)."""
-    norms_dir = norms_dir_for(review.base)
+    norms_dir = review.norms
     extends = review.meta.get("extends", [])
     out = []
     for n in review.cited_norms:
-        if not (n.get("available") and n["norm"] in extends and n["norm"] != HOUSE):
+        if not (n.get("available") and n["norm"] in extends and n["norm"] not in (HOUSE, review.meta["name"])):
             continue
         norm = load_norm(norms_dir / f"{n['norm']}.yaml")
         out.append(ReferenceQuestion(norm=n["norm"], title=norm.meta.document.title.split(" — ")[0], page=n["page"],
@@ -317,12 +350,15 @@ def reference_questions(review: Review) -> list[ReferenceQuestion]:
     return out
 
 
-def confirm_reference(review: Review, rq: ReferenceQuestion, confirmed: bool) -> None:
-    """Confirm (or withdraw) a reference: confirmed, it goes to meta.refers_to."""
-    doc = review.meta.get("source_document", "document")
+def confirm_reference(review: Review, rq: ReferenceQuestion, confirmed: bool, cited_version: str = "") -> None:
+    """Confirm (or withdraw) a reference: confirmed, it goes to meta.refers_to, with the version the
+    document cites when it is not the one of normes/."""
     review.references = [r for r in review.references if r["norm"] != rq.norm]
     if confirmed:
-        review.references.append({"norm": rq.norm, "source": f"{doc} p. {rq.page} : « {one_line(rq.quote, 300)} »"})
+        ref = {"norm": rq.norm, "source": f"{review.doc} p. {rq.page} : « {one_line(rq.quote, 300)} »"}
+        if cited_version.strip():
+            ref["cited_version"] = cited_version.strip()
+        review.references.append(ref)
 
 
 def ask_references(review: Review, ask: Ask, say: Say, alert: Say | None = None) -> None:
@@ -332,6 +368,17 @@ def ask_references(review: Review, ask: Ask, say: Say, alert: Say | None = None)
     for i, rq in enumerate(cited, start=1):
         say(f"\n[renvoi {i}/{len(cited)}] Le document renvoie à {rq.title} (p. {rq.page}) « {one_line(rq.quote, 200)} »")
         say("  Valeurs de la norme : " + "; ".join(f"{p} = {one_line(scalar(v), 60)}" for p, v in rq.values))
+        if review.is_norm:
+            name = review.meta["name"]
+            alert(f"  Confirmé, {name} étend {rq.title} sans recopier ses valeurs : quand un client renvoie à {name}, "
+                  f"ces valeurs deviennent ses exigences, sauf celles que {name} écrit elle-même. Non confirmé, "
+                  f"{rq.title} n'est pas étendue.")
+            answer = ask(f"  Confirmer le renvoi à {rq.title} ? [o/N]").strip().lower()
+            if answer in ("o", "oui", "y", "yes"):
+                applied = load_norm(review.norms / f"{rq.norm}.yaml").meta.document.version
+                version = ask(f"  Version citée par le document, si ce n'est pas {applied} (Entrée : la même)")
+                confirm_reference(review, rq, True, version)
+            continue
         alert("  Confirmé, ces valeurs deviennent des exigences du client (sans plafonnement), sauf celles que le "
               "client chiffre lui-même. Non confirmé, ce sont des recommandations plafonnées à mineur.")
         answer = ask(f"  Confirmer le renvoi à {rq.title} ? [o/N]").strip().lower()
@@ -365,14 +412,19 @@ def _correct(review: Review, path: str, ask: Ask, say: Say) -> Decision:
             say("  Valeur illisible.")
             continue
         try:
-            corrected(review, path, value)
+            corrected(review, path, value, check_only=True)
         except ReviewError as exc:
             say(f"  {exc}")
             continue
         break
-    page = ask("  Page du document (vide si aucune)").strip()
-    quote = ask("  Citation exacte du document (vide si aucune)").strip()
-    return corrected(review, path, value, page, quote)
+    optional = "" if review.is_norm else " (vide si aucune)"
+    while True:
+        page = ask(f"  Page du document{optional}").strip()
+        quote = ask(f"  Citation exacte du document{optional}").strip()
+        try:
+            return corrected(review, path, value, page, quote)
+        except ReviewError as exc:
+            say(f"  {exc}")
 
 
 def build(review: Review) -> tuple[dict[str, Any], dict[str, str]]:
@@ -411,6 +463,46 @@ def _references(base_meta: dict[str, Any], review: Review) -> list[dict]:
     out = {r["norm"]: r for r in base_meta.get("refers_to") or [] if isinstance(r, dict) and "norm" in r}
     out.update({r["norm"]: r for r in review.references})
     return [r for r in out.values() if r["norm"] in extends]
+
+
+def build_norm(review: Review) -> dict[str, Any]:
+    """The norm from the decisions alone: a partial profile, every value with its citation; it
+    extends only the norms whose reference was confirmed (no value copied)."""
+    data: dict[str, Any] = {}
+    sources: dict[str, str] = {}
+    for d in review.decisions:
+        if d.action in ("accept", "correct"):
+            _set(data, d.path, d.value)
+            sources[d.path] = d.source
+    m = review.meta
+    extends = [n for n in m.get("extends", []) if any(r["norm"] == n for r in review.references)]
+    meta = {"kind": "norm", "name": m["name"], "document": dict(m["document"]), "source_pdf": m.get("source_pdf"),
+            "source_pdf_sha256": m.get("source_pdf_sha256"),
+            "notes": f"Norme relue champ par champ depuis le brouillon {review.draft.name}.",
+            "extends": extends,
+            "refers_to": [r for n in extends for r in review.references if r["norm"] == n],
+            "applies": "always", "validated_by": None, "validated_at": None}
+    return {"meta": meta, **data, "sources": dict(sorted(sources.items()))}
+
+
+def write_norm(review: Review, out: Path, data: dict[str, Any]) -> Path:
+    """Check the norm (schema, a source for every value, the norms it extends, no cycle), written in a
+    folder of its own next to ``out``; returns that file, to move in place with ``finish``."""
+    tmp = out.parent / ".relecture" / out.name  # same file name: meta.name must match it
+    tmp.parent.mkdir(parents=True, exist_ok=True)
+    d = data["meta"]["document"]
+    header = [f"Norme {data['meta']['name']} relue avec pad-guard review-profile depuis {review.draft.name}.",
+              f"Document : {d['title']} ({d['version']}), {data['meta']['source_pdf']} "
+              f"(SHA-256 {data['meta']['source_pdf_sha256']}).",
+              "Chaque valeur cite sa page dans « sources » ; aucune valeur des normes étendues n'est recopiée."]
+    tmp.write_text(dump(data, None, header), encoding="utf-8", newline="\n")
+    try:
+        norm = load_norm(tmp)
+        _norm_chain(norm.meta.extends, out.parent, f"normes/{norm.name}.yaml", [norm.name], {}, [], tmp)
+    except ProfileError as exc:
+        tmp.unlink(missing_ok=True)
+        raise ReviewError("norme invalide, rien n'a été écrit :\n  - " + "\n  - ".join(exc.messages)) from None
+    return tmp
 
 
 _MISSING = re.compile(r"champ obligatoire manquant « ([\w.]+) »")

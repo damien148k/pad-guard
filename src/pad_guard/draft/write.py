@@ -124,8 +124,10 @@ def draft_text(x: Extraction, meta: dict[str, Any], norms: Norms | None = None) 
     comments = {r.path: _comment(r) for r in kept}
     data = {"meta": meta, **nest(values)}
     counts = {s: sum(r.status == s for r in x.fields) for s in sorted({r.status for r in x.fields})}
+    norm = meta.get("kind") == "norm"
     header = [
-        f"BROUILLON de profil « {meta['name']} » produit par pad-guard draft-profile : NE PAS UTILISER EN L'ÉTAT.",
+        f"BROUILLON de {'norme' if norm else 'profil'} « {meta['name']} » produit par pad-guard draft-profile : "
+        "NE PAS UTILISER EN L'ÉTAT.",
         f"Source : {meta['source_pdf']} (SHA-256 {x.pdf_sha256}), {x.pages} pages.",
         f"Modèle local : {x.model}, consigne {x.prompt_version}, {x.batches} lots de pages, contexte {x.num_ctx} jetons.",
         "Chaque valeur est à vérifier (A VERIFIER) : la citation a été retrouvée dans la page et contient le nombre,",
@@ -134,14 +136,19 @@ def draft_text(x: Extraction, meta: dict[str, Any], norms: Norms | None = None) 
           for n in x.capped_pages],
         "Statuts : " + ", ".join(f"{n} {s}" for s, n in counts.items()) + f", {len(x.not_found)} champ(s) non trouvé(s).",
         "",
-        "Normes citées par le document (proposées dans meta.extends, après les autres : elles priment) :",
+        *(["Normes citées par le document (celles de normes/ proposées dans meta.extends ; review-profile confirme",
+           "chaque renvoi, aucune valeur n'est recopiée) :"] if norm else
+          ["Normes citées par le document (proposées dans meta.extends, après les autres : elles priment) :"]),
         *([_norm_line(k, *v) for k, v in norms.items()] or ["  (aucune)"]),
         "",
-        "Champs pour lesquels le document renvoie à une norme sans écrire la valeur (absents : hérités de la",
-        "norme : exigences du client si review-profile confirme le renvoi, sinon recommandations plafonnées à minor) :",
+        *(["Champs pour lesquels le document renvoie à une norme sans écrire la valeur (absents : fournis par la",
+           "norme citée si review-profile confirme le renvoi) :"] if norm else
+          ["Champs pour lesquels le document renvoie à une norme sans écrire la valeur (absents : hérités de la",
+           "norme : exigences du client si review-profile confirme le renvoi, sinon recommandations plafonnées à minor) :"]),
         *([f"  - {r.path} -> {_ref(r)}" for r in refs] or ["  (aucun)"]),
         "",
-        "Champs non trouvés dans le document (absents : hérités d'une norme, donc plafonnés à minor, ou à fixer) :",
+        ("Champs non trouvés dans le document (absents de la norme) :" if norm else
+         "Champs non trouvés dans le document (absents : hérités d'une norme, donc plafonnés à minor, ou à fixer) :"),
         *[f"  - {p}" for p in x.not_found],
     ]
     return dump(data, comments, header)

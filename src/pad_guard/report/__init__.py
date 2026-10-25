@@ -411,7 +411,16 @@ class _Builder:
             notes.append(ai_note(outcome))
         notes.append("Les seuils sont ceux du profil ; une valeur marquée « A VERIFIER » ou « DEDUIT » dans le profil "
                      "est une interprétation à confirmer.")
+        notes += self.version_notes()
         return notes
+
+    def version_notes(self) -> list[str]:
+        """A norm cited in another version than the one of normes/ (« CST-RT-040 cite EBU R 103 v2.0, version
+        appliquée : version 3.0 ») : information, from the effective profile."""
+        path = self.dir / wd.EFFECTIVE_PROFILE
+        if not path.is_file():
+            return []
+        return [f"Version de norme : {n}." for n in from_json(json.loads(path.read_text(encoding="utf-8")), path).notes]
 
     def view(self, sections: dict, names: dict[int, str], outcome: ai_mod.Outcome | None) -> dict:
         """rapport.json: what rapport.md shows, as data, for the local interface (Phase 5). The
