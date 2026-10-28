@@ -1,0 +1,32 @@
+# Relevé du rapport UIT-R BT.2408-6 (03/2023), fait à la main dans le PDF, vérifié par pad-guard releve-norme.
+# Guide de pratiques HDR (un rapport, pas une recommandation) : aucune valeur du profil actuel, pas de fichier
+# normes/itu_bt2408.yaml. Cité par Arte (p. 13). À reprendre en phase 7 (HDR), quand le profil aura des champs HDR.
+
+meta:
+  name: itu_bt2408
+  document:
+    title: "Rapport UIT-R BT.2408-6 — Guidance for operational practices in HDR television production"
+    version: "BT.2408-6, 03/2023"
+  source_pdf: "normes/sources/HDR_COULEUR/REPORT  ITU-R  BT.2408-6 – Guidance for operational practices in HDR television production.pdf"
+
+libelle: Rapport UIT-R BT.2408-6
+fichier_norme: aucun
+releve_par: "Claude Code (décision de Damien du 28/10/2026 : relevé sans questionnaire)"
+releve_le: 2026-10-28
+
+non_retenus:
+  - sujet: "Blanc de référence HDR"
+    page: 7
+    citation: "of 203 cd/m2 on a PQ display or on an HLG display that has a nominal peak luminance capability of 1 000 cd/m2"
+    remarque: "Niveau de référence (203 cd/m², 58 % PQ, 75 % HLG, tableau 1 p. 8) : pas de champ HDR dans le profil (phase 7)."
+  - sujet: "Repères de forme d'onde"
+    page: 8
+    citation: "A 75%-HLG or 58%-PQ marker on a waveform monitor, representing the reference level"
+    remarque: "Pratique d'exploitation, pas un seuil de conformité."
+  - sujet: "Plage pleine PQ"
+    page: 11
+    citation: "the full range signal representation of PQ should be used only when all parties agree"
+    remarque: "Même règle que BT.2100 (plage légale par défaut) ; la valeur vient de BT.2100."
+
+absents: >-
+  BT.2408 est un guide : il ne fixe aucune valeur que le profil sait porter aujourd'hui.

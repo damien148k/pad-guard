@@ -495,8 +495,22 @@ def test_table_rows_and_columns() -> None:
     found = verify.table_row("Mesure cible (Integrated Loudness) -23 LUFS (+/- 1 LU)", [table])
     assert found == (table, 1)  # one cell left out, the words still in order in one row
     assert verify.table_row("Excursion dynamique -23 LUFS", [table]) is None  # words of two rows
-    assert verify.table_column_kind(1.0, table, 1) == "long"
-    assert verify.table_column_kind(20.0, table, 2) == "long"
+    assert verify.table_column_kinds(1.0, table, 1) == {"long"}
+    assert verify.table_column_kinds(20.0, table, 2) == {"long"}
+    both = [["", "Programmes courts", "Programmes longs"], ["Integrated loudness", "-23,0 LUFS", "-23,0 LUFS ± 1,0 LU"]]
+    assert verify.table_column_kinds(-23.0, both, 1) == {"short", "long"}  # the same value for both
+
+
+def test_durations_in_minutes_and_loudness_context() -> None:
+    # CST-RT-040 p. 9: « 2 minutes » is 120 s; « ≤ 20,0 LU » (a LRA) is not a duration of 2 minutes.
+    assert verify.value_in_quote(120, "un programme dont la durée est supérieure à 2 minutes.") is None
+    assert verify.value_in_quote(120, "jusqu'à 20 minutes") is not None
+    page = ("Programme court : durée inférieure ou égale à 2 minutes. Programme long : durée supérieure à 2 minutes. "
+            "Programmes courts Programmes longs Excursion dynamique ≤ 20,0 LU. "
+            "Le dialogue s'autorise une excursion maximale de 7 LU autour de ce niveau cible.")
+    quote = "une excursion maximale de 7 LU autour de ce niveau cible"
+    assert verify.loudness_context("audio.loudness.long.short_term_dialogue_excursion_lu", quote, page) is None
+    assert verify.loudness_context("audio.loudness.short.short_term_dialogue_excursion_lu", quote, page)
 
 
 def test_lists_compared_as_sets(doc_pdf, tmp_path) -> None:

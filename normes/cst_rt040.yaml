@@ -1,6 +1,7 @@
-# Norme cst_rt040 relue avec pad-guard review-profile depuis cst_rt040.yaml.
+# Norme cst_rt040 écrite par pad-guard releve-norme depuis normes/releves/cst_rt040.yaml.
 # Document : CST-RT-040 — Rec Tech PAD Fichiers Editeurs (TV) (V1.2, 2016), normes/sources/TV/cst-rt-040-tv-2016-pad_fichiers_editeurs_v1.2.pdf (SHA-256 c3c2a86b10aed7c7b068b5b775d9f17366ebedfcfe619316f6dd793a78480b3c).
-# Chaque valeur cite sa page dans « sources » ; aucune valeur des normes étendues n'est recopiée.
+# Relevé par Claude Code (décision de Damien du 28/10/2026 : relevé sans questionnaire) le 2026-10-28 ; chaque citation a été retrouvée par le code dans sa page, avec son nombre.
+# Tableau de relecture : docs/normes/cst_rt040.md. Ne pas modifier à la main : corriger le relevé et relancer pad-guard releve-norme.
 
 meta:
   kind: norm
@@ -10,17 +11,28 @@ meta:
     version: V1.2, 2016
   source_pdf: normes/sources/TV/cst-rt-040-tv-2016-pad_fichiers_editeurs_v1.2.pdf
   source_pdf_sha256: c3c2a86b10aed7c7b068b5b775d9f17366ebedfcfe619316f6dd793a78480b3c
-  notes: Norme relue champ par champ depuis le brouillon cst_rt040.yaml.
-  extends: [ebu_r128, itu_bt709, ebu_r103]
+  notes: Première relecture validée par Vincent le 25/10/2026 (review-profile) ; relevé complet du 28/10/2026 (complément intégré) à valider sur docs/normes/cst_rt040.md.
+  extends: [ebu_r128, ebu_r128_s1, itu_bt709, ebu_r103]
   refers_to:
     - {norm: ebu_r128, source: 'CST-RT-040 V1.2, 2016 p. 4 : « EBU-R128 et R128s1: normalisation de l’intensité sonore (ou sonie, ou loudness) et niveau maximum permis »'}
+    - {norm: ebu_r128_s1, source: 'CST-RT-040 V1.2, 2016 p. 4 : « EBU-R128 et R128s1: normalisation de l’intensité sonore (ou sonie, ou loudness) et niveau maximum permis »'}
     - {norm: itu_bt709, source: 'CST-RT-040 V1.2, 2016 p. 4 : « ITU-R BT.709 : Paramètres de codage vidéo HD »'}
-    - {norm: ebu_r103, source: 'CST-RT-040 V1.2, 2016 p. 5 : « Conformément à la recommandation EBU R 103 (v2.0 juin 2016), et afin de garantir le respect de l’espace »', cited_version: v2.0 (juin 2016)}
+    - {cited_version: v2.0 (juin 2016), norm: ebu_r103, source: 'CST-RT-040 V1.2, 2016 p. 5 : « Conformément à la recommandation EBU R 103 (v2.0 juin 2016), et afin de garantir le respect de l’espace »'}
   applies: on_reference
-  validated_by: Vincent
-  validated_at: '2026-10-25'
+  validated_by: null
+  validated_at: null
+
+format:
+  width: 1920
+  height: 1080
+  fps_allowed: [25/1]
+  chroma_allowed: ['4:2:2']
+  bit_depth_allowed: [8]
+  color_range: tv
 
 video:
+  y_min_legal: 64
+  y_max_legal: 940
   max_out_of_range_area_pct: 1.0
 
 audio:
@@ -29,17 +41,25 @@ audio:
   bit_depth_allowed: [24]
   same_bit_depth_all_tracks: true
   channel_layout: stereo_pairs
-  loudness:
-    long:
-      integrated_lufs: -23.0
-      lra_max_lu: 20.0
-  true_peak_max_dbtp: -3.0
+  dual_mono_must_be_identical: true
   alignment_tone:
     hz: 1000.0
     dbfs: -18.0
+  true_peak_max_dbtp: -3.0
   av_sync_ms:
     audio_early_max: 20.0
     audio_late_max: 40.0
+  loudness:
+    long_program_min_seconds: 120
+    long:
+      integrated_lufs: -23.0
+      integrated_tolerance_lu: 1.0
+      lra_max_lu: 20.0
+      lra_recommended_range_lu: [5.0, 20.0]
+      short_term_dialogue_excursion_lu: 7.0
+    short:
+      integrated_lufs: -23.0
+      short_term_max_lufs: -20.0
 
 sources:
   audio.alignment_tone.dbfs: 'CST-RT-040 V1.2, 2016 p. 8 : « Un signal d’alignement 1000 Hz à -18 dBFS doit afficher un niveau de Loudness de -18 LUFS sur un équipement de mesure en EBU Mode, si le signal est présent sur les canaux gauche et droite d’un programme stéréo. »'
@@ -49,9 +69,24 @@ sources:
   audio.bit_depth: 'CST-RT-040 V1.2, 2016 p. 10 : « Quantification linéaire : 24 Bits pour le format PCM »'
   audio.bit_depth_allowed: 'CST-RT-040 V1.2, 2016 p. 16 : « Chaque piste audio du fichier MXF transportera un flux de type AES3, de résolution audio 24 bits, à 48 kHz de fréquence d’échantillonnage. »'
   audio.channel_layout: 'CST-RT-040 V1.2, 2016 p. 16 : « Les fichiers MXF Prêts à Diffuser comporteront 8 canaux audio, chaque canal distinct étant transporté par une piste AES3 distincte. »'
-  audio.loudness.long.integrated_lufs: 'CST-RT-040 V1.2, 2016 p. 14 : « "Dialog level" - 23,0 LUFS ± 1 (A mesurer) »'
+  audio.dual_mono_must_be_identical: 'CST-RT-040 V1.2, 2016 p. 11 : « ces deux pistes contenant le signal monophonique seront strictement identiques et en phase »'
+  audio.loudness.long.integrated_lufs: 'CST-RT-040 V1.2, 2016 p. 9 : « Mesure du niveau d’intensité | -23,0 LUFS | -23,0 LUFS ± 1,0 LU »'
+  audio.loudness.long.integrated_tolerance_lu: 'CST-RT-040 V1.2, 2016 p. 9 : « Mesure du niveau d’intensité | -23,0 LUFS | -23,0 LUFS ± 1,0 LU »'
   audio.loudness.long.lra_max_lu: 'CST-RT-040 V1.2, 2016 p. 9 : « Excursion dynamique (Loudness Range ou LRA) ≤ 20,0 LU »'
+  audio.loudness.long.lra_recommended_range_lu: 'CST-RT-040 V1.2, 2016 p. 9 : « Excursion dynamique (Loudness Range ou LRA) ≤ 20,0 LU Il est conseillé de dépasser une valeur de 5 LU »'
+  audio.loudness.long.short_term_dialogue_excursion_lu: 'CST-RT-040 V1.2, 2016 p. 9 : « la mesure d’intensité sonore court terme, sur les passages du programme comportant des dialogues, devra cibler le niveau moyen de -23,0 LUFS et s’autoriser une excursion maximale de 7 LU autour de ce niveau cible »'
+  audio.loudness.long_program_min_seconds: 'CST-RT-040 V1.2, 2016 p. 9 : « Programme long : un programme dont la durée est supérieure à 2 minutes. »'
+  audio.loudness.short.integrated_lufs: 'CST-RT-040 V1.2, 2016 p. 9 : « Mesure du niveau d’intensité | -23,0 LUFS | -23,0 LUFS ± 1,0 LU »'
+  audio.loudness.short.short_term_max_lufs: 'CST-RT-040 V1.2, 2016 p. 9 : « Niveau maximum de la mesure d’intensité sonore court terme (Max Short Term Loudness) | ≤ -20,0 LUFS | Non mesuré »'
   audio.same_bit_depth_all_tracks: 'CST-RT-040 V1.2, 2016 p. 16 : « Chaque piste audio du fichier MXF transportera un flux de type AES3, de résolution audio 24 bits, à 48 kHz de fréquence d’échantillonnage. »'
   audio.sample_rate: 'CST-RT-040 V1.2, 2016 p. 10 : « Fréquence d’échantillonnage : 48 kHz »'
   audio.true_peak_max_dbtp: 'CST-RT-040 V1.2, 2016 p. 8 : « Le niveau des crêtes du signal audio, mesuré en True Peak, ne doit pas dépasser -3,0 dBTP. »'
+  format.bit_depth_allowed: 'CST-RT-040 V1.2, 2016 p. 6 : « lors de la conformation du signal vidéo 8 bits destiné au fichier Prêt A Diffuser »'
+  format.chroma_allowed: 'CST-RT-040 V1.2, 2016 p. 5 : « 1080i – 25 images/seconde - 4:2:2 - ratio image 16/9 »'
+  format.color_range: 'CST-RT-040 V1.2, 2016 p. 5 : « 10 bits 64 – 940 20 – 984 4 - 1019 »'
+  format.fps_allowed: 'CST-RT-040 V1.2, 2016 p. 4 : « Le signal vidéo correspond aux caractéristiques 1080i (entrelacé) à 25 images/seconde »'
+  format.height: 'CST-RT-040 V1.2, 2016 p. 4 : « SMPTE 274M : Paramètres signal HD 1920x1080 »'
+  format.width: 'CST-RT-040 V1.2, 2016 p. 4 : « SMPTE 274M : Paramètres signal HD 1920x1080 »'
   video.max_out_of_range_area_pct: 'CST-RT-040 V1.2, 2016 p. 5 : « La proportion de pixels dont les valeurs sont hors « Color Gamut » (voir tableau ci-dessus) ne doit pas excéder 1% du nombre total de pixels de l’image active. »'
+  video.y_max_legal: 'CST-RT-040 V1.2, 2016 p. 5 : « 10 bits 64 – 940 20 – 984 4 - 1019 »'
+  video.y_min_legal: 'CST-RT-040 V1.2, 2016 p. 5 : « 10 bits 64 – 940 20 – 984 4 - 1019 »'

@@ -1,0 +1,85 @@
+# Relevé de EBU R 103 (version 3.0, mai 2020), fait à la main dans le PDF, vérifié par pad-guard releve-norme.
+# fichier_norme: verifier : normes/ebu_r103.yaml (relevé le 23/10/2026, hérité par Arte) n'est pas réécrit ;
+# le relevé doit en donner exactement les valeurs, avec leur page.
+
+meta:
+  name: ebu_r103
+  document:
+    title: "EBU R 103 — Video signal tolerance in digital television systems"
+    version: "version 3.0, mai 2020"
+  source_pdf: normes/sources/TV/r103.pdf
+
+libelle: EBU R 103 v3.0
+fichier_norme: verifier
+releve_par: "Claude Code (décision de Damien du 28/10/2026 : relevé sans questionnaire)"
+releve_le: 2026-10-28
+
+valeurs:
+  - champ: video.y_min_legal
+    valeur: 64
+    page: 5
+    citation: "10-bit 64 - 940 20 - 984 4 - 1019"
+    remarque: "Tableau 1, ligne 10 bits, colonne « Nominal Video Range »."
+  - champ: video.y_max_legal
+    valeur: 940
+    page: 5
+    citation: "10-bit 64 - 940 20 - 984 4 - 1019"
+    remarque: "Tableau 1, ligne 10 bits, colonne « Nominal Video Range »."
+  - champ: video.y_tolerance_low_pct
+    valeur: -5.0
+    page: 5
+    citation: "10-bit 64 - 940 20 - 984 4 - 1019"
+    controle: code10
+    remarque: >-
+      Colonne « Preferred Min. / Max. » : 20. P. 4 : « the RGB components and the corresponding Luminance (Y) signal
+      should not normally exceed the “Preferred Minimum/Maximum” range » : même plage pour Y et RVB. Arte (§3.2.3.3)
+      attribue à R 103 une plage Y de -1 % / 103 %, qui n'y figure pas ; le profil Arte garde ses valeurs.
+  - champ: video.y_tolerance_high_pct
+    valeur: 105.0
+    page: 5
+    citation: "10-bit 64 - 940 20 - 984 4 - 1019"
+    controle: code10
+    remarque: "Colonne « Preferred Min. / Max. » : 984 (même plage pour Y et RVB, p. 4)."
+  - champ: video.rgb_min_pct
+    valeur: -5.0
+    page: 5
+    citation: "10-bit 64 - 940 20 - 984 4 - 1019"
+    controle: code10
+    remarque: "Colonne « Preferred Min. / Max. » : 20."
+  - champ: video.rgb_max_pct
+    valeur: 105.0
+    page: 5
+    citation: "10-bit 64 - 940 20 - 984 4 - 1019"
+    controle: code10
+    remarque: "Colonne « Preferred Min. / Max. » : 984."
+  - champ: video.max_out_of_range_area_pct
+    valeur: 1.0
+    page: 5
+    citation: "measuring equipment should indicate an “Out-of-Gamut” occurrence only after the error exceeds 1% of the image"
+    remarque: >-
+      R 103 : erreur au-delà de 1 % (strictement) ; PAD Guard et Arte : à partir de 1 % (1 % compris). Écart à la
+      frontière, à arbitrer.
+  - champ: video.prefilter
+    valeur: true
+    page: 5
+    citation: "the use of appropriate filters in all measurement channels is recommended"
+    remarque: >-
+      R 103 recommande un filtre horizontal à 7 coefficients (1/16 … 1/16) et vertical (1/4, 1/2, 1/4) ; PAD Guard
+      n'applique que [1 2 1]/4 ou [1 4 6 4 1]/16 en horizontal : le noyau n'est pas fixé par la norme dans PAD Guard.
+
+non_retenus:
+  - sujet: "video.prefilter_taps (coefficients du filtre)"
+    page: 5
+    citation: "Horizontal Filter Coefficients: 1/16, 2/16, 3/16, 4/16, 3/16, 2/16, 1/16"
+    remarque: "Paramètre interne ; le noyau de R 103 n'est pas disponible dans PAD Guard (voir video.prefilter)."
+  - sujet: "Plage totale du signal"
+    page: 5
+    citation: "Signals shall not exceed the “Total Video Signal Range”, overshoots that attempt to “exceed” these values may clip."
+    remarque: "4 - 1019 en 10 bits : codes hors plage totale = codes réservés, contrôlés par la détection de plage, pas par un seuil."
+  - sujet: "Zone mesurée"
+    page: 5
+    citation: "Signals outside the active picture area shall be excluded from measurement."
+    remarque: "Appliqué par la mesure (zone active), pas de champ."
+
+absents: >-
+  R 103 ne fixe que les plages de niveaux vidéo, le seuil de surface et le filtrage de mesure.

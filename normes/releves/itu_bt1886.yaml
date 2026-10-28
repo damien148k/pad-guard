@@ -1,0 +1,32 @@
+# Relevé de UIT-R BT.1886 (03/2011), fait à la main dans le PDF, vérifié par pad-guard releve-norme.
+# Fonction de transfert des écrans de référence : aucune valeur du profil (le fichier n'est pas un écran), pas de
+# fichier normes/itu_bt1886.yaml. Citée par Netflix (p. 9-12) et par CST-RT-040 (p. 4, calibration des moniteurs).
+
+meta:
+  name: itu_bt1886
+  document:
+    title: "Recommandation UIT-R BT.1886 — Reference electro-optical transfer function for flat panel displays used in HDTV studio production"
+    version: "BT.1886, 03/2011"
+  source_pdf: "normes/sources/TV/RECOMMENDATION ITU-R BT.1886 - Reference Electro-Optical Transfer Function (EOTF) for flat panel displays used in HDTV studio production.pdf"
+
+libelle: UIT-R BT.1886
+fichier_norme: aucun
+releve_par: "Claude Code (décision de Damien du 28/10/2026 : relevé sans questionnaire)"
+releve_le: 2026-10-28
+
+non_retenus:
+  - sujet: "EOTF de référence"
+    page: 3
+    citation: "that the reference EOTF for displays used in HDTV production and programme interchange should be the one specified in Annex 1"
+    remarque: "Réglage des écrans de contrôle, pas une propriété du fichier ; aucun champ."
+  - sujet: "Gamma de l'écran"
+    page: 4
+    citation: "Exponent of power function, γ = 2.404"
+    remarque: "Paramètre d'écran. La balise de transfert du fichier reste celle de BT.709 (bt709)."
+  - sujet: "Codes 10 bits"
+    page: 4
+    citation: "10-bit digital code values “D” map into values of V per the following equation: V = (D–64)/876"
+    remarque: "Même plage légale 64-940 que BT.709 (où elle est relevée)."
+
+absents: >-
+  BT.1886 ne fixe rien que PAD Guard mesure dans un fichier.

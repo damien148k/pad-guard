@@ -1,0 +1,33 @@
+# Norme ebu_r128_s1 écrite par pad-guard releve-norme depuis normes/releves/ebu_r128_s1.yaml.
+# Document : EBU R 128 s1 — Loudness parameters for short-form content (adverts, promos, etc.), supplement 1 to R 128 (V3, août 2020), normes/sources/AUDIO/r128s1.pdf (SHA-256 1f6eefd407b56f07b16e8f1c61cc3d63502fe85f1362a806b57bed0494114445).
+# Relevé par Claude Code (décision de Damien du 28/10/2026 : relevé sans questionnaire) le 2026-10-28 ; chaque citation a été retrouvée par le code dans sa page, avec son nombre.
+# Tableau de relecture : docs/normes/ebu_r128_s1.md. Ne pas modifier à la main : corriger le relevé et relancer pad-guard releve-norme.
+
+meta:
+  kind: norm
+  name: ebu_r128_s1
+  document:
+    title: EBU R 128 s1 — Loudness parameters for short-form content (adverts, promos, etc.), supplement 1 to R 128
+    version: V3, août 2020
+  source_pdf: normes/sources/AUDIO/r128s1.pdf
+  source_pdf_sha256: 1f6eefd407b56f07b16e8f1c61cc3d63502fe85f1362a806b57bed0494114445
+  notes: 'Programmes courts seulement (bloc audio.loudness.short). Ne s''applique que sur renvoi (CST-RT-040 p. 4, Arte) : ebu_r128.yaml reste inchangé.'
+  extends: []
+  refers_to: []
+  applies: on_reference
+  validated_by: null
+  validated_at: null
+
+audio:
+  loudness:
+    long_program_min_seconds: 120
+    short:
+      integrated_lufs: -23.0
+      integrated_tolerance_lu: 0.2
+      short_term_max_lufs: -18.0
+
+sources:
+  audio.loudness.long_program_min_seconds: 'EBU R 128 s1 (V3, 2020) p. 4 : « Short-form content: A programme of short duration (up to approximately 2 minutes) »'
+  audio.loudness.short.integrated_lufs: 'EBU R 128 s1 (V3, 2020) p. 3 : « the Programme Loudness Level shall be normalised to a Target Level of −23.0 LUFS »'
+  audio.loudness.short.integrated_tolerance_lu: 'EBU R 128 s1 (V3, 2020) p. 3 : « a tolerance of ±0.2 LU is allowed in order to take account of measurement errors »'
+  audio.loudness.short.short_term_max_lufs: 'EBU R 128 s1 (V3, 2020) p. 3 : « that the Short-term Loudness Level (measured in compliance with EBU Tech 3341 [2]) shall not exceed −18.0 LUFS (+5.0 LU on the relative scale) »'

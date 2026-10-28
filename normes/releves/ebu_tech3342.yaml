@@ -1,0 +1,36 @@
+# Relevé de EBU Tech 3342 (novembre 2023), fait à la main dans le PDF, vérifié par pad-guard releve-norme.
+# Méthode de calcul de la LRA, sans seuil : aucune valeur du profil, pas de fichier normes/ebu_tech3342.yaml.
+# Citée par Arte (p. 23) ; renvoi de R 128 recommends n).
+
+meta:
+  name: ebu_tech3342
+  document:
+    title: "EBU Tech 3342 — Loudness Range: a measure to supplement EBU R 128 loudness normalization"
+    version: "novembre 2023"
+  source_pdf: normes/sources/AUDIO/tech3342.pdf
+
+libelle: EBU Tech 3342 (2023)
+fichier_norme: aucun
+releve_par: "Claude Code (décision de Damien du 28/10/2026 : relevé sans questionnaire)"
+releve_le: 2026-10-28
+
+non_retenus:
+  - sujet: "Calcul de la LRA : percentiles"
+    page: 5
+    citation: "LRA is defined as the difference between the estimates of the 10th and the 95th percentiles of the distribution."
+    remarque: "Méthode appliquée par le code de mesure (measure/audio), pas un seuil."
+  - sujet: "Calcul de la LRA : seuil relatif"
+    page: 5
+    citation: "The relative threshold is set to a level of −20 LU relative to the absolute-gated loudness level."
+    remarque: "Méthode, dans le code de mesure."
+  - sujet: "Calcul de la LRA : seuil absolu"
+    page: 5
+    citation: "The absolute threshold is set to −70 LUFS"
+    remarque: "Méthode, dans le code de mesure."
+  - sujet: "Programmes très courts"
+    page: 5
+    citation: "measurement of very short programmes, where leading or trailing silence is included, or of programmes consisting, for example, of isolated utterances, could result in misleadingly high values of LRA"
+    remarque: "Information ; R 128 s1 déclare la LRA non applicable aux programmes courts."
+
+absents: >-
+  Tech 3342 ne fixe aucune LRA maximale ou minimale : c'est le diffuseur qui la fixe (Arte, RT 040 : 20 LU).

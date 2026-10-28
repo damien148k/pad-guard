@@ -41,6 +41,7 @@ def quote_in(quote: str, page_text: str) -> bool:
 
 
 _MIN_SEC = re.compile(r"(\d+)\s*'\s*(\d{2})\b")  # 2'00 = 120 s
+_MINUTES = re.compile(r"(?<![\d.,])(\d+) ?minutes?\b")  # 2 minutes = 120 s (RT 040 p. 9)
 _KHZ = re.compile(r"(\d+(?:[.,]\d+)?)\s*khz")
 
 
@@ -56,24 +57,39 @@ def _in_order(needle: list[str], hay: list[str]) -> bool:
 
 
 def table_row(quote: str, tables: list[list[list[str]]]) -> tuple[list[list[str]], int] | None:
-    """(table, row index) of the table row whose cells contain every word of the quote in order.
+    """(table, row index) of the table row (with its continuation lines) whose cells contain every word of
+    the quote in order.
 
     A model reading a table cites a row as it sees it and may leave a cell out; the words it
     cites must still all be in that one row, in that order."""
     q = _words(quote)
     if not q:
         return None
-    for table in tables:
+    for table in map(_logical_rows, tables):
         for i, row in enumerate(table):
             if _in_order(q, _words(" ".join(row))):
                 return table, i
     return None
 
 
-def table_column_kind(value: Any, table: list[list[str]], row: int) -> str | None:
-    """« long » / « short » when the cell holding ``value`` is under a header about long / short programmes."""
+def _logical_rows(table: list[list[str]]) -> list[list[str]]:
+    """Rows with a single filled cell continue the row above, cell by cell: a label written on several
+    lines (RT 040 p. 9: « Niveau maximum de la mesure | ≤ -20,0 LUFS | Non mesuré » then « d’intensité sonore
+    court terme (Max »)."""
+    out: list[list[str]] = []
+    for row in table:
+        if out and sum(bool(c.strip()) for c in row) == 1 and len(row) == len(out[-1]):
+            out[-1] = [f"{a} {b}".strip() if b.strip() else a for a, b in zip(out[-1], row)]
+        else:
+            out.append(list(row))
+    return out
+
+
+def table_column_kinds(value: Any, table: list[list[str]], row: int) -> set[str]:
+    """{« long », « short »}: the headers about long / short programmes of the cells holding ``value``
+    (both when the row gives the same value to both, RT 040 p. 9: « -23,0 LUFS | -23,0 LUFS ± 1,0 LU »)."""
     if not isinstance(value, (int, float)) or isinstance(value, bool) or row == 0:
-        return None
+        return set()
     from pad_guard.draft.vocabulary import plain
 
     kinds = set()
@@ -84,7 +100,7 @@ def table_column_kind(value: Any, table: list[list[str]], row: int) -> str | Non
                 kinds.add("short")
             elif re.search(r"long|≥ ?2|>= ?2", header):
                 kinds.add("long")
-    return kinds.pop() if len(kinds) == 1 else None
+    return kinds
 
 
 def _glue_sign(m: re.Match) -> str:
@@ -95,10 +111,12 @@ def _glue_sign(m: re.Match) -> str:
 
 
 def numbers(text: str) -> list[tuple[float, str]]:
-    """(number, text right after it) for every number of ``text``, plus 2'00 as 120 and 48 kHz as 48000."""
+    """(number, text right after it) for every number of ``text``, plus 2'00 and 2 minutes as 120 and 48 kHz
+    as 48000."""
     text = _SIGN_GAP.sub(_glue_sign, normalise(text))
     out = [(float(m[0].replace(",", ".")), text[m.end(): m.end() + 12].lstrip()) for m in _NUMBER.finditer(text)]
     out += [(int(m[1]) * 60 + int(m[2]), "s") for m in _MIN_SEC.finditer(text)]
+    out += [(int(m[1]) * 60, "s") for m in _MINUTES.finditer(text)]
     out += [(float(m[1].replace(",", ".")) * 1000, "hz") for m in _KHZ.finditer(text)]
     # French thousands: "1.000 Hz", "48 000 Hz" (also read above as 1.0 and 48, 0).
     out += [(float(m[1] + m[2]), text[m.end(): m.end() + 12].lstrip()) for m in _THOUSANDS.finditer(text)]
@@ -106,8 +124,9 @@ def numbers(text: str) -> list[tuple[float, str]]:
 
 
 _THOUSANDS = re.compile(r"(?<![\d.,])(\d{1,3})[. ](\d{3})(?![\d.,])")
-_LONG = re.compile(r"superieure? (a|de) 2|> ?2 ?(min|')|programmes? longs?")
-_SHORT = re.compile(r"inferieure? ou egale? (a|de) 2|<= ?2|≤ ?2|programmes? courts?|bandes? annonces?")
+# A duration of 2 minutes, not « ≤ 20,0 LU » (RT 040 p. 9).
+_LONG = re.compile(r"superieure? (a|de) 2(?![\d,.])|> ?2 ?(min|')|programmes? longs?")
+_SHORT = re.compile(r"inferieure? ou egale? (a|de) 2(?![\d,.])|(<=|≤) ?2(?![\d,.])|programmes? courts?|bandes? annonces?")
 
 
 def loudness_context(path: str, quote: str, page_text: str) -> str | None:

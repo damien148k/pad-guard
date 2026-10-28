@@ -1,0 +1,39 @@
+# Relevé de UIT-R BS.1770-5 (11/2023), fait à la main dans le PDF, vérifié par pad-guard releve-norme.
+# Méthode de mesure, sans seuil : aucune valeur du profil, pas de fichier normes/itu_bs1770.yaml.
+# Citée par Arte (BS.1770-4 p. 21-22, BS.1770-2 p. 23) et Netflix (BS.1770-1) ; renvoi de R 128 recommends k).
+
+meta:
+  name: itu_bs1770
+  document:
+    title: "Recommandation UIT-R BS.1770-5 — Algorithms to measure audio programme loudness and true-peak audio level"
+    version: "BS.1770-5, 11/2023"
+  source_pdf: "normes/sources/AUDIO/Recommendation ITU-R BS.1770-5 (11_2023) Algorithms to measure audio programme loudness and true-peak audio level.pdf"
+
+libelle: UIT-R BS.1770-5 (11/2023)
+fichier_norme: aucun
+releve_par: "Claude Code (décision de Damien du 28/10/2026 : relevé sans questionnaire)"
+releve_le: 2026-10-28
+
+non_retenus:
+  - sujet: "Loudness intégré, seuils de gating"
+    page: 4
+    citation: "gating of 400 ms blocks (overlapping by 75%), where two thresholds are used"
+    remarque: >-
+      Méthode (blocs de 400 ms, recouvrement 75 %, seuil absolu −70 LKFS, seuil relatif −10 dB) appliquée par le code de
+      mesure (measure/audio), pas un seuil de conformité.
+  - sujet: "Seuil absolu"
+    page: 4
+    citation: "the first at −70 LKFS"
+    remarque: "Méthode, dans le code de mesure."
+  - sujet: "Seuil relatif"
+    page: 4
+    citation: "the second at −10 dB relative to the level measured after application of the first threshold"
+    remarque: "Méthode, dans le code de mesure."
+  - sujet: "True peak (annexe 2)"
+    page: 20
+    citation: "over-sampling filter increases the sampling rate of the signal from 48 kHz to 192 kHz"
+    remarque: "Méthode du true peak (suréchantillonnage x4), dans le code de mesure ; le seuil vient du diffuseur ou de R 128."
+
+absents: >-
+  BS.1770 ne fixe aucune valeur de conformité (cible, tolérance, maximum) : il définit comment mesurer. Les diffuseurs
+  citent des versions antérieures (-1, -2, -4) ; PAD Guard mesure selon la -5.

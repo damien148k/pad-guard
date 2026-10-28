@@ -1,0 +1,36 @@
+# Norme itu_bt2020 écrite par pad-guard releve-norme depuis normes/releves/itu_bt2020.yaml.
+# Document : Recommandation UIT-R BT.2020-2 — Parameter values for ultra-high definition television systems for production and international programme exchange (BT.2020-2, 10/2015), normes/sources/TV/R-REC-BT.2020-2-201510-I!!PDF-E.pdf (SHA-256 eed65cf78c95923964c5420ac4f60d1c83f68823c7a71b05a5e31818ebd03374).
+# Relevé par Claude Code (décision de Damien du 28/10/2026 : relevé sans questionnaire) le 2026-10-28 ; chaque citation a été retrouvée par le code dans sa page, avec son nombre.
+# Tableau de relecture : docs/normes/itu_bt2020.md. Ne pas modifier à la main : corriger le relevé et relancer pad-guard releve-norme.
+
+meta:
+  kind: norm
+  name: itu_bt2020
+  document:
+    title: Recommandation UIT-R BT.2020-2 — Parameter values for ultra-high definition television systems for production and international programme exchange
+    version: BT.2020-2, 10/2015
+  source_pdf: normes/sources/TV/R-REC-BT.2020-2-201510-I!!PDF-E.pdf
+  source_pdf_sha256: eed65cf78c95923964c5420ac4f60d1c83f68823c7a71b05a5e31818ebd03374
+  extends: []
+  refers_to: []
+  applies: on_reference
+  validated_by: null
+  validated_at: null
+
+format:
+  field_order: progressive
+  bit_depth_allowed: [10, 12]
+  color_primaries: bt2020
+  color_range: tv
+
+video:
+  y_min_legal: 64
+  y_max_legal: 940
+
+sources:
+  format.bit_depth_allowed: 'UIT-R BT.2020-2 p. 7 : « Coding format 10 or 12 bits per component »'
+  format.color_primaries: 'UIT-R BT.2020-2 p. 5 : « Red primary (R) 0.708 0.292 »'
+  format.color_range: 'UIT-R BT.2020-2 p. 8 : « Black level DR'', DG'', DB'', DY'', DY'' C 64 256 »'
+  format.field_order: 'UIT-R BT.2020-2 p. 5 : « Scan mode Progressive »'
+  video.y_max_legal: 'UIT-R BT.2020-2 p. 8 : « Nominal Peak DR'', DG'', DB'', DY'', DY'' C 940 3 760 »'
+  video.y_min_legal: 'UIT-R BT.2020-2 p. 8 : « Black level DR'', DG'', DB'', DY'', DY'' C 64 256 »'

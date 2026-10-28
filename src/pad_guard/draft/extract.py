@@ -238,12 +238,13 @@ def check(doc: Document, raw: dict, specs: dict[str, FieldSpec], batch: int, pag
     if found is None:
         return f
     page, in_table = found
+    columns: set[str] = set()
     if in_table is not None and ".loudness." in f.field and (".long." in f.field or ".short." in f.field):
-        column = verify.table_column_kind(value, *in_table)
+        columns = verify.table_column_kinds(value, *in_table)
         wanted = "long" if ".long." in f.field else "short"
-        if column and column != wanted:
+        if columns and wanted not in columns:
             f.status = INVALID
-            f.reason = f"dans le tableau, la valeur est dans la colonne des programmes {'longs' if column == 'long' else 'courts'}"
+            f.reason = f"dans le tableau, la valeur est dans la colonne des programmes {'longs' if 'long' in columns else 'courts'}"
             return f
     words = _missing_words(f, glossary)
     if words:
@@ -257,8 +258,9 @@ def check(doc: Document, raw: dict, specs: dict[str, FieldSpec], batch: int, pag
         f.status, f.reason = INVALID, why
         return f
     numeric = _number(value) or (isinstance(value, list) and bool(value) and all(_number(v) for v in value))
+    # The column of the table says which programmes a value is for; the page text read in order does not.
     why = (verify.value_in_quote(value, f.quote, vocabulary.unit_of(f.field) if numeric else None)
-           or verify.loudness_context(f.field, f.quote, page.full_text))
+           or (None if columns else verify.loudness_context(f.field, f.quote, page.full_text)))
     if why:
         f.status, f.reason = INVALID, why
         return f

@@ -1,0 +1,77 @@
+# Relevé de UIT-R BT.2020-2 (10/2015), fait à la main dans le PDF, vérifié par pad-guard releve-norme.
+# Citée par Arte (UHD, p. 12-17) et Netflix. Ne s'applique que sur renvoi (UHD), jamais à un profil HD par défaut.
+
+meta:
+  name: itu_bt2020
+  document:
+    title: "Recommandation UIT-R BT.2020-2 — Parameter values for ultra-high definition television systems for production and international programme exchange"
+    version: "BT.2020-2, 10/2015"
+  source_pdf: "normes/sources/TV/R-REC-BT.2020-2-201510-I!!PDF-E.pdf"
+  extends: []
+  refers_to: []
+  applies: on_reference
+  validated_by: null
+  validated_at: null
+
+libelle: UIT-R BT.2020-2
+fichier_norme: ecrire
+releve_par: "Claude Code (décision de Damien du 28/10/2026 : relevé sans questionnaire)"
+releve_le: 2026-10-28
+
+valeurs:
+  - champ: format.field_order
+    valeur: progressive
+    page: 5
+    citation: "Scan mode Progressive"
+    remarque: "Tableau 2 : UHDTV progressif seulement."
+  - champ: format.bit_depth_allowed
+    valeur: [10, 12]
+    page: 7
+    citation: "Coding format 10 or 12 bits per component"
+    remarque: "Tableau 5."
+  - champ: format.color_primaries
+    valeur: bt2020
+    page: 5
+    citation: "Red primary (R) 0.708 0.292"
+    controle: citation
+    remarque: >-
+      Tableau 3 : rouge 0,708/0,292, vert 0,170/0,797, bleu 0,131/0,046, blanc D65. « bt2020 » est le nom de la balise
+      ffprobe de ces primaires.
+  - champ: format.color_range
+    valeur: tv
+    page: 8
+    citation: "Black level DR', DG', DB', DY', DY' C 64 256"
+    remarque: "Tableau 5 (fin) : noir 64, blanc nominal 940 en 10 bits : plage légale."
+  - champ: video.y_min_legal
+    valeur: 64
+    page: 8
+    citation: "Black level DR', DG', DB', DY', DY' C 64 256"
+    remarque: "Tableau 5 (fin), 10 bits (256 en 12 bits)."
+  - champ: video.y_max_legal
+    valeur: 940
+    page: 8
+    citation: "Nominal Peak DR', DG', DB', DY', DY' C 940 3 760"
+    remarque: "Tableau 5 (fin), 10 bits (3 760 en 12 bits)."
+
+non_retenus:
+  - sujet: "format.width / format.height"
+    page: 4
+    citation: "Pixel count Horizontal × vertical | 7 680 × 4 320 | 3 840 × 2 160"
+    remarque: "Deux définitions possibles : PAD Guard n'a qu'une largeur et une hauteur ; à fixer dans le profil du diffuseur."
+  - sujet: "format.fps_allowed"
+    page: 5
+    citation: "Frame frequency (Hz) 120, 120/1.001, 100, 60, 60/1.001, 50, 30, 30/1.001, 25, 24, 24/1.001"
+    remarque: "Liste des cadences possibles, aucune exigée : à fixer dans le profil du diffuseur."
+  - sujet: "format.color_space"
+    page: 6
+    citation: "Constant luminance Non-constant luminance"
+    remarque: "Deux matrices possibles (luminance constante ou non) : balise bt2020c ou bt2020nc, à fixer par le diffuseur."
+  - sujet: "format.color_transfer"
+    page: 6
+    citation: "α = 1.099 and β = 0.018 for 10-bit systems"
+    remarque: >-
+      Fonction de transfert SDR de BT.2020 (balise bt2020-10 ou bt2020-12 selon la profondeur) ; en HDR, PQ ou HLG de
+      BT.2100. Pas de valeur unique.
+
+absents: >-
+  BT.2020 ne fixe ni codec, ni conteneur, ni tolérances de niveaux, ni audio.

@@ -1,0 +1,265 @@
+# Relevé de CST-RT-040 V1.2 (2016), fait à la main dans le PDF, vérifié par pad-guard releve-norme.
+# Reprend la première relecture de Vincent (25/10/2026) et le complément (normes/drafts/complement/cst_rt040.yaml).
+
+meta:
+  name: cst_rt040
+  document:
+    title: CST-RT-040 — Rec Tech PAD Fichiers Editeurs (TV)
+    version: V1.2, 2016
+  source_pdf: normes/sources/TV/cst-rt-040-tv-2016-pad_fichiers_editeurs_v1.2.pdf
+  notes: >-
+    Première relecture validée par Vincent le 25/10/2026 (review-profile) ; relevé complet du 28/10/2026
+    (complément intégré) à valider sur docs/normes/cst_rt040.md.
+  extends: [ebu_r128, ebu_r128_s1, itu_bt709, ebu_r103]
+  refers_to:
+    - {norm: ebu_r128, source: 'CST-RT-040 V1.2, 2016 p. 4 : « EBU-R128 et R128s1: normalisation de l’intensité sonore (ou sonie, ou loudness) et niveau maximum permis »'}
+    - {norm: ebu_r128_s1, source: 'CST-RT-040 V1.2, 2016 p. 4 : « EBU-R128 et R128s1: normalisation de l’intensité sonore (ou sonie, ou loudness) et niveau maximum permis »'}
+    - {norm: itu_bt709, source: 'CST-RT-040 V1.2, 2016 p. 4 : « ITU-R BT.709 : Paramètres de codage vidéo HD »'}
+    - {norm: ebu_r103, source: 'CST-RT-040 V1.2, 2016 p. 5 : « Conformément à la recommandation EBU R 103 (v2.0 juin 2016), et afin de garantir le respect de l’espace »', cited_version: v2.0 (juin 2016)}
+  applies: on_reference
+  validated_by: null
+  validated_at: null
+
+libelle: CST-RT-040 V1.2, 2016
+fichier_norme: ecrire
+releve_par: "Claude Code (décision de Damien du 28/10/2026 : relevé sans questionnaire)"
+releve_le: 2026-10-28
+
+valeurs:
+  # --- Format (complément) ---
+  - champ: format.width
+    valeur: 1920
+    page: 4
+    citation: "SMPTE 274M : Paramètres signal HD 1920x1080"
+    remarque: >-
+      Référence à SMPTE 274M ; la phrase qui suit (« Le signal vidéo correspond aux caractéristiques 1080i […] de ces
+      normes ») en fait une exigence.
+  - champ: format.height
+    valeur: 1080
+    page: 4
+    citation: "SMPTE 274M : Paramètres signal HD 1920x1080"
+    remarque: "Même citation que la largeur."
+  - champ: format.fps_allowed
+    valeur: [25/1]
+    page: 4
+    citation: "Le signal vidéo correspond aux caractéristiques 1080i (entrelacé) à 25 images/seconde"
+    remarque: >-
+      Aussi p. 5 (« 1080i – 25 images/seconde - 4:2:2 - ratio image 16/9 »). Le balayage entrelacé n'a pas de valeur
+      ici : voir « sans valeur » (ordre des trames non écrit).
+  - champ: format.chroma_allowed
+    valeur: ['4:2:2']
+    page: 5
+    citation: "1080i – 25 images/seconde - 4:2:2 - ratio image 16/9"
+    remarque: "« Sauf mention contraire de la part de l’éditeur » (p. 5) : standard de fabrication du PAD."
+  - champ: format.bit_depth_allowed
+    valeur: [8]
+    page: 6
+    citation: "lors de la conformation du signal vidéo 8 bits destiné au fichier Prêt A Diffuser"
+    remarque: >-
+      Seule mention de la profondeur du PAD (cohérente avec AS-10 « High_HD_2014 », p. 15, non lu ici). Un master
+      Lumiris en 10 bits serait signalé pour un diffuseur qui renvoie à RT 040 sans écrire sa propre profondeur.
+  - champ: format.color_range
+    valeur: tv
+    page: 5
+    citation: "10 bits 64 – 940 20 – 984 4 - 1019"
+    remarque: >-
+      Colonne « Amplitude attendue par composante » 64–940 : plage légale (tv). Le document n'emploie pas le mot
+      « plage légale ».
+  # --- Vidéo ---
+  - champ: video.y_min_legal
+    valeur: 64
+    page: 5
+    citation: "10 bits 64 – 940 20 – 984 4 - 1019"
+    remarque: "Colonne « Amplitude attendue par composante » ; même valeur que BT.709 et R 103."
+  - champ: video.y_max_legal
+    valeur: 940
+    page: 5
+    citation: "10 bits 64 – 940 20 – 984 4 - 1019"
+    remarque: "Colonne « Amplitude attendue par composante » ; même valeur que BT.709 et R 103."
+  - champ: video.max_out_of_range_area_pct
+    valeur: 1.0
+    page: 5
+    citation: "La proportion de pixels dont les valeurs sont hors « Color Gamut » (voir tableau ci-dessus) ne doit pas excéder 1% du nombre total de pixels de l’image active."
+    remarque: "Validé par Vincent le 25/10/2026."
+  # --- Audio ---
+  - champ: audio.sample_rate
+    valeur: 48000
+    page: 10
+    citation: "Fréquence d’échantillonnage : 48 kHz"
+    remarque: "Validé par Vincent le 25/10/2026."
+  - champ: audio.bit_depth
+    valeur: 24
+    page: 10
+    citation: "Quantification linéaire : 24 Bits pour le format PCM"
+    remarque: "Validé par Vincent le 25/10/2026. « 20 Bits avant encodage Dolby E » ne concerne pas le PCM."
+  - champ: audio.bit_depth_allowed
+    valeur: [24]
+    page: 16
+    citation: "Chaque piste audio du fichier MXF transportera un flux de type AES3, de résolution audio 24 bits, à 48 kHz de fréquence d’échantillonnage."
+    remarque: "Validé par Vincent le 25/10/2026."
+  - champ: audio.same_bit_depth_all_tracks
+    valeur: true
+    page: 16
+    citation: "Chaque piste audio du fichier MXF transportera un flux de type AES3, de résolution audio 24 bits, à 48 kHz de fréquence d’échantillonnage."
+    remarque: "Validé par Vincent le 25/10/2026."
+  - champ: audio.channel_layout
+    valeur: stereo_pairs
+    page: 16
+    citation: "Les fichiers MXF Prêts à Diffuser comporteront 8 canaux audio, chaque canal distinct étant transporté par une piste AES3 distincte."
+    remarque: "Validé par Vincent le 25/10/2026. Le nombre de canaux (8) n'a pas de champ : voir « sans valeur »."
+  - champ: audio.dual_mono_must_be_identical
+    valeur: true
+    page: 11
+    citation: "ces deux pistes contenant le signal monophonique seront strictement identiques et en phase"
+    remarque: "§2.2.5.1 Mono, livré sur deux pistes contiguës."
+  - champ: audio.alignment_tone.hz
+    valeur: 1000.0
+    page: 8
+    citation: "Un signal d’alignement 1000 Hz à -18 dBFS doit afficher un niveau de Loudness de -18 LUFS sur un équipement de mesure en EBU Mode, si le signal est présent sur les canaux gauche et droite d’un programme stéréo."
+    remarque: "Validé par Vincent le 25/10/2026."
+  - champ: audio.alignment_tone.dbfs
+    valeur: -18.0
+    page: 8
+    citation: "Un signal d’alignement 1000 Hz à -18 dBFS doit afficher un niveau de Loudness de -18 LUFS sur un équipement de mesure en EBU Mode, si le signal est présent sur les canaux gauche et droite d’un programme stéréo."
+    remarque: "Validé par Vincent le 25/10/2026."
+  - champ: audio.true_peak_max_dbtp
+    valeur: -3.0
+    page: 8
+    citation: "Le niveau des crêtes du signal audio, mesuré en True Peak, ne doit pas dépasser -3,0 dBTP."
+    remarque: >-
+      Validé par Vincent le 25/10/2026. Le tableau p. 9 donne -3,0 dB TP pour les deux colonnes (courts et longs) :
+      un seul champ dans PAD Guard.
+  - champ: audio.av_sync_ms.audio_early_max
+    valeur: 20.0
+    page: 10
+    citation: "Soit une avance maximale du son sur l’image de 20ms"
+    remarque: "Validé par Vincent le 25/10/2026."
+  - champ: audio.av_sync_ms.audio_late_max
+    valeur: 40.0
+    page: 10
+    citation: "Soit un retard maximum du son sur l’image de 40ms."
+    remarque: "Validé par Vincent le 25/10/2026."
+  # --- Loudness, tableau p. 9 (colonnes « Programmes courts » et « Programmes longs ») ---
+  - champ: audio.loudness.long_program_min_seconds
+    valeur: 120
+    page: 9
+    citation: "Programme long : un programme dont la durée est supérieure à 2 minutes."
+    remarque: >-
+      RT 040 : court = durée inférieure ou égale à 2 minutes. PAD Guard applique « short » aux programmes
+      strictement plus courts que 120 s : un programme d'exactement 2:00 serait traité en « long ». Écart d'une image,
+      à arbitrer.
+  - champ: audio.loudness.long.integrated_lufs
+    valeur: -23.0
+    page: 9
+    citation: "Mesure du niveau d’intensité | -23,0 LUFS | -23,0 LUFS ± 1,0 LU"
+    remarque: >-
+      Tableau p. 9, colonne « Programmes longs ». Validé par Vincent le 25/10/2026 avec la citation p. 14
+      (« "Dialog level" - 23,0 LUFS ± 1 (A mesurer) ») : même valeur.
+  - champ: audio.loudness.long.integrated_tolerance_lu
+    valeur: 1.0
+    page: 9
+    citation: "Mesure du niveau d’intensité | -23,0 LUFS | -23,0 LUFS ± 1,0 LU"
+    remarque: "Tableau p. 9, colonne « Programmes longs » (± 1,0 LU) ; la colonne « Programmes courts » n'a pas de tolérance."
+  - champ: audio.loudness.long.lra_max_lu
+    valeur: 20.0
+    page: 9
+    citation: "Excursion dynamique (Loudness Range ou LRA) ≤ 20,0 LU"
+    remarque: "Validé par Vincent le 25/10/2026. Programmes courts : « Non mesurée »."
+  - champ: audio.loudness.long.lra_recommended_range_lu
+    valeur: [5.0, 20.0]
+    page: 9
+    citation: "Excursion dynamique (Loudness Range ou LRA) ≤ 20,0 LU Il est conseillé de dépasser une valeur de 5 LU"
+    remarque: >-
+      Information seulement (aucune anomalie) : « conseillé de dépasser 5 LU », maximum 20 LU. Le minimum est un
+      conseil, pas une exigence.
+  - champ: audio.loudness.long.short_term_dialogue_excursion_lu
+    valeur: 7.0
+    page: 9
+    citation: "la mesure d’intensité sonore court terme, sur les passages du programme comportant des dialogues, devra cibler le niveau moyen de -23,0 LUFS et s’autoriser une excursion maximale de 7 LU autour de ce niveau cible"
+    remarque: >-
+      Tableau p. 9 : colonne « Programmes longs » « -30,0 ≤ Short term des dialogues ≤ -16,0 en LUFS » (-23 ± 7) ;
+      colonne « Programmes courts » « Non mesurée » : aucune valeur pour les courts.
+  - champ: audio.loudness.short.integrated_lufs
+    valeur: -23.0
+    page: 9
+    citation: "Mesure du niveau d’intensité | -23,0 LUFS | -23,0 LUFS ± 1,0 LU"
+    remarque: >-
+      Tableau p. 9, colonne « Programmes courts » : -23,0 LUFS sans tolérance écrite ; la tolérance vient de
+      R 128 s1 par renvoi (± 0,2 LU). Sur demande motivée, un programme court peut être plus bas (p. 9) : cas
+      particulier, non modélisé.
+  - champ: audio.loudness.short.short_term_max_lufs
+    valeur: -20.0
+    page: 9
+    citation: "Niveau maximum de la mesure d’intensité sonore court terme (Max Short Term Loudness) | ≤ -20,0 LUFS | Non mesuré"
+    remarque: >-
+      Tableau p. 9, colonne « Programmes courts » (Max Short Term Loudness) ; programmes longs : « Non mesuré ».
+      RT 040 l'emporte sur R 128 s1 (-18,0 LUFS).
+
+non_retenus:
+  - sujet: "format.containers (MXF OP1a, AS-10)"
+    page: 15
+    citation: "d’un seul fichier MXF Op1a contenant l’essence vidéo et les essences audio associées"
+    remarque: >-
+      Le conteneur est un paramètre interne de PAD Guard : il se fixe dans le profil du diffuseur (la France TV le
+      précise dans son annexe), pas dans une norme.
+  - sujet: "format.field_order, format.delivery.scan (1080i)"
+    page: 4
+    citation: "Les formats 1080/25p et 1080/25PsF sont proscrits."
+    remarque: >-
+      Entrelacé exigé, mais l'ordre des trames (TFF ou BFF) n'est pas écrit : PAD Guard demande l'un ou l'autre, aucune
+      valeur n'est inventée.
+  - sujet: "video.y_tolerance_low_pct / high_pct, video.rgb_min_pct / max_pct"
+    page: 5
+    citation: "soit 5-246 en 8 bits (voir le tableau ci-dessous)"
+    remarque: >-
+      Écrit en valeurs de code (20–984 en 10 bits), pas en pourcentage : la conversion (-5 % / 105 %) n'est pas écrite.
+      Ces valeurs viennent de R 103, auquel RT 040 renvoie (même plage).
+  - sujet: "format.letterbox (suppression verticale)"
+    page: 5
+    citation: "Une tolérance de +/- 2 lignes est admise"
+    remarque: >-
+      Lignes données par trame (21 à 560, 540 lignes) ; PAD Guard attend des lignes d'image et les pixels actifs, que le
+      tableau ne donne pas. La tolérance de lignes est un paramètre interne.
+  - sujet: "structure.timecode.program_start"
+    page: 15
+    citation: "Le début de programme (première image et premier son utile) doit commencer obligatoirement à un Time Code horaire entier"
+    remarque: "N'importe quelle heure pleine (00:00:00:00, 01:00:00:00, 10:00:00:00…) : PAD Guard attend un timecode précis."
+  - sujet: "structure.leaders, structure.black (amorce, noirs)"
+    page: 15
+    citation: "restent à la discrétion de l'éditeur"
+    remarque: "Laissé à chaque diffuseur."
+  - sujet: "audio.max_pairs (8 canaux)"
+    page: 16
+    citation: "Les fichiers MXF Prêts à Diffuser comporteront 8 canaux audio"
+    remarque: >-
+      Nombre exact de canaux ; PAD Guard n'a qu'un maximum de paires, et 4 paires n'est pas écrit. À fixer dans le profil
+      du diffuseur.
+  - sujet: "audio.loudness.short.integrated_tolerance_lu"
+    page: 9
+    citation: "les programmes courts pourront présenter une mesure d'intensité sonore en Integrated Loudness inférieure à -23,0 LUFS"
+    remarque: "Pas de tolérance écrite pour les programmes courts ; elle vient de R 128 s1 par renvoi."
+  - sujet: "audio.loudness.short.lra_max_lu"
+    page: 9
+    citation: "Excursion dynamique (Loudness Range ou LRA) Non mesurée"
+    remarque: "Programmes courts : non mesurée."
+  - sujet: "audio.loudness.short.short_term_dialogue_excursion_lu"
+    page: 9
+    citation: "Plage d’excursion de l’intensité Non mesurée"
+    remarque: "Programmes courts : non mesurée (la valeur de 7 LU est celle des programmes longs)."
+  - sujet: "audio.loudness.long.short_term_max_lufs"
+    page: 9
+    citation: "Niveau maximum de la mesure ≤ -20,0 LUFS Non mesuré"
+    remarque: "Programmes longs : non mesuré (-20,0 LUFS est celui des programmes courts)."
+  - sujet: "audio.phase_min_correlation"
+    page: 11
+    citation: "la phase doit être très majoritairement positive"
+    remarque: "Aucun seuil chiffré."
+  - sujet: "Dolby E"
+    page: 10
+    citation: "Les formats Dolby E doivent être exempts d’erreur CRC"
+    remarque: "PAD Guard ne décode pas le Dolby E."
+
+absents: >-
+  Tous les autres champs du profil (codecs, colorimétrie, structure, PSE, zones de sécurité…) : RT 040 ne les fixe pas,
+  ou renvoie à une norme absente de normes/ (SMPTE 274M, BT.1886, AS-10, BS.775, Tech 3276) ou présente (BT.709,
+  R 103, R 128 et s1, dont les valeurs s'appliquent par renvoi).

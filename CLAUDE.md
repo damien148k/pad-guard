@@ -42,6 +42,7 @@ profiles/             profils des diffuseurs (YAML) ; meta.extends cite les norm
 normes/               normes lisibles par l'outil (YAML partiels, une source par valeur)
 normes/glossaire.yaml vocabulaire des diffuseurs pour draft-profile (termes, unités, plages vraisemblables) : pas une norme
 normes/sources/       PDF des normes (non versionné, inventaire dans README.md)
+normes/releves/       relevés des normes faits à la main (champ, valeur, page, citation), vérifiés par releve-norme ; tableaux dans docs/normes/
 diffuseurs/           PDF des cahiers des charges des diffuseurs (non versionné, inventaire dans README.md)
 src/pad_guard/
   profiles/   résolution de l'héritage -> profil effectif, origine de chaque valeur, conflits
@@ -91,6 +92,7 @@ uv run pad-guard review-profile profiles/drafts/nom.yaml      # relecture champ 
 uv run pad-guard draft-profile normes/sources/TV/doc.pdf --kind norme --name cst_rt040 --title "…" --doc-version "…"   # brouillon de norme -> normes/drafts/
 uv run pad-guard review-profile normes/drafts/cst_rt040.yaml  # relecture -> normes/cst_rt040.yaml
 uv run pad-guard compare-profiles a.yaml b.yaml               # différences entre deux profils effectifs
+uv run pad-guard releve-norme normes/releves/cst_rt040.yaml    # relevé d'une norme vérifié dans son PDF -> normes/ + docs/normes/ (tableau signé par Vincent)
 uv run pad-guard ui                                           # interface locale (127.0.0.1:8765), voir docs/GUIDE_VINCENT.md
 uv run pytest
 uv run pytest -m e2e                                          # interface dans Chromium (playwright install chromium une fois)

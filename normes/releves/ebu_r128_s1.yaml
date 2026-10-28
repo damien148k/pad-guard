@@ -1,0 +1,65 @@
+# Relevé de EBU R 128 s1 (V3, août 2020), fait à la main dans le PDF, vérifié par pad-guard releve-norme.
+
+meta:
+  name: ebu_r128_s1
+  document:
+    title: EBU R 128 s1 — Loudness parameters for short-form content (adverts, promos, etc.), supplement 1 to R 128
+    version: V3, août 2020
+  source_pdf: normes/sources/AUDIO/r128s1.pdf
+  notes: >-
+    Programmes courts seulement (bloc audio.loudness.short). Ne s'applique que sur renvoi (CST-RT-040 p. 4, Arte) :
+    ebu_r128.yaml reste inchangé.
+  extends: []
+  refers_to: []
+  applies: on_reference
+  validated_by: null
+  validated_at: null
+
+libelle: EBU R 128 s1 (V3, 2020)
+fichier_norme: ecrire
+releve_par: "Claude Code (décision de Damien du 28/10/2026 : relevé sans questionnaire)"
+releve_le: 2026-10-28
+
+valeurs:
+  - champ: audio.loudness.long_program_min_seconds
+    valeur: 120
+    page: 4
+    citation: "Short-form content: A programme of short duration (up to approximately 2 minutes)"
+    remarque: >-
+      « environ 2 minutes, généralement moins de 30 secondes » : la limite n'est pas nette. PAD Guard applique « short »
+      en dessous de 120 s. Un diffuseur qui écrit sa limite l'emporte (RT 040 : 2 minutes).
+  - champ: audio.loudness.short.integrated_lufs
+    valeur: -23.0
+    page: 3
+    citation: "the Programme Loudness Level shall be normalised to a Target Level of −23.0 LUFS"
+    remarque: "Recommends b). Même cible que R 128 ; c) admet une cible plus basse « on purpose », clairement signalée."
+  - champ: audio.loudness.short.integrated_tolerance_lu
+    valeur: 0.2
+    page: 3
+    citation: "a tolerance of ±0.2 LU is allowed in order to take account of measurement errors"
+    remarque: "Recommends b), tolérance de mesure en contrôle qualité."
+  - champ: audio.loudness.short.short_term_max_lufs
+    valeur: -18.0
+    page: 3
+    citation: "that the Short-term Loudness Level (measured in compliance with EBU Tech 3341 [2]) shall not exceed −18.0 LUFS (+5.0 LU on the relative scale)"
+    remarque: >-
+      Recommends d) (Maximum Short-term Loudness, mesuré selon EBU Tech 3341). Tolérance de mesure « +0.2 LU » : pas
+      de champ dans PAD Guard.
+
+non_retenus:
+  - sujet: "audio.loudness.short.lra_max_lu"
+    page: 3
+    citation: "a maximum and/or minimum value for Loudness Range shall not be specified for programmes of this length/genre"
+    remarque: "LRA non applicable aux programmes courts."
+  - sujet: "audio.true_peak_max_dbtp"
+    page: 3
+    citation: "the True Peak Level of the programme shall not exceed −1 dBTP (dB True Peak) for linear audio"
+    remarque: >-
+      Même valeur que R 128 ; dans PAD Guard le true peak est un seul champ pour toutes les durées : il vient de R 128.
+  - sujet: "Tolérance du Maximum Short-term Loudness"
+    page: 3
+    citation: "a tolerance of +0.2 LU is allowed in order to take account of measurement errors"
+    remarque: "Pas de champ dans PAD Guard (le seuil short-term s'applique sans tolérance)."
+
+absents: >-
+  R 128 s1 ne fixe que les paramètres de loudness des programmes courts ; tout le reste vient de R 128 ou du diffuseur.

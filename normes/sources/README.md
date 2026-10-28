@@ -7,7 +7,7 @@ Ce fichier liste ce qui est attendu, pour savoir ce qui manque sur une autre mac
 Empreintes : SHA-256 du fichier tel qu'il a été rangé le 23 octobre 2026.
 « Non lu » : document hors périmètre v3 (IMF, Blu-ray, FIAF, IPI), pas ouvert ; titre tiré du nom de fichier.
 
-## AUDIO — utilisés par `normes/ebu_r128.yaml`
+## AUDIO — utilisés par `normes/ebu_r128.yaml` et `normes/ebu_r128_s1.yaml` (relevés : `normes/releves/`, tableaux : `docs/normes/`)
 
 | Fichier | Document | Version | Origine | SHA-256 |
 |---|---|---|---|---|
@@ -21,7 +21,7 @@ Empreintes : SHA-256 du fichier tel qu'il a été rangé le 23 octobre 2026.
 | `AUDIO/tech3401.pdf` | EBU Tech 3401, Guidelines for radio production and distribution in accordance with EBU R 128 | novembre 2023 | EBU | `ac571db62e4eb8c9bbc74680910730b286adec89382002fef95a52260aa0ad25` |
 | `AUDIO/Recommendation ITU-R BS.1770-5 (11_2023) Algorithms to measure audio programme loudness and true-peak audio level.pdf` | ITU-R BS.1770-5 | 11/2023 | UIT (itu.int, gratuit) | `615c01958eb5b4eda821c55da77c89376acb782b4a1fef89ccd1f3d7aaf1f857` |
 
-## TV — utilisé par `normes/ebu_r103.yaml` (R103) et `normes/itu_bt709.yaml` (BT.709) ; BT.2100 (plage pleine) par le décodage ; les autres serviront à la phase 7
+## TV — utilisé par `normes/ebu_r103.yaml` (R103), `normes/itu_bt709.yaml` (BT.709), `normes/itu_bt2020.yaml`, `normes/itu_bt2100.yaml` (aussi la plage pleine du décodage) et `normes/cst_rt040.yaml` ; BT.1886 : tableau seul (`docs/normes/itu_bt1886.md`)
 
 **Manque : ITU-R BT.601** (SD, matrice Kr 0,299 / Kb 0,114). Les coefficients usuels sont utilisés en attendant (`formats.MATRICES`, marqués A VERIFIER) : ajouter le PDF (gratuit à l'UIT) dans `TV/` et sa ligne ici.
 

@@ -25,6 +25,9 @@ normes:
   ebu_r128:
     titre: "EBU R 128"
     alias: ["R128", "R 128", "R-128", "EBU R128", "EBU R 128", "EBU-R128", "UER R128", "UER R 128"]
+  ebu_r128_s1:
+    titre: "EBU R 128 s1 (programmes courts)"
+    alias: ["R128s1", "R128 s1", "R 128 s1", "R128-s1", "EBU R128 s1", "EBU R 128 s1"]
   ebu_r103:
     titre: "EBU R 103"
     alias: ["R103", "R 103", "R-103", "EBU R103", "EBU R 103", "UER R103", "UER R 103"]
@@ -76,7 +79,7 @@ champs:
     contextes: ["PAD / proxy ou fichier web", "HD / UHD"]
   format.width:
     fr: ["résolution", "définition", "pixels par ligne", "pixels actifs"]
-    en: ["resolution", "active pixels", "frame size", "picture size"]
+    en: ["resolution", "active pixels", "frame size", "picture size", "samples per active line"]
     unites: ["pixels", "px", "pixels/ligne", "pixels/line"]
     contextes: ["HD / UHD", "PAD / fichier web ou vertical"]
     plage: [640, 7680]
@@ -169,12 +172,12 @@ champs:
     plage: [95, 110]
   video.max_out_of_range_area_pct:
     fr: ["surface de l'image", "pourcentage de la surface", "superficie de l'image"]
-    en: ["picture area", "of the image area", "area of the picture"]
+    en: ["picture area", "of the image area", "area of the picture", "of the image"]
     unites: ["%"]
     plage: [0, 100]
   video.prefilter:
     fr: ["filtre passe-bas", "filtrage avant mesure", "préfiltre", "filtrage du signal"]
-    en: ["low-pass filter", "prefilter", "pre-filter"]
+    en: ["low-pass filter", "prefilter", "pre-filter", "filters in all measurement channels"]
   video.measure_spaces:
     fr: ["espace RVB", "espace YCbCr", "composantes RVB et luminance"]
     en: ["RGB space", "YCbCr space", "RGB and YCbCr"]

@@ -1,0 +1,80 @@
+# Relevé de UIT-R BT.2100-3 (02/2025), fait à la main dans le PDF, vérifié par pad-guard releve-norme.
+# Citée par Arte (HDR, p. 12-17). Ne s'applique que sur renvoi (HDR). La plage pleine du tableau 9 sert aussi au
+# décodage (decode/video.py) : définition, pas un seuil.
+
+meta:
+  name: itu_bt2100
+  document:
+    title: "Recommandation UIT-R BT.2100-3 — Image parameter values for high dynamic range television for use in production and international programme exchange"
+    version: "BT.2100-3, 02/2025"
+  source_pdf: "normes/sources/TV/R-REC-BT.2100-3-202502-I!!PDF-E.pdf"
+  extends: []
+  refers_to: []
+  applies: on_reference
+  validated_by: null
+  validated_at: null
+
+libelle: UIT-R BT.2100-3
+fichier_norme: ecrire
+releve_par: "Claude Code (décision de Damien du 28/10/2026 : relevé sans questionnaire)"
+releve_le: 2026-10-28
+
+valeurs:
+  - champ: format.field_order
+    valeur: progressive
+    page: 4
+    citation: "Image Format Progressive"
+    remarque: "Tableau 1."
+  - champ: format.bit_depth_allowed
+    valeur: [10, 12]
+    page: 11
+    citation: "Coding format n = 10, 12 bits per component"
+    remarque: "Tableau 9 (entiers). Le tableau 10 ajoute une représentation flottante 16 bits, hors des fichiers PAD."
+  - champ: format.color_primaries
+    valeur: bt2020
+    page: 5
+    citation: "Red primary (R) monochromatic 630 nm 0.708 0.292"
+    controle: citation
+    remarque: "Tableau 2 : mêmes primaires que BT.2020 (balise ffprobe « bt2020 »)."
+  - champ: format.color_range
+    valeur: tv
+    page: 10
+    citation: "The narrow range representation is in widespread use and is considered the default."
+    remarque: >-
+      La plage pleine « should not be used for programme exchange unless all parties agree » (même page) : plage
+      légale par défaut.
+  - champ: video.y_min_legal
+    valeur: 64
+    page: 11
+    citation: "Black (R' = G' = B' = Y' = I = 0) 64 256 0 0"
+    remarque: "Tableau 9, plage légale 10 bits (0 en plage pleine)."
+  - champ: video.y_max_legal
+    valeur: 940
+    page: 11
+    citation: "Nominal Peak (R' = G' = B' = Y' = I = 1) 940 3 760 1 023 4 095"
+    remarque: "Tableau 9, plage légale 10 bits (1 023 en plage pleine)."
+
+non_retenus:
+  - sujet: "format.color_transfer"
+    page: 4
+    citation: "the Perceptual Quantization (PQ) or Hybrid Log-Gamma (HLG) specifications described in this Recommendation should be used"
+    remarque: "Deux fonctions de transfert (smpte2084 ou arib-std-b67) : à fixer dans le profil du diffuseur."
+  - sujet: "format.width / format.height"
+    page: 4
+    citation: "Container Pixel count 1b Horizontal × Vertical | 7 680 × 4 320 3 840 × 2 160 1 920 × 1 080"
+    remarque: "Trois définitions possibles : à fixer dans le profil du diffuseur."
+  - sujet: "format.fps_allowed"
+    page: 4
+    citation: "Frame frequency (Hz) 120, 120/1.001,100, 60, 60/1.001, 50, 30, 30/1.001, 25, 24, 24/1.001"
+    remarque: "Liste des cadences possibles, aucune exigée."
+  - sujet: "format.color_space"
+    page: 10
+    citation: "Coded signal | R', G', B' or Y', C' , C' , or I, C C B R, T, P"
+    remarque: "Y'CbCr (bt2020nc) ou ICtCp : à fixer par le diffuseur."
+  - sujet: "Plage pleine"
+    page: 10
+    citation: "The full range representation is newly introduced in this Recommendation and should not be used for programme exchange unless all parties agree."
+    remarque: "Une plage pleine n'est admise que si le diffuseur l'écrit."
+
+absents: >-
+  BT.2100 ne fixe ni codec, ni conteneur, ni tolérances de niveaux, ni métadonnées HDR (ST 2086, absente de normes/).

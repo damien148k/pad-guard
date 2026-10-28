@@ -1,0 +1,79 @@
+# Relevé de EBU R 128 (V5, novembre 2023), fait à la main dans le PDF, vérifié par pad-guard releve-norme.
+# fichier_norme: verifier : normes/ebu_r128.yaml (relevé le 23/10/2026, hérité par Arte) n'est pas réécrit ;
+# le relevé doit en donner exactement les valeurs, avec leur page.
+
+meta:
+  name: ebu_r128
+  document:
+    title: "EBU R 128 — Loudness normalisation and permitted maximum level of audio signals"
+    version: "V5, novembre 2023 (EBU R 128-2023)"
+  source_pdf: normes/sources/AUDIO/r128.pdf
+
+libelle: EBU R 128 (2023)
+fichier_norme: verifier
+releve_par: "Claude Code (décision de Damien du 28/10/2026 : relevé sans questionnaire)"
+releve_le: 2026-10-28
+autres_pdf:
+  bs1770:
+    fichier: "normes/sources/AUDIO/Recommendation ITU-R BS.1770-5 (11_2023) Algorithms to measure audio programme loudness and true-peak audio level.pdf"
+    libelle: ITU-R BS.1770-5
+
+valeurs:
+  - champ: audio.loudness.method
+    valeur: "ITU-R BS.1770-5 (intégré avec gating, true peak annexe 2) et EBU Tech 3341 (EBU Mode)"
+    page: 4
+    citation: "that the measurement shall be made with a loudness meter compliant with ITU-R BS.1770 (including the level-gating method described in equation (7)) and EBU Tech 3341"
+    controle: citation
+    remarque: >-
+      Recommends k). Information (méthode de mesure), sans effet sur le verdict. La version -5 est celle du PDF de
+      normes/sources/ ; R 128 cite BS.1770 sans version.
+  - champ: audio.loudness.long.integrated_lufs
+    valeur: -23.0
+    page: 3
+    citation: "that the Programme Loudness Level shall be normalised to a Target Level of −23.0 LUFS"
+    remarque: >-
+      Recommends h). R 128 ne distingue pas programmes longs et courts : « long » vaut pour toutes les durées tant que le
+      diffuseur ne précise rien (les courts relèvent de R 128 s1, recommends q).
+  - champ: audio.loudness.long.integrated_tolerance_lu
+    valeur: 0.2
+    page: 3
+    citation: "that for the implementation of Loudness workflows (for example, in Quality Control environments) a tolerance of ±0.2 LU is allowed in order to take account of measurement errors"
+    remarque: >-
+      Recommends i), tolérance de contrôle qualité. La tolérance de ± 1,0 LU de h) est réservée aux programmes où la
+      cible n'est pas atteignable (direct) : voir « sans valeur ».
+  - champ: audio.true_peak_max_dbtp
+    valeur: -1.0
+    page: 4
+    citation: "and that the True Peak Level of a programme shall not exceed −1 dBTP (dB True Peak) during production (linear audio)"
+    remarque: "Recommends m). Mesure selon BS.1770 et Tech 3341 ; tolérance de mesure ± 0,3 dB (pas de champ)."
+
+non_retenus:
+  - sujet: "Tolérance ± 1,0 LU (direct)"
+    page: 3
+    citation: "Where attaining the Target Level is not achievable practically (for example, live programmes), a tolerance of ±1.0 LU is permitted."
+    remarque: "Programmes en direct seulement ; PAD Guard contrôle des PAD enregistrés."
+  - sujet: "audio.loudness.long.lra_max_lu"
+    page: 4
+    citation: "that the measure Loudness Range (measured in compliance with EBU Tech 3342 [6]) may be used to evaluate the loudness variation of a programme"
+    remarque: "« may be used » : aucune valeur maximale."
+  - sujet: "audio.loudness.short (renvoi à R 128 s1)"
+    page: 4
+    citation: "that production and normalisation of short-form content (adverts; promos etc.) should be made in compliance with EBU R 128 s1 [7]"
+    remarque: >-
+      R 128 renvoie à R 128 s1 pour les programmes courts (normes/ebu_r128_s1.yaml). ebu_r128.yaml ne déclare pas ce
+      renvoi (refers_to) : l'ajouter changerait le profil effectif d'Arte et de tout profil qui hérite de R 128. À arbitrer.
+  - sujet: "Tolérance du true peak"
+    page: 4
+    citation: "The measurement tolerance is ±0.3 dB (for signals with a bandwidth limited to 20 kHz)."
+    remarque: "Pas de champ dans PAD Guard."
+  - sujet: "Algorithme de mesure (BS.1770-5)"
+    pdf: bs1770
+    page: 1
+    citation: "Algorithms to measure audio programme loudness and true-peak audio level"
+    remarque: >-
+      Méthode, pas de seuil : gating, fenêtres et true peak sont appliqués par le code de mesure (measure/), conformément
+      à BS.1770-5 et Tech 3341.
+
+absents: >-
+  Tous les autres champs : R 128 ne fixe que la cible, sa tolérance de contrôle et le true peak. LRA, short-term et
+  momentary « may be used » sans valeur.

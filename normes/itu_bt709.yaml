@@ -1,27 +1,25 @@
-# Norme : Recommandation UIT-R BT.709-6, valeurs des paramètres des normes de TVHD pour la production
-# et l'échange international de programmes (06/2015).
-#
-# Valeurs et citations relevées le 24 octobre 2026 dans normes/sources/TV/Parameter values for the
-# HDTV standards for production and international programme exchange.pdf (partie 2, p. 6-7).
-#
-# Seules les valeurs que le profil sait porter figurent ici. Les définitions dont PAD Guard se sert
-# pour calculer (coefficients de la matrice, quantification en n bits, codes réservés à la
-# synchronisation) sont citées dans le code qui les applique (formats.py, decode/video.py,
-# rules/engine.py) : ce ne sont pas des seuils.
-#   - §3.2 « E'Y = 0.2126 E'R + 0.7152 E'G + 0.0722 E'B »                         -> formats.MATRICES
-#   - §3.4 « DY' = INT[(219 E'Y + 16) · 2^(n-8)] » (chroma : 224, 128)            -> decode/video.py
-#   - §4.7 « Timing reference 0-3 and 1 020-1 023 » (10 bits)                      -> détection de plage
-# La plage pleine (full range) n'est pas définie par BT.709 : elle vient de UIT-R BT.2100-3, tableau 9.
+# Norme itu_bt709 écrite par pad-guard releve-norme depuis normes/releves/itu_bt709.yaml.
+# Document : Recommandation UIT-R BT.709-6 — Valeurs des paramètres des normes de TVHD pour la production et l'échange international de programmes (BT.709-6, 06/2015), normes/sources/TV/Parameter values for the HDTV standards for production and international programme exchange.pdf (SHA-256 460b9e95d473b4344bd468e2e9f9739e03319e74038a5a5e87ba76fa62afdd60).
+# Relevé par Claude Code (décision de Damien du 28/10/2026 : relevé sans questionnaire) le 2026-10-28 ; chaque citation a été retrouvée par le code dans sa page, avec son nombre.
+# Tableau de relecture : docs/normes/itu_bt709.md. Ne pas modifier à la main : corriger le relevé et relancer pad-guard releve-norme.
 
 meta:
   kind: norm
   name: itu_bt709
   document:
-    title: "Recommandation UIT-R BT.709-6 — Valeurs des paramètres des normes de TVHD pour la production et l'échange international de programmes"
-    version: "BT.709-6, 06/2015"
-  source_pdf: "normes/sources/TV/Parameter values for the HDTV standards for production and international programme exchange.pdf"
+    title: Recommandation UIT-R BT.709-6 — Valeurs des paramètres des normes de TVHD pour la production et l'échange international de programmes
+    version: BT.709-6, 06/2015
+  source_pdf: normes/sources/TV/Parameter values for the HDTV standards for production and international programme exchange.pdf
+  source_pdf_sha256: 460b9e95d473b4344bd468e2e9f9739e03319e74038a5a5e87ba76fa62afdd60
+  notes: 'Partie 2 (format d''image commun 1920 x 1080). La plage pleine n''est pas définie par BT.709 : voir BT.2100-3, tableau 9.'
+  extends: []
+  refers_to: []
 
 format:
+  width: 1920
+  height: 1080
+  bit_depth_allowed: [8, 10]
+  color_range: tv
   color_primaries: bt709
   color_transfer: bt709
   color_space: bt709
@@ -31,19 +29,12 @@ video:
   y_max_legal: 940
 
 sources:
-  format.color_primaries: >-
-    UIT-R BT.709-6, partie 2, §1.3 « Chromaticity coordinates (CIE, 1931) » : rouge 0.640 / 0.330,
-    vert 0.300 / 0.600, bleu 0.150 / 0.060 ; §1.4 blanc de référence D65 0.3127 / 0.3290 (balise ffprobe
-    « bt709 »).
-  format.color_transfer: >-
-    UIT-R BT.709-6, partie 2, §1.2 « Overall opto-electronic transfer characteristics at source » :
-    « V = 1.099 L^0.45 – 0.099 for 1 ≥ L ≥ 0.018 ; V = 4.500 L for 0.018 > L ≥ 0 » (balise ffprobe « bt709 »).
-  format.color_space: >-
-    UIT-R BT.709-6, partie 2, §3.2 « Derivation of luminance signal » : « E'Y = 0.2126 E'R + 0.7152 E'G
-    + 0.0722 E'B » (balise ffprobe « bt709 »).
-  video.y_min_legal: >-
-    UIT-R BT.709-6, partie 2, §4.6 « Quantization levels », « Black level R, G, B, Y » : « 16 » (8 bits),
-    « 64 » (10 bits).
-  video.y_max_legal: >-
-    UIT-R BT.709-6, partie 2, §4.6 « Quantization levels », « Nominal peak R, G, B, Y » : « 235 » (8 bits),
-    « 940 » (10 bits).
+  format.bit_depth_allowed: 'UIT-R BT.709-6 p. 7 : « 4.5 Coding format Linear 8 or 10 bits/component »'
+  format.color_primaries: 'UIT-R BT.709-6 p. 5 : « Red (R) 0.640 0.330 »'
+  format.color_range: 'UIT-R BT.709-6 p. 7 : « Black level R, G, B, Y 16 64 »'
+  format.color_space: 'UIT-R BT.709-6 p. 6 : « 3.2 Derivation of luminance signal E Y E Y 0.2126E R 0.7152E G 0.0722E B »'
+  format.color_transfer: 'UIT-R BT.709-6 p. 5 : « Overall opto-electronic transfer V 1.099 L0.45 – 0.099 for 1 L 0.018 »'
+  format.height: 'UIT-R BT.709-6 p. 5 : « 2.4 Active lines per picture 1 080 »'
+  format.width: 'UIT-R BT.709-6 p. 5 : « 2.2 Samples per active line 1 920 »'
+  video.y_max_legal: 'UIT-R BT.709-6 p. 7 : « Nominal peak – R, G, B, Y 235 940 »'
+  video.y_min_legal: 'UIT-R BT.709-6 p. 7 : « Black level R, G, B, Y 16 64 »'

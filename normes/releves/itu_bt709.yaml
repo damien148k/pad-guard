@@ -1,0 +1,96 @@
+# Relevé de UIT-R BT.709-6 (06/2015), fait à la main dans le PDF, vérifié par pad-guard releve-norme.
+# Remplace le relevé du 24/10/2026 (mêmes valeurs de colorimétrie et de niveaux, pages ajoutées) ;
+# itu_bt709 n'est pas hérité par Arte.
+# Les définitions dont PAD Guard se sert pour calculer (matrice §3.2, quantification §3.4, codes de
+# synchronisation §4.7) sont citées dans le code qui les applique (formats.py, decode/video.py) : ce ne sont
+# pas des seuils.
+
+meta:
+  name: itu_bt709
+  document:
+    title: "Recommandation UIT-R BT.709-6 — Valeurs des paramètres des normes de TVHD pour la production et l'échange international de programmes"
+    version: "BT.709-6, 06/2015"
+  source_pdf: "normes/sources/TV/Parameter values for the HDTV standards for production and international programme exchange.pdf"
+  notes: "Partie 2 (format d'image commun 1920 x 1080). La plage pleine n'est pas définie par BT.709 : voir BT.2100-3, tableau 9."
+  extends: []
+  refers_to: []
+
+libelle: UIT-R BT.709-6
+fichier_norme: ecrire
+releve_par: "Claude Code (décision de Damien du 28/10/2026 : relevé sans questionnaire)"
+releve_le: 2026-10-28
+
+valeurs:
+  - champ: format.width
+    valeur: 1920
+    page: 5
+    citation: "2.2 Samples per active line 1 920"
+    remarque: "Partie 2, §2.2 « Picture characteristics »."
+  - champ: format.height
+    valeur: 1080
+    page: 5
+    citation: "2.4 Active lines per picture 1 080"
+    remarque: "Partie 2, §2.4."
+  - champ: format.bit_depth_allowed
+    valeur: [8, 10]
+    page: 7
+    citation: "4.5 Coding format Linear 8 or 10 bits/component"
+    remarque: "§4.5. Un fichier 12 bits sort de BT.709 (recommandation, plafonnée à mineur sauf renvoi du diffuseur)."
+  - champ: format.color_range
+    valeur: tv
+    page: 7
+    citation: "Black level R, G, B, Y 16 64"
+    remarque: "§4.6 : noir à 64 et blanc nominal à 940 (10 bits) : plage légale. BT.709 ne définit pas de plage pleine."
+  - champ: format.color_primaries
+    valeur: bt709
+    page: 5
+    citation: "Red (R) 0.640 0.330"
+    controle: citation
+    remarque: >-
+      §1.3 : primaires rouge 0,640/0,330, vert 0,300/0,600, bleu 0,150/0,060 ; blanc D65 0,3127/0,3290 (§1.4). « bt709 »
+      est le nom de la balise ffprobe de ces primaires.
+  - champ: format.color_transfer
+    valeur: bt709
+    page: 5
+    citation: "Overall opto-electronic transfer V 1.099 L0.45 – 0.099 for 1 L 0.018"
+    controle: citation
+    remarque: "§1.2 (fonction de transfert de BT.709) ; « bt709 » est le nom de la balise ffprobe."
+  - champ: format.color_space
+    valeur: bt709
+    page: 6
+    citation: "3.2 Derivation of luminance signal E Y E Y 0.2126E R 0.7152E G 0.0722E B"
+    controle: citation
+    remarque: "§3.2 (matrice de luminance) ; « bt709 » est le nom de la balise ffprobe."
+  - champ: video.y_min_legal
+    valeur: 64
+    page: 7
+    citation: "Black level R, G, B, Y 16 64"
+    remarque: "§4.6, colonne 10 bits (16 en 8 bits)."
+  - champ: video.y_max_legal
+    valeur: 940
+    page: 7
+    citation: "Nominal peak – R, G, B, Y 235 940"
+    remarque: "§4.6, colonne 10 bits (235 en 8 bits)."
+
+non_retenus:
+  - sujet: "format.fps_allowed"
+    page: 8
+    citation: "5.5 Picture rate (Hz) 60, 60/1.001 30, 30/1.001 50 25 24, 24/1.001"
+    remarque: >-
+      BT.709 liste les cadences possibles (60, 50, 30, 25, 24 et leurs variantes /1,001) sans en exiger aucune : la
+      cadence se fixe dans le profil du diffuseur. (Écrites « 30/1.001 », elles ne se vérifient pas comme « 30000/1001 ».)
+  - sujet: "format.field_order (entrelacé : trame 1 en haut)"
+    page: 8
+    citation: "For interlace and segmented frame systems, 1st active line of field 1 at top of picture"
+    remarque: "Ordre de présentation des lignes, pas un ordre de trames exigé du fichier."
+  - sujet: "Codes réservés (synchronisation)"
+    page: 7
+    citation: "Timing reference 0 and 255 0-3 and 1 020-1 023"
+    remarque: "Utilisés par la détection de plage (rules/engine.py), pas un seuil."
+  - sujet: "Rapport d'image"
+    page: 5
+    citation: "2.1 Aspect ratio 16:9"
+    remarque: "Pas de champ dans PAD Guard (la zone active se contrôle par format.letterbox, propre au diffuseur)."
+
+absents: >-
+  Tous les autres champs : BT.709 ne fixe ni codec, ni conteneur, ni tolérances de niveaux (R 103), ni audio.

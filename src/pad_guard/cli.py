@@ -819,6 +819,27 @@ def compare_profiles(
     console.print(", ".join(f"{n} {k}" for k, n in counts.items()))
 
 
+@app.command("releve-norme")
+def releve_norme(
+    survey: Path = typer.Argument(..., help="Relevé d'une norme (normes/releves/<nom>.yaml)."),
+) -> None:
+    """Vérifie un relevé de norme dans son PDF, écrit la norme et son tableau de relecture (docs/normes/)."""
+    from pad_guard.draft import releve
+    from pad_guard.draft.pdf import PdfError
+
+    try:
+        written, table = releve.run(survey, releve.ROOT / "normes")
+    except (releve.ReleveError, PdfError, ProfileError) as exc:
+        message = "\n".join(exc.messages) if isinstance(exc, ProfileError) else str(exc)
+        console.print(f"[red]{escape(message)}[/red]")
+        raise typer.Exit(EXIT_REFUSED) from None
+    if written is not None:
+        console.print(f"Norme écrite : {written}")
+    elif (releve.ROOT / "normes" / survey.name).is_file():
+        console.print("Norme inchangée : ses valeurs sont exactement celles du relevé.")
+    console.print(f"Tableau de relecture : {table}")
+
+
 if __name__ == "__main__":
     app()
 
