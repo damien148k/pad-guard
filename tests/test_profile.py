@@ -37,7 +37,9 @@ def test_france_tv_values() -> None:
     p = load_profile(FTV_DRAFT)
     assert p.structure.leaders == "classic"
     assert p.audio.true_peak_max_dbtp == -3.0
-    assert p.audio.loudness.short is None
+    # No short programmes in the provisional draft: those of EBU R 128 s1, through the reference of R 128.
+    short = p.audio.loudness.short
+    assert (short.integrated_lufs, short.integrated_tolerance_lu, short.short_term_max_lufs) == (-23, 0.2, -18)
     assert p.format.fps_allowed == ["25/1"]
 
 

@@ -79,6 +79,8 @@ rules:
       - {else: info, source: "Lumiris : canal alpha ignoré par les mesures, signalé (décision de Damien, 24/10/2026)"}
     scan_flag_mismatch:                    # images progressives, drapeau entrelacé : l'étiquette est fausse, pas les images
       - {else: major, source: "Lumiris : drapeau de balayage à corriger à l'export (master progressif)"}
+    audio_short_term_excursion:            # short term maximal des programmes courts (EBU R 128 s1, par R 128) ; un profil qui la fixe garde la sienne
+      - {else: minor, source: "décision Lumiris, A VERIFIER Vincent (major si le diffuseur renvoie à la RT 040 ?)"}
 
 sources:
   format.unknown_color_tags_severity: >-

@@ -115,6 +115,7 @@ video:
   rgb_min_pct: -5.0
   rgb_max_pct: 105.0
   max_out_of_range_area_pct: 1.0
+  out_of_range_area_error: at_least                  # « au moins 1 % » : 1 % compris (EBU R 103 : strictement au-delà)
   prefilter: true
   prefilter_taps: 3                                  # A VERIFIER : Arte ne chiffre pas le noyau ; choix pad-checker [1 2 1]/4 en attendant le filtre de R 103 (étape séparée)
   measure_spaces: [ycbcr, rgb]
@@ -288,6 +289,7 @@ sources:
   video.rgb_min_pct: "Arte §3.2.3.3 : « Les composantes RVB doivent être entre -5 % et 105 % (-35 et 735 mV) »"
   video.rgb_max_pct: "Arte §3.2.3.3 : « Les composantes RVB doivent être entre -5 % et 105 % (-35 et 735 mV) »"
   video.max_out_of_range_area_pct: "Arte §3.2.3.3 : « une erreur ne sera affichée que si le dépassement de Gamut représente au moins 1 % de la superficie de l'image »"
+  video.out_of_range_area_error: "Arte §3.2.3.3 : « une erreur ne sera affichée que si le dépassement de Gamut représente au moins 1 % de la superficie de l'image »"
   video.prefilter: "Arte §3.2.3.3 : « Un léger dépassement fugitif est généralement filtré avant la mesure »"
   video.prefilter_taps: "A VERIFIER : Arte §3.2.3.3 ne chiffre pas le noyau ; choix pad-checker"
   video.measure_spaces: "Arte §3.2.3 : mesures dans les deux espaces (RVB et YCrCb)"

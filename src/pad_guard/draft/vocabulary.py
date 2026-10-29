@@ -55,6 +55,7 @@ KEYWORDS: dict[str, tuple[str, ...]] = {
     "video.rgb_min_pct": (r"rvb|rgb|composantes",),
     "video.rgb_max_pct": (r"rvb|rgb|composantes",),
     "video.max_out_of_range_area_pct": (r"surface|superficie|area|de l.image",),
+    "video.out_of_range_area_error": (r"surface|superficie|area|de l.image|of the image|nombre total de pixels",),
     "video.prefilter": (r"filtr",),
     "video.measure_spaces": (r"rvb|rgb|ycbcr|ycrcb|espaces?",),
     "audio.sample_rate": (r"khz|hz|echantillonnage|frequence",),
@@ -166,6 +167,9 @@ EVIDENCE: dict[str, dict[str, tuple[str | None, str | None]]] = {
     "format.color_range": {'"tv"': (r"limit|narrow|legal|nominal|64|16", r"full|pleine"),
                            '"pc"': (r"full|pleine", None)},
     "structure.pse.enabled": {"true": (None, NEGATION), "false": (NEGATION, None)},
+    # « ne doit pas excéder 1 % », « exceeds 1% »: strictly above; « au moins 1 % »: from the threshold on.
+    "video.out_of_range_area_error": {'"above"': (r"exced|depass|exceed|au.dela|plus de|superieure? a", r"au moins|at least"),
+                                      '"at_least"': (r"au moins|at least|atteint|reach", None)},
     "video.prefilter": {"true": (None, r"\bne\b.{0,40}\bpas\b.{0,20}filtr|sans filtr"), "false": (NEGATION, None)},
     "structure.timecode.drop_frame_allowed": {"true": (None, NEGATION), "false": (NEGATION, None)},
     **{f"format.{k}": {'"bt709"': (r"709", None), '"bt2020"': (r"2020", None), '"smpte2084"': (r"2084|pq", None),

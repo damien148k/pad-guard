@@ -7,6 +7,14 @@ Norme comparée à ce relevé (mêmes champs, mêmes valeurs ; fichier inchangé
 
 Chaque citation a été retrouvée par `pad-guard releve-norme` dans la page indiquée ; pour une valeur chiffrée, le nombre est dans la citation, et dans un tableau la colonne correspond au champ. Le code ne juge pas du sens : c'est l'objet de cette relecture.
 
+## Normes auxquelles ce document renvoie
+
+Leurs valeurs s'appliquent aussi quand un diffuseur renvoie à ce document (renvoi transitif) ; elles ne sont pas recopiées ici.
+
+| Norme | Citation du renvoi | Version citée |
+|---|---|---|
+| `ebu_r128_s1` | EBU R 128 (2023) p. 4, recommends q) : « that production and normalisation of short-form content (adverts; promos etc.) should be made in compliance with EBU R 128 s1 [7] » |  |
+
 ## Valeurs
 
 | Champ | Valeur | Page | Citation | Remarque |
@@ -22,7 +30,7 @@ Chaque citation a été retrouvée par `pad-guard releve-norme` dans la page ind
 |---|---|---|---|
 | Tolérance ± 1,0 LU (direct) | 3 | « Where attaining the Target Level is not achievable practically (for example, live programmes), a tolerance of ±1.0 LU is permitted. » | Programmes en direct seulement ; PAD Guard contrôle des PAD enregistrés. |
 | audio.loudness.long.lra_max_lu | 4 | « that the measure Loudness Range (measured in compliance with EBU Tech 3342 [6]) may be used to evaluate the loudness variation of a programme » | « may be used » : aucune valeur maximale. |
-| audio.loudness.short (renvoi à R 128 s1) | 4 | « that production and normalisation of short-form content (adverts; promos etc.) should be made in compliance with EBU R 128 s1 [7] » | R 128 renvoie à R 128 s1 pour les programmes courts (normes/ebu_r128_s1.yaml). ebu_r128.yaml ne déclare pas ce renvoi (refers_to) : l'ajouter changerait le profil effectif d'Arte et de tout profil qui hérite de R 128. À arbitrer. |
+| audio.loudness.short (renvoi à R 128 s1) | 4 | « that production and normalisation of short-form content (adverts; promos etc.) should be made in compliance with EBU R 128 s1 [7] » | R 128 renvoie à R 128 s1 pour les programmes courts : le renvoi est déclaré dans ebu_r128.yaml (meta.refers_to, arbitrage de Damien du 28/10/2026) ; les valeurs sont dans normes/ebu_r128_s1.yaml. |
 | Tolérance du true peak | 4 | « The measurement tolerance is ±0.3 dB (for signals with a bandwidth limited to 20 kHz). » | Pas de champ dans PAD Guard. |
 | Algorithme de mesure (BS.1770-5) | 1 (ITU-R BS.1770-5) | « Algorithms to measure audio programme loudness and true-peak audio level » | Méthode, pas de seuil : gating, fenêtres et true peak sont appliqués par le code de mesure (measure/), conformément à BS.1770-5 et Tech 3341. |
 

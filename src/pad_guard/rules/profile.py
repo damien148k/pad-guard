@@ -309,6 +309,9 @@ class Video(_Model):
     rgb_min_pct: float
     rgb_max_pct: float
     max_out_of_range_area_pct: float
+    # above: error when the area is strictly above the threshold (EBU R 103 « exceeds 1% », CST-RT-040
+    # « ne doit pas excéder ») ; at_least: from the threshold on (Arte « au moins 1 % »).
+    out_of_range_area_error: Literal["above", "at_least"]
     prefilter: bool
     # Horizontal binomial low-pass applied before measuring: 3 = [1 2 1]/4, 5 = [1 4 6 4 1]/16.
     prefilter_taps: Literal[3, 5] | None = None
@@ -364,7 +367,8 @@ class LoudnessRules(_Model):
 
 class Loudness(_Model):
     method: str | None = None  # information: measurement standard (EBU R 128 / ITU-R BS.1770)
-    # Programs strictly shorter than this use ``short``. Without ``short``, ``long`` applies to all.
+    # Programs up to this duration use ``short``, longer ones ``long`` (CST-RT-040 p. 9: court <= 2 minutes,
+    # long > 2 minutes; Arte: programmes > 2'00). Without ``short``, ``long`` applies to all.
     long_program_min_seconds: float | None = None
     long: LoudnessRules
     short: LoudnessRules | None = None
@@ -707,7 +711,8 @@ _DESCRIPTIONS: dict[type[BaseModel], dict[str, str]] = {
         "y_tolerance_high_pct": "Tolérance haute de la luminance Y en pourcentage de la plage nominale (ex. 103)",
         "rgb_min_pct": "Tolérance basse des composantes R, V, B en pourcentage (ex. -5)",
         "rgb_max_pct": "Tolérance haute des composantes R, V, B en pourcentage (ex. 105)",
-        "max_out_of_range_area_pct": "Surface de l'image hors tolérance, en pourcentage, à partir de laquelle il y a erreur",
+        "max_out_of_range_area_pct": "Surface de l'image hors tolérance, en pourcentage : seuil d'erreur",
+        "out_of_range_area_error": "Erreur si la surface hors tolérance dépasse strictement le seuil (above) ou l'atteint (at_least)",
         "prefilter": "Filtrer le signal avant la mesure des niveaux (dépassements fugitifs)",
         "prefilter_taps": "Nombre de coefficients du filtre horizontal avant mesure (3 ou 5)",
         "measure_spaces": "Espaces dans lesquels mesurer les niveaux : ycbcr, rgb",

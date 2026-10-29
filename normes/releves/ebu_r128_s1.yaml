@@ -27,7 +27,7 @@ valeurs:
     citation: "Short-form content: A programme of short duration (up to approximately 2 minutes)"
     remarque: >-
       « environ 2 minutes, généralement moins de 30 secondes » : la limite n'est pas nette. PAD Guard applique « short »
-      en dessous de 120 s. Un diffuseur qui écrit sa limite l'emporte (RT 040 : 2 minutes).
+      jusqu'à 120 s compris. Un diffuseur qui écrit sa limite l'emporte (RT 040 : 2 minutes).
   - champ: audio.loudness.short.integrated_lufs
     valeur: -23.0
     page: 3

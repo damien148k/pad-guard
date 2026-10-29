@@ -85,7 +85,8 @@ def test_arte_inherits_and_conflicts() -> None:
     r = resolve_profile(PROFILES / "arte_hd_sdr.yaml")
     assert r.profile.meta.status == "validated" and r.profile.meta.validated_by == "Damien"
     assert [layer.file for layer in r.layers] == [
-        "normes/ebu_r128.yaml", "normes/ebu_r103.yaml", "normes/lumiris_maison.yaml", "profiles/arte_hd_sdr.yaml"]
+        "normes/ebu_r128_s1.yaml", "normes/ebu_r128.yaml", "normes/ebu_r103.yaml", "normes/lumiris_maison.yaml",
+        "profiles/arte_hd_sdr.yaml"]  # R 128 refers to R 128 s1 for short programmes (28 October 2026)
     # The client's document is authoritative: every value Arte states is in the Arte profile, cited.
     assert r.origins["audio.true_peak_max_dbtp"].file == "profiles/arte_hd_sdr.yaml"
     assert r.origins["audio.true_peak_max_dbtp"].source.startswith("Arte §3.3.2.1")
@@ -99,12 +100,22 @@ def test_arte_inherits_and_conflicts() -> None:
     assert r.profile.rules.severity["scan_interlaced"][0].source.startswith("Arte V2-01-03 §3.2.2.1")
     assert "V2-01-03" in r.profile.meta.source_document
     assert r.origins["format.delivery.scan"].source.startswith("Arte V2-01-03 §3.2.2.1")
-    assert {(c.path, c.replaced_value, c.value, c.replaced_file) for c in r.conflicts} == {
+    chains = {c.path: c for c in r.conflicts if c.path.startswith("rules.severity.")}
+    # 29/10/2026: house default severity of the short term maximum (R 128 s1); Arte keeps its own, same level.
+    assert list(chains) == ["rules.severity.audio_short_term_excursion"]
+    excursion = chains["rules.severity.audio_short_term_excursion"]
+    assert excursion.replaced_file == "normes/lumiris_maison.yaml"
+    assert [rule["else"] for rule in excursion.replaced_value] == [rule["else"] for rule in excursion.value] == ["minor"]
+    assert {(c.path, c.replaced_value, c.value, c.replaced_file) for c in r.conflicts if c.path not in chains} == {
         ("video.y_tolerance_low_pct", -5.0, -1.0, "normes/ebu_r103.yaml"),
         ("video.y_tolerance_high_pct", 105.0, 103.0, "normes/ebu_r103.yaml"),
         ("audio.loudness.long.integrated_tolerance_lu", 0.2, 1.0, "normes/ebu_r128.yaml"),
         # House method since 25/10/2026: Arte writes its own (no leaders, the whole file is measured).
         ("audio.exclude_head_tail", True, False, "normes/lumiris_maison.yaml"),
+        # 28/10/2026: Arte « au moins 1 % » against R 103 « exceeds 1% »; Arte's short programmes against R 128 s1.
+        ("video.out_of_range_area_error", "above", "at_least", "normes/ebu_r103.yaml"),
+        ("audio.loudness.short.integrated_tolerance_lu", 0.2, 0.5, "normes/ebu_r128_s1.yaml"),
+        ("audio.loudness.short.short_term_max_lufs", -18.0, -20.0, "normes/ebu_r128_s1.yaml"),
     }
 
 

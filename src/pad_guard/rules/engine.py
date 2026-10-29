@@ -157,7 +157,7 @@ def depends_on(d: Draft, loudness_set: str) -> tuple[str, ...]:
     Used to cap the severity of anomalies that rest on a value given by a norm only (CLAUDE.md
     principle 2). The severity chain of the type always counts.
     """
-    legal = ("video.y_min_legal", "video.y_max_legal", "video.max_out_of_range_area_pct")
+    legal = ("video.y_min_legal", "video.y_max_legal", "video.max_out_of_range_area_pct", "video.out_of_range_area_error")
     loud = f"audio.loudness.{loudness_set}"
     by_type: dict[str, tuple[str, ...]] = {
         "white_clip": legal + ("video.y_tolerance_high_pct",),
@@ -419,17 +419,19 @@ class Engine:
         )
         for event_type, column, extreme, pick, bound, bound_pct, what in specs:
             values = self.v[column]
-            hit = (values >= area) & ~self.bars
+            above = v.out_of_range_area_error == "above"
+            allowed = f"surface {'≤' if above else '<'} {_pct(area, 0)}"
+            hit = ((values > area) if above else (values >= area)) & ~self.bars
             for a, b in self.aggregate(event_type, hit):
                 idx = np.flatnonzero(hit[a: b + 1]) + a
                 worst_frame = int(idx[np.argmax(values[idx])])
                 area_max = float(values[idx].max())
                 if extreme is None:
-                    worst, value, limit = area_max, _pct(area_max), f"surface < {_pct(area, 0)}"
+                    worst, value, limit = area_max, _pct(area_max), allowed
                 else:
                     worst = float(pick(self.v[extreme][idx]))
                     value = code(worst)
-                    limit = f"{bound} ({number(bound_pct, 0)} %), surface < {_pct(area, 0)}"
+                    limit = f"{bound} ({number(bound_pct, 0)} %), {allowed}"
                 self.add(type=event_type, title=f"{what} sur {_pct(area_max)} de l'image", source="measure",
                          scope="range", frame_start=a, frame_end=b, value_text=value, threshold_text=limit,
                          worst_value=worst, worst_frame=worst_frame, threshold=None if bound is None else float(bound),
@@ -479,7 +481,7 @@ class Engine:
         loud = self.p.audio.loudness
         prog = self.m.audio.program
         seconds = (prog.sample_end - prog.sample_start) / self.m.audio.settings.sample_rate
-        if loud.short is not None and seconds < loud.long_program_min_seconds:
+        if loud.short is not None and seconds <= loud.long_program_min_seconds:
             return "short", loud.short
         return "long", loud.long
 

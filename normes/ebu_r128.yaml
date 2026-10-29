@@ -3,8 +3,9 @@
 # Valeurs et citations relevées le 23 octobre 2026 dans les PDF de normes/sources/AUDIO/ :
 #   r128.pdf (EBU R 128, V5, novembre 2023), tech3341.pdf et tech3343.pdf (novembre 2023),
 #   « Recommendation ITU-R BS.1770-5 (11_2023) … .pdf ».
-# R 128 ne distingue pas programmes courts et longs (le supplément s1 traite les messages
-# publicitaires) : « long » s'applique donc à toutes les durées tant qu'un profil ne le précise pas.
+# R 128 renvoie à son supplément s1 pour les programmes courts (recommends q) : ebu_r128_s1 donne le bloc
+# « short » et la durée de 2 minutes ; « long » vaut pour les programmes plus longs (arbitrage de Damien,
+# 28 octobre 2026). Relevé et tableau : normes/releves/ebu_r128.yaml, docs/normes/ebu_r128.md.
 # R 128 ne fixe pas de LRA maximale (« may be used », recommends n) : pas de valeur ici.
 
 meta:
@@ -14,6 +15,10 @@ meta:
     title: "EBU R 128 — Loudness normalisation and permitted maximum level of audio signals"
     version: "V5, novembre 2023 (EBU R 128-2023)"
   source_pdf: "normes/sources/AUDIO/r128.pdf"
+  extends: [ebu_r128_s1]
+  refers_to:
+    - norm: ebu_r128_s1
+      source: "EBU R 128 (2023) p. 4, recommends q) : « that production and normalisation of short-form content (adverts; promos etc.) should be made in compliance with EBU R 128 s1 [7] »"
   notes: >
     Méthode de mesure : ITU-R BS.1770-5 (11/2023) et EBU Tech 3341 (novembre 2023).
     Tolérance des flux de travail : EBU Tech 3343 (novembre 2023) §3.1.

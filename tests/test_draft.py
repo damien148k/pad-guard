@@ -715,7 +715,7 @@ def test_review_profile_accept_correct_choose(review_lab) -> None:
     # Field order: audio.sample_rate (conflict), audio.loudness.long.integrated_lufs, audio.true_peak_max_dbtp,
     # structure.timecode.program_start. After the correction, no term is added to the glossary (""). Then EBU R128,
     # named on p. 1 (alias of the glossary) but not proposed by the model: not a reference (""), none to add ("").
-    result = _review(draft_yaml, base, out, ["1", "a", "c", "-3", "1", "le niveau des crêtes", "", "a", "", "", "Vincent"])
+    result = _review(draft_yaml, base, out, ["1", "a", "c", "-3", "1", "le niveau des crêtes", "", "a", "", "", "o", "Vincent"])
     assert result.exit_code == 0, result.output
     r = resolve_profile(out)
     assert r.profile.meta.status == "validated" and r.profile.meta.validated_by == "Vincent"
@@ -730,7 +730,7 @@ def test_review_profile_accept_correct_choose(review_lab) -> None:
 def test_review_flags_implausible_and_learns_terms(review_lab, tmp_path) -> None:
     draft_yaml, base, out = review_lab
     # sample_rate: CONFLIT between 48000 and the implausible 48. True peak corrected, with a new term.
-    answers = ["1", "a", "c", "-3", "1", "le niveau des crêtes", "plafond numérique", "f", "a", "", "", "Vincent"]
+    answers = ["1", "a", "c", "-3", "1", "le niveau des crêtes", "plafond numérique", "f", "a", "", "", "o", "Vincent"]
     result = _review(draft_yaml, base, out, answers)
     assert result.exit_code == 0, result.output
     text = " ".join(result.output.split())

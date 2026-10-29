@@ -243,3 +243,75 @@ def test_norm_only_value_capped_at_minor(fixtures_dir, tmp_path) -> None:
     assert all(e["severity_source"].startswith("NORME (ebu_r103) : valeur absente du document du client, "
                                                 "gravité plafonnée à minor") for e in events)
     assert result.exit_code == 0 and _json(out, wd.VERDICT)["status"] == "CONFORME"
+
+
+@pytest.mark.parametrize("severity, refers, expected, capped", [
+    (None, False, "minor", False),      # house default (décision Lumiris, 29/10/2026)
+    ("major", False, "minor", True),    # value of EBU R 128 s1 only: a recommendation
+    ("major", True, "major", False),    # the client refers to R 128, which refers to s1
+])
+def test_short_term_maximum_of_r128_s1(fixtures_dir, tmp_path, severity, refers, expected, capped) -> None:
+    """Short programmes get the short term maximum of EBU R 128 s1 through R 128: capped at minor unless the
+    client refers to R 128."""
+    import shutil
+
+    (tmp_path / "profiles").mkdir()
+    (tmp_path / "normes").mkdir()
+    for name in ("ebu_r128", "ebu_r128_s1", "lumiris_maison"):
+        shutil.copyfile(ROOT / "normes" / f"{name}.yaml", tmp_path / "normes" / f"{name}.yaml")
+
+    def with_r128(raw):
+        raw["meta"]["extends"] = ["ebu_r128", "lumiris_maison"]
+        if refers:
+            raw["meta"]["refers_to"] = [{"norm": "ebu_r128", "source": "cahier des charges de test : « R 128 »"}]
+        if severity:
+            raw["rules"]["severity"]["audio_short_term_excursion"] = [{"else": severity, "source": "profil de test"}]
+
+    profile = _profile_variant(tmp_path / "profiles", CLASSIC, "p.yaml", with_r128)
+    out = tmp_path / "out"
+    invoke("analyze", str(fixtures_dir / "bad_audio.mov"), "--profile", str(profile), "--out", str(out),
+           "--no-thumbnails")
+    events = [e for e in _json(out, wd.EVENTS)["events"] if e["type"] == "audio_short_term_excursion"]
+    assert events and {e["severity"] for e in events} == {expected}
+    for e in events:
+        assert e["severity_source"].startswith("NORME (ebu_r128_s1)") is not refers
+        assert ("gravité plafonnée à minor" in e["severity_source"]) is capped
+        if severity is None:
+            assert "décision Lumiris, A VERIFIER Vincent" in e["severity_source"]
+
+
+@pytest.mark.parametrize("rule, kept", [("at_least", True), ("above", False)])
+def test_out_of_range_area_at_the_threshold(analysed, tmp_path, rule, kept) -> None:
+    """Area exactly at the threshold: an error for Arte (« au moins 1 % »), not for EBU R 103 (« exceeds 1% »,
+    arbitration of Damien, 28 October 2026)."""
+    import shutil
+
+    _, _, out = analysed("bad_levels.mov")
+    clip = next(e for e in _json(out, wd.EVENTS)["events"] if e["type"] == "white_clip")
+    work = tmp_path / "work"
+    shutil.copytree(out, work)
+
+    def at_threshold(raw):
+        raw["video"]["max_out_of_range_area_pct"] = clip["area_pct_max"]
+        raw["video"]["out_of_range_area_error"] = rule
+
+    profile = _profile_variant(tmp_path, CLASSIC, "p.yaml", at_threshold)
+    invoke("rerun", str(work), "--from", "rules", "--profile", str(profile), "--no-thumbnails")
+    clips = [e for e in _json(work, wd.EVENTS)["events"] if e["type"] == "white_clip"]
+    assert bool(clips) is kept
+    if kept:
+        assert clips[0]["threshold_text"].endswith(f"surface < {clip['area_pct_max']:g} %".replace(".", ","))
+
+
+def test_two_minutes_exactly_is_short() -> None:
+    """CST-RT-040 p. 9 and Arte: short up to 2 minutes included, long strictly beyond."""
+    from types import SimpleNamespace
+
+    from pad_guard.rules.engine import Engine
+
+    profile = resolve_profile(ARTE).profile
+    for seconds, kind in ((120, "short"), (120.02, "long")):
+        audio = SimpleNamespace(program=SimpleNamespace(sample_start=0, sample_end=int(seconds * 48000)),
+                                settings=SimpleNamespace(sample_rate=48000))
+        engine = SimpleNamespace(p=profile, m=SimpleNamespace(audio=audio))
+        assert Engine.loudness_rules(engine)[0] == kind

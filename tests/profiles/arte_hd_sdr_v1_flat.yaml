@@ -55,6 +55,7 @@ video:
   rgb_min_pct: -5.0                                  # §3.2.3.3 : RVB entre -5 % et 105 % (-35 mV / 735 mV)
   rgb_max_pct: 105.0
   max_out_of_range_area_pct: 1.0                     # §3.2.3.3 : erreur si >= 1 % de la superficie de l'image
+  out_of_range_area_error: at_least
   prefilter: true                                    # §3.2.3.3 : "léger dépassement fugitif filtré avant la mesure"
   prefilter_taps: 3                                  # A VERIFIER : R103 ne chiffre pas le noyau ; 3 = [1 2 1]/4 horizontal
   measure_spaces: [ycbcr, rgb]                       # §3.2.3 : mesures dans les deux espaces

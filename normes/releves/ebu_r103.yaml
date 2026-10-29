@@ -57,8 +57,12 @@ valeurs:
     page: 5
     citation: "measuring equipment should indicate an “Out-of-Gamut” occurrence only after the error exceeds 1% of the image"
     remarque: >-
-      R 103 : erreur au-delà de 1 % (strictement) ; PAD Guard et Arte : à partir de 1 % (1 % compris). Écart à la
-      frontière, à arbitrer.
+      Seuil de surface ; la comparaison (strictement au-delà) est dans video.out_of_range_area_error.
+  - champ: video.out_of_range_area_error
+    valeur: above
+    page: 5
+    citation: "measuring equipment should indicate an “Out-of-Gamut” occurrence only after the error exceeds 1% of the image"
+    remarque: "« only after the error exceeds 1% » : erreur strictement au-delà de 1 % (arbitrage de Damien, 28/10/2026). Arte écrit « au moins 1 % » et garde at_least dans son profil."
   - champ: video.prefilter
     valeur: true
     page: 5

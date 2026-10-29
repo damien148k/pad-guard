@@ -8,6 +8,10 @@ meta:
     title: "EBU R 128 — Loudness normalisation and permitted maximum level of audio signals"
     version: "V5, novembre 2023 (EBU R 128-2023)"
   source_pdf: normes/sources/AUDIO/r128.pdf
+  extends: [ebu_r128_s1]
+  refers_to:
+    - norm: ebu_r128_s1
+      source: "EBU R 128 (2023) p. 4, recommends q) : « that production and normalisation of short-form content (adverts; promos etc.) should be made in compliance with EBU R 128 s1 [7] »"
 
 libelle: EBU R 128 (2023)
 fichier_norme: verifier
@@ -60,8 +64,8 @@ non_retenus:
     page: 4
     citation: "that production and normalisation of short-form content (adverts; promos etc.) should be made in compliance with EBU R 128 s1 [7]"
     remarque: >-
-      R 128 renvoie à R 128 s1 pour les programmes courts (normes/ebu_r128_s1.yaml). ebu_r128.yaml ne déclare pas ce
-      renvoi (refers_to) : l'ajouter changerait le profil effectif d'Arte et de tout profil qui hérite de R 128. À arbitrer.
+      R 128 renvoie à R 128 s1 pour les programmes courts : le renvoi est déclaré dans ebu_r128.yaml (meta.refers_to,
+      arbitrage de Damien du 28/10/2026) ; les valeurs sont dans normes/ebu_r128_s1.yaml.
   - sujet: "Tolérance du true peak"
     page: 4
     citation: "The measurement tolerance is ±0.3 dB (for signals with a bandwidth limited to 20 kHz)."

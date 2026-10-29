@@ -175,6 +175,10 @@ champs:
     en: ["picture area", "of the image area", "area of the picture", "of the image"]
     unites: ["%"]
     plage: [0, 100]
+  video.out_of_range_area_error:
+    fr: ["ne doit pas excéder", "au moins 1 %", "au-delà de"]
+    en: ["exceeds", "at least"]
+    contextes: ["strictement au-delà du seuil (above) / à partir du seuil (at_least)"]
   video.prefilter:
     fr: ["filtre passe-bas", "filtrage avant mesure", "préfiltre", "filtrage du signal"]
     en: ["low-pass filter", "prefilter", "pre-filter", "filters in all measurement channels"]

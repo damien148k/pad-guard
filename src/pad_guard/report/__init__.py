@@ -228,7 +228,7 @@ class _Builder:
                        full_scale=str(t.full_scale_samples)) for t in a.tracks]
         loud = self.p.audio.loudness
         seconds = (p.sample_end - p.sample_start) / a.settings.sample_rate
-        short = loud.short is not None and seconds < loud.long_program_min_seconds
+        short = loud.short is not None and seconds <= loud.long_program_min_seconds
         rs = loud.short if short else loud.long
         rules = (f"programme {'court' if short else 'long'} ({number(seconds / 60, 1)} min) : "
                  f"{number(rs.integrated_lufs)} LUFS ± {number(rs.integrated_tolerance_lu)} LU, true peak ≤ "
@@ -356,7 +356,8 @@ class _Builder:
             f"Vidéo : Y légal {s.y_legal[0]}–{s.y_legal[1]} ; Y toléré {number(v.y_tolerance_low_pct)} % / "
             f"{number(v.y_tolerance_high_pct)} % soit {s.y_tolerance[0]}–{s.y_tolerance[1]} ; RVB "
             f"{number(v.rgb_min_pct)} % / {number(v.rgb_max_pct)} % soit {s.rgb[0]}–{s.rgb[1]} (codes 10 bits, "
-            f"bornes incluses) ; anomalie si la surface hors tolérance atteint {number(v.max_out_of_range_area_pct)} % "
+            f"bornes incluses) ; anomalie si la surface hors tolérance "
+            f"{'dépasse' if v.out_of_range_area_error == 'above' else 'atteint'} {number(v.max_out_of_range_area_pct)} % "
             "de l'image.",
             f"Préfiltre avant mesure des niveaux : {prefilter}.",
             f"Conversion RVB : matrice {s.matrix} ({self.matrix_reason()}), chroma 4:2:2 interpolée linéairement, "

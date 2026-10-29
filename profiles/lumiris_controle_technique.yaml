@@ -108,6 +108,8 @@ rules:
       - {else: info, source: "Lumiris : contrôle technique, loudness mesuré sans cible de diffuseur"}
     audio_true_peak:
       - {else: info, source: "Lumiris : contrôle technique, true peak mesuré sans cible de diffuseur"}
+    audio_short_term_excursion:                      # programmes courts de EBU R 128 s1 (renvoi de R 128, 28/10/2026)
+      - {else: info, source: "Lumiris : contrôle technique, short term mesuré sans cible de diffuseur"}
     audio_silence:
       - {else: info, source: "Lumiris : contrôle technique"}
     audio_phase:

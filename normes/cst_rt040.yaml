@@ -34,6 +34,7 @@ video:
   y_min_legal: 64
   y_max_legal: 940
   max_out_of_range_area_pct: 1.0
+  out_of_range_area_error: above
 
 audio:
   sample_rate: 48000
@@ -88,5 +89,6 @@ sources:
   format.height: 'CST-RT-040 V1.2, 2016 p. 4 : « SMPTE 274M : Paramètres signal HD 1920x1080 »'
   format.width: 'CST-RT-040 V1.2, 2016 p. 4 : « SMPTE 274M : Paramètres signal HD 1920x1080 »'
   video.max_out_of_range_area_pct: 'CST-RT-040 V1.2, 2016 p. 5 : « La proportion de pixels dont les valeurs sont hors « Color Gamut » (voir tableau ci-dessus) ne doit pas excéder 1% du nombre total de pixels de l’image active. »'
+  video.out_of_range_area_error: 'CST-RT-040 V1.2, 2016 p. 5 : « La proportion de pixels dont les valeurs sont hors « Color Gamut » (voir tableau ci-dessus) ne doit pas excéder 1% du nombre total de pixels de l’image active. »'
   video.y_max_legal: 'CST-RT-040 V1.2, 2016 p. 5 : « 10 bits 64 – 940 20 – 984 4 - 1019 »'
   video.y_min_legal: 'CST-RT-040 V1.2, 2016 p. 5 : « 10 bits 64 – 940 20 – 984 4 - 1019 »'
