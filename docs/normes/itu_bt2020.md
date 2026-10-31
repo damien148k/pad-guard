@@ -43,4 +43,4 @@ BT.2020 ne fixe ni codec, ni conteneur, ni tolérances de niveaux, ni audio.
 
 Pour chaque ligne : la valeur correspond-elle au sens du document ? Corrections dans le relevé (`normes/releves/itu_bt2020.yaml`), puis `uv run pad-guard releve-norme normes/releves/itu_bt2020.yaml`, qui réécrit ce tableau et efface la signature ; relecture complète, puis `uv run pad-guard signer-norme itu_bt2020 --par "Vincent"` écrit la signature dans `normes/itu_bt2020.yaml`.
 
-Relu par : ____________________  le : ____________
+Relu par Vincent Lagarrigue le 31/10/2026 (pad-guard signer-norme ; empreinte du tableau `fcb649bd8ce8e9087685faf888913cf108c97fd11f14d36b646763ab1f45310e`, écrite dans `normes/itu_bt2020.yaml`).

@@ -14,8 +14,10 @@ meta:
   extends: []
   refers_to: []
   applies: on_reference
-  validated_by: null
-  validated_at: null
+  validated_by: "Vincent Lagarrigue"
+  validated_at: 2026-10-31
+  validated_table_sha256: "627bb5641e389eaa309b8122af8fa967e240460295c91e97a3cae064bb299b3f"
+  validated_norm_sha256: "d97ab54af7b8736a5e6a71d48f3a8b2fa2ba2c35cbbe8c68507c2ef19dc6d135"
 
 format:
   field_order: progressive

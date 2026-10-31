@@ -44,4 +44,4 @@ BT.2100 ne fixe ni codec, ni conteneur, ni tolérances de niveaux, ni métadonn�
 
 Pour chaque ligne : la valeur correspond-elle au sens du document ? Corrections dans le relevé (`normes/releves/itu_bt2100.yaml`), puis `uv run pad-guard releve-norme normes/releves/itu_bt2100.yaml`, qui réécrit ce tableau et efface la signature ; relecture complète, puis `uv run pad-guard signer-norme itu_bt2100 --par "Vincent"` écrit la signature dans `normes/itu_bt2100.yaml`.
 
-Relu par : ____________________  le : ____________
+Relu par Vincent Lagarrigue le 31/10/2026 (pad-guard signer-norme ; empreinte du tableau `627bb5641e389eaa309b8122af8fa967e240460295c91e97a3cae064bb299b3f`, écrite dans `normes/itu_bt2100.yaml`).

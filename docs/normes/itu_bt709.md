@@ -46,4 +46,4 @@ Tous les autres champs : BT.709 ne fixe ni codec, ni conteneur, ni tolérances d
 
 Pour chaque ligne : la valeur correspond-elle au sens du document ? Corrections dans le relevé (`normes/releves/itu_bt709.yaml`), puis `uv run pad-guard releve-norme normes/releves/itu_bt709.yaml`, qui réécrit ce tableau et efface la signature ; relecture complète, puis `uv run pad-guard signer-norme itu_bt709 --par "Vincent"` écrit la signature dans `normes/itu_bt709.yaml`.
 
-Relu par : ____________________  le : ____________
+Relu par Vincent Lagarrigue le 31/10/2026 (pad-guard signer-norme ; empreinte du tableau `675d169fd0231ff25532d1c81c5f5b41206d89dacf6d8e29464acd490a562075`, écrite dans `normes/itu_bt709.yaml`).
