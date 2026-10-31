@@ -100,7 +100,8 @@ format:
       - {aspect: "2.35", active_lines: 816,  first_line: 87,  last_line: 1057, active_pixels: 1920}
     tolerance_lines: 2                               # DEDUIT
     # Note : les numéros de ligne du document sont en numérotation SMPTE 274M (ligne 21 = première ligne active).
-    # En indices d'image 0..1079 : 1.85 -> lignes 11..1046 (1036 lignes), 2.35 -> lignes 66..881 (816 lignes). A vérifier sur un vrai master.
+    # En lignes d'image 0..1079 (trame 1 : lignes 21-560, trame 2 : 584-1123) : 1.85 -> lignes 22..1057 (1036 lignes),
+    # 2.35 -> lignes 132..947 (816 lignes), c'est-à-dire le format centré : PAD Guard compare les quatre bords (31/10/2026).
   delivery:                                          # format du PAD livré à Arte (le master Lumiris est transcodé par le prestataire)
     scan: progressive
     fps: ["50/1", "25/1"]                            # 25p seulement si tournage en 24p ou 25p

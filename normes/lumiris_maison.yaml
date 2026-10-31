@@ -29,6 +29,7 @@ video:
     min_moving_frames: 25
   range_detection:
     reserved_min_frames_pct: 1.0         # A VERIFIER avec Vincent
+  blanking_tolerance_lines: 0            # décision Vincent, 31/10/2026 : blanking à la ligne exacte
 
 audio:
   silence_dbfs: -60.0                    # A VERIFIER Vincent
@@ -79,6 +80,8 @@ rules:
       - {else: info, source: "Lumiris : canal alpha ignoré par les mesures, signalé (décision de Damien, 24/10/2026)"}
     scan_flag_mismatch:                    # images progressives, drapeau entrelacé : l'étiquette est fausse, pas les images
       - {else: major, source: "Lumiris : drapeau de balayage à corriger à l'export (master progressif)"}
+    blanking_inexact:                      # bords de l'image active décalés, dans la tolérance du diffuseur
+      - {else: minor, source: "décision Vincent, 31/10/2026 : blanking à la ligne exacte, sans tolérance"}
     audio_short_term_excursion:            # short term maximal des programmes courts (EBU R 128 s1, par R 128) ; un profil qui la fixe garde la sienne
       - {else: minor, source: "décision Lumiris, A VERIFIER Vincent (major si le diffuseur renvoie à la RT 040 ?)"}
 
@@ -138,6 +141,12 @@ sources:
     4 through 1 019 » ; « Timing reference 0-3 and 1 020-1 023 » ; ProRes et DNxHR écrêtent à 4-1019) a un
     contenu en plage pleine probable. Sur le vrai master Arte : 0,08 % des images (carton de fin à 1019).
     A VERIFIER : seuil à confirmer avec Vincent sur de vrais fichiers.
+  video.blanking_tolerance_lines: >-
+    décision Vincent, 31/10/2026 : le blanking (suppression verticale) doit être à la ligne exacte, sans
+    tolérance. Un bord de l'image active décalé, même dans la tolérance du diffuseur (Arte : 2 lignes, DEDUIT)
+    ou de la norme (CST-RT-040 p. 5 : « Une tolérance de +/- 2 lignes est admise », norme inchangée), est
+    signalé en anomalie maison « blanking pas à la ligne exacte » (blanking_inexact, mineure). Au-delà de la
+    tolérance du diffuseur, c'est l'anomalie « Format d'image » du profil.
   video.scan_detection: >-
     Lumiris : paramètres de la détection de peignage (SPEC §12.5), calibrés le 23/10/2026 sur
     testsrc2 entrelacé par FFmpeg tinterlace (comb ≥ 0,99 sur toutes les images), testsrc2 progressif

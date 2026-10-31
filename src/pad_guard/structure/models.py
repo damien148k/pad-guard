@@ -78,6 +78,11 @@ class LetterboxSummary(BaseModel):
     dominant_aspect: float | None = None  # width / height of the dominant area, pixel aspect ratio included
     matched_format: str | None
     changes: list[str]  # French, information only (SPEC §6.5)
+    # Format of the profile closest to the dominant area, where it is expected (top, bottom, left,
+    # right, 0-based, centred in the frame) and the largest distance of an edge, in lines or pixels.
+    nearest_format: str | None = None
+    expected: list[int] | None = None
+    deviation: int | None = None
 
 
 class Structure(BaseModel):

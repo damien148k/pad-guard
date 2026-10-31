@@ -107,11 +107,43 @@ def test_letterbox_classification() -> None:
     ])
     s = lb.active_area(_frame_with_bands(22, 1057), 0, 68)
     assert (s.top, s.bottom, lb.lines(s), lb.pixels(s)) == (22, 1057, 1036, 1920)
-    assert lb.classify(s, spec, 2) == "1.85"
-    assert lb.classify(lb.active_area(_frame_with_bands(132, 947), 1, 68), spec, 2) == "2.35"
-    assert lb.classify(lb.active_area(_frame_with_bands(0, 1079, 240, 1679), 2, 68), spec, 2) == "1.33"
-    assert lb.classify(lb.active_area(_frame_with_bands(100, 979), 3, 68), spec, 2) is None
+    assert lb.classify(s, spec, 2, 1920, 1080) == "1.85"
+    assert lb.classify(lb.active_area(_frame_with_bands(132, 947), 1, 68), spec, 2, 1920, 1080) == "2.35"
+    assert lb.classify(lb.active_area(_frame_with_bands(0, 1079, 240, 1679), 2, 68), spec, 2, 1920, 1080) == "1.33"
+    assert lb.classify(lb.active_area(_frame_with_bands(100, 979), 3, 68), spec, 2, 1920, 1080) is None
     assert lb.active_area(np.full((1080, 1920), 64, np.uint16), 4, 68) is None
+
+
+def test_blanking_deviation_edge_by_edge() -> None:
+    f185 = LetterboxFormat(aspect="1.85", active_lines=1036, first_line=32, last_line=1112, active_pixels=1920)
+    f235 = LetterboxFormat(aspect="2.35", active_lines=816, first_line=87, last_line=1057, active_pixels=1920)
+    spec = Letterbox(check=True, tolerance_lines=2, formats=[f185, f235])
+    # Arte §3.2.4, SMPTE 274M interlaced numbering (field 1: lines 21-560, field 2: 584-1123): the first
+    # and last lines of each format are the rows of the format centred in the frame.
+    for f in (f185, f235):
+        assert lb.expected_boxes(f, 1920, 1080) == [((f.first_line - 21) * 2, (f.last_line - 584) * 2 + 1, 0, 1919)]
+    exact, one, three = (lb.active_area(_frame_with_bands(22 + k, 1057 + k), 0, 68) for k in (0, 1, 3))
+    assert lb.deviation(exact, f185, 1920, 1080) == (0, (22, 1057, 0, 1919))
+    assert lb.deviation(one, f185, 1920, 1080)[0] == 1 and lb.classify(one, spec, 2, 1920, 1080) == "1.85"
+    assert lb.deviation(three, f185, 1920, 1080)[0] == 3 and lb.classify(three, spec, 2, 1920, 1080) is None
+    # The same number of lines, shifted by 3: the count alone said 1.85.
+    assert lb.lines(three) == 1036
+    # One column short on the right is a deviation too.
+    narrow = lb.active_area(_frame_with_bands(22, 1057, 0, 1918), 0, 68)
+    assert lb.nearest(narrow, spec, 1920, 1080)[:2] == (f185, 1)
+    # An odd number of black lines: either placement is exact.
+    odd = LetterboxFormat(aspect="x", active_lines=1077, first_line=0, last_line=0, active_pixels=1920)
+    assert [b[:2] for b in lb.expected_boxes(odd, 1920, 1080)] == [(1, 1077), (2, 1078)]
+    assert lb.deviation(lb.active_area(_frame_with_bands(2, 1078), 0, 68), odd, 1920, 1080)[0] == 0
+
+
+def test_codec_ringing_does_not_move_the_edge() -> None:
+    """ProRes / DNxHR 8x8 blocks ring into the band rows that share a block with the picture (measured on
+    ProRes HQ: up to 82 on 128 pixels of a row); the edge stays on the exact line."""
+    y = _frame_with_bands(22, 1057)
+    y[16:22, ::15] = 82
+    s = lb.active_area(y, 0, 68)
+    assert (s.top, s.bottom) == (22, 1057)
 
 
 def test_letterbox_dominant_and_changes() -> None:
@@ -124,10 +156,10 @@ def test_letterbox_dominant_and_changes() -> None:
     samples = sorted(normal + dark + wide, key=lambda s: s.frame)
     dom, share = lb.dominant(samples, 2)
     assert lb.lines(dom) == 1036 and share == 100.0  # every sample fits within the 1.85 area
-    assert lb.format_changes(samples, spec, 2, dom) == []  # 2.35 inside 1.85: a dark-looking 2.35 shot
+    assert lb.format_changes(samples, spec, 2, dom, 1920, 1080) == []  # 2.35 inside 1.85: a dark-looking 2.35 shot
     full = [lb.active_area(_frame_with_bands(0, 1079), f, 68) for f in (41, 42, 43)]  # spills over the bands
     samples = sorted(normal + full, key=lambda s: s.frame)
-    assert lb.format_changes(samples, spec, 2, dom) == [(41, 43, None, 3)]
+    assert lb.format_changes(samples, spec, 2, dom, 1920, 1080) == [(41, 43, None, 3)]
 
 
 def test_require_reports_null_and_missing() -> None:

@@ -84,8 +84,9 @@ def test_sheet_rows_and_the_pdf_at_its_page(admin, root) -> None:
 
 def test_house_values_sheet(admin) -> None:
     rows = admin.get("/api/normes/lumiris_maison").json()["rows"]
-    assert len(rows) == 21 and rows[0]["champ"] == "format.unknown_color_tags_severity"
+    assert len(rows) == 23 and rows[0]["champ"] == "format.unknown_color_tags_severity"
     assert rows[0]["valeur"] == "minor" and rows[0]["page"] is None and rows[0]["quote"] is False
+    assert rows[-1]["champ"] == "rules.severity.blanking_inexact"  # décision Vincent, 31/10/2026
 
 
 def test_sign_needs_every_row_then_a_change_shows(admin, root) -> None:

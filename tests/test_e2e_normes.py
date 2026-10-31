@@ -101,6 +101,7 @@ def test_vincent_reads_and_signs_a_norm(root, tmp_path) -> None:
 
             page.get_by_role("button", name="← Normes").click()
             page.locator(".norm-row", has_text="cst_rt099").filter(has_text="signée par Vincent").wait_for()
+            page.close()  # before the server stops: a request in flight would log ERR_CONNECTION_REFUSED
         finally:
             srv.should_exit = True
             thread.join(10)
@@ -129,6 +130,7 @@ def test_vincent_corrects_a_row(root, tmp_path) -> None:
             page.get_by_label("Page corrigée").fill("2")
             page.get_by_role("button", name="Vérifier et corriger").click()
             page.get_by_text("correction refusée").wait_for()
+            assert page.get_by_text("pour une exigence plus stricte, utiliser les valeurs maison").count() == 1
             page.get_by_label("Page corrigée").fill("1")
             page.get_by_label("Citation corrigée").fill(TP_QUOTE.replace("le niveau des crêtes, ", ""))
             page.get_by_role("button", name="Vérifier et corriger").click()

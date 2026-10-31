@@ -11,6 +11,7 @@ TYPE_LABELS = {
     "duplicate_frame": "Image dupliquée",
     "pse": "Flashs (PSE)",
     "letterbox": "Format d'image",
+    "blanking_inexact": "Blanking pas à la ligne exacte",
     "audio_loudness": "Loudness intégré",
     "audio_true_peak": "True peak",
     "audio_short_term_excursion": "Loudness short term",
@@ -48,7 +49,7 @@ SEVERITY_ORDER = ("blocking", "major", "minor", "info")
 # Event types that are about the picture: they get a thumbnail with --thumbnails.
 VIDEO_TYPES = frozenset({
     "white_clip", "black_crush", "gamut", "freeze", "isolated_black_frame", "duplicate_frame", "pse", "letterbox",
-    "structure_bars_present",
+    "blanking_inexact", "structure_bars_present",
 })
 
 

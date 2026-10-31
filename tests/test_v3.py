@@ -66,11 +66,13 @@ VOLATILE = ("| Chemin |", "| SHA-256 |", "| Taille |", "| Date d'analyse |", "| 
 CHANGED = ("| Profil |", "- Préfiltre avant mesure des niveaux :", "| Balayage |",  # rewritten lines
            "| Document de référence |",
            "| Format de pixel |", "| Codec et profil |", "| Conteneur |",  # Phase 6: bit depth and sampling
-           "- Conversion RVB :")  # Phase 6: where the matrix of the file comes from
+           "- Conversion RVB :",  # Phase 6: where the matrix of the file comes from
+           "| Format d'image (lignes et pixels actifs) |")  # 31/10/2026: the four edges, centred formats
 NORM_GAPS = "### Écarts entre le profil et les normes (information)"
 ADDED = ("| Statut du profil |", "| Empreinte du profil effectif |", "| Cadence prise en charge par PAD Guard |",
          "| Décodeur disponible |", "| Format de pixel mesurable par PAD Guard |", "| Cadence fixe |",
-         "| Format du timecode |", "| Profondeur |", "| Échantillonnage de la chrominance |")
+         "| Format du timecode |", "| Profondeur |", "| Échantillonnage de la chrominance |",
+         "| Blanking à la ligne exacte (règle maison) |")  # decision of Vincent, 31/10/2026
 
 
 def _lines(md: str) -> list[str]:

@@ -126,6 +126,8 @@ def severity_types(profile: Profile, groups: list[AudioGroup]) -> set[str]:
         types.add("structure_black_too_long")
     if profile.format.letterbox is not None and profile.format.letterbox.check:
         types.add("letterbox")
+        if profile.format.letterbox.formats:
+            types.add("blanking_inexact")
     if groups:
         types |= {"audio_loudness", "audio_true_peak", "audio_silence"}
         if any(len(g.tracks) == 2 for g in groups):
@@ -181,6 +183,7 @@ def depends_on(d: Draft, loudness_set: str) -> tuple[str, ...]:
         "structure_black": ("structure.black", "structure.leaders"),
         "structure_black_too_long": ("structure.black", "structure.leaders"),
         "letterbox": ("format.letterbox",),
+        "blanking_inexact": ("video.blanking_tolerance_lines", "format.letterbox"),
         "delivery_conversion_required": ("format.delivery",),
         "scan_flag_mismatch": ("format.field_order", "video.scan_detection"),
         "range_content_mismatch": ("video.range_detection",),

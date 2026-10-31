@@ -27,6 +27,12 @@ from pad_guard.draft.extract import OK
 MAX_INFO = 120
 
 
+# Said with every correction the PDF does not bear out (decision of Vincent, 31/10/2026: a stricter
+# requirement than the norm is a house value, the norm stays as written).
+STRICTER = ("La fiche d'une norme reprend le texte du PDF ; pour une exigence plus stricte, utiliser les valeurs "
+            "maison (normes/lumiris_maison.yaml, docs/VALEURS_MAISON.md).")
+
+
 def _paths(name: str, root: Path) -> tuple[Path, Path]:
     return root / "normes" / "releves" / f"{name}.yaml", root / "normes" / f"{name}.yaml"
 
@@ -134,7 +140,7 @@ def correct(name: str, key: str, valeur: str | None, page: Any, citation: str, r
     try:
         _checked_text(survey_path, text, root)
     except releve.ReleveError as exc:
-        raise releve.ReleveError(str(exc).replace("relevé refusé", "correction refusée")) from None
+        raise releve.ReleveError(str(exc).replace("relevé refusé", "correction refusée") + "\n" + STRICTER) from None
     survey_path.write_text(text, encoding="utf-8", newline="\n")
     _, table = releve.run(survey_path, root / "normes", root / "docs" / "normes", root)
     return table

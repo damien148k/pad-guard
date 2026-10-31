@@ -34,6 +34,9 @@ def test_correct_a_row_through_releve_norme(admin, root) -> None:  # noqa: F811
     # Refused: the quote is not on that page, or lacks the number; nothing is written.
     r = admin.post("/api/normes/cst_rt099/correct", json={"key": key, "valeur": "-1.0", "page": 2, "citation": TP_QUOTE})
     assert r.status_code == 400 and "correction refusée" in r.json()["error"] and "trouvée p. 1" in r.json()["error"]
+    assert r.json()["error"].endswith(releve_edit.STRICTER)
+    assert "la fiche d'une norme reprend le texte du pdf ; pour une exigence plus stricte, utiliser les valeurs maison" \
+        in r.json()["error"].lower()
     r = admin.post("/api/normes/cst_rt099/correct", json={"key": key, "valeur": "-2", "page": 1, "citation": TP_QUOTE})
     assert r.status_code == 400 and "-2" in r.json()["error"]
     assert survey.read_text(encoding="utf-8") == before

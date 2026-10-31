@@ -347,6 +347,8 @@ def _letterbox(ctx: _Context, program: FrameRange, excluded: np.ndarray) -> Lett
     if spec is None or not spec.check:
         return None
     tolerance = require(ctx.profile, "format.letterbox.tolerance_lines", "le contrôle du format d'image")
+    house = (require(ctx.profile, "video.blanking_tolerance_lines", "le blanking à la ligne exacte")
+             if spec.formats else None)
     y_max = ctx.profile.structure.black.y_max
     step = max(ctx.clock.frames_in(lb.SAMPLE_SECONDS), 1)
     wanted = [f for f in range(program.frame_start, program.frame_end + 1, step) if not excluded[f]]
@@ -357,13 +359,15 @@ def _letterbox(ctx: _Context, program: FrameRange, excluded: np.ndarray) -> Lett
         area = lb.active_area(frame.y, frame.index, y_max * frame.scale)
         if area is not None:
             samples.append(area)
+    width, height = ctx.probe.video.width, ctx.probe.video.height
     dom, share = lb.dominant(samples, tolerance)
-    matched = None if dom is None else lb.classify(dom, spec, tolerance)
+    near, dev, box = (None, None, None) if dom is None else lb.nearest(dom, spec, width, height)
+    matched = near.aspect if near is not None and dev <= tolerance else None
     sar = lb.sar_of(ctx.probe.video.sar)
     ratio = None if dom is None else lb.aspect(dom, sar)
     if spec.formats:
         expected = ", ".join(f"{f.aspect} ({f.active_lines} lignes × {f.active_pixels} px)" for f in spec.formats)
-        expected = f"{expected}, ± {tolerance}"
+        expected = f"{expected}, centrés, bords à ± {tolerance}"
     else:  # no format required by the profile: the active area is recorded, nothing is compared
         expected = "relevé seulement (aucun format imposé par le profil)"
     if dom is None:
@@ -372,7 +376,11 @@ def _letterbox(ctx: _Context, program: FrameRange, excluded: np.ndarray) -> Lett
         actual = (f"{lb.lines(dom)} lignes (lignes {dom.top} à {dom.bottom}) × {lb.pixels(dom)} px "
                   f"(colonnes {dom.left} à {dom.right}), {_fmt(share, 0)} % des échantillons dans cette zone")
         if spec.formats:
-            actual += f" : format {matched}" if matched else " : aucun format du profil"
+            if matched:
+                actual += f" : format {matched}"
+            else:
+                actual += (f" : aucun format du profil ; le plus proche, {near.aspect}, attend {_box(box)} "
+                           f"(écart de {_lines(dev)})")
             status = "ok" if matched else "fail"
         else:
             pixel = f", pixels {sar.numerator}:{sar.denominator}" if sar != 1 else ""
@@ -381,12 +389,31 @@ def _letterbox(ctx: _Context, program: FrameRange, excluded: np.ndarray) -> Lett
     ctx.check(id="letterbox", label="Format d'image (lignes et pixels actifs)", type="letterbox",
               expected=expected, actual=actual, status=status,
               frame_start=program.frame_start, frame_end=program.frame_end)
+    if matched and house is not None:
+        # Within the tolerance of the profile: the house rule wants the exact line (Vincent, 31/10/2026).
+        ctx.check(id="blanking", label="Blanking à la ligne exacte (règle maison)", type="blanking_inexact",
+                  expected=f"format {matched} : {_box(box)}, écart ≤ {_lines(house)}",
+                  actual=(f"lignes {dom.top} à {dom.bottom}, colonnes {dom.left} à {dom.right} : "
+                          + ("à la ligne exacte" if dev == 0 else f"écart de {_lines(dev)}")),
+                  status="fail" if dev > house else "ok", frame_start=program.frame_start,
+                  frame_end=program.frame_end, worst_value=float(dev), threshold=float(house))
     changes = [
         f"{fmt or 'format hors profil'} de {ctx.clock.tc(a)} à {ctx.clock.tc(b)} ({n} échantillons)"
-        for a, b, fmt, n in (lb.format_changes(samples, spec, tolerance, dom) if dom else [])
+        for a, b, fmt, n in (lb.format_changes(samples, spec, tolerance, dom, width, height) if dom else [])
     ]
     return LetterboxSummary(sample_seconds=lb.SAMPLE_SECONDS, samples=samples, dominant=dom,
-                            dominant_share_pct=share, dominant_aspect=ratio, matched_format=matched, changes=changes)
+                            dominant_share_pct=share, dominant_aspect=ratio, matched_format=matched, changes=changes,
+                            nearest_format=None if near is None else near.aspect,
+                            expected=None if box is None else list(box), deviation=dev)
+
+
+def _box(box: lb.Box) -> str:
+    top, bottom, left, right = box
+    return f"lignes {top} à {bottom}, colonnes {left} à {right}"
+
+
+def _lines(n: int) -> str:
+    return f"{n} ligne" + ("s" if n > 1 else "")
 
 
 # --- entry point --------------------------------------------------------------------------

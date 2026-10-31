@@ -14,7 +14,7 @@ profil du diffuseur ne les écrit pas (un profil qui les écrit garde ses valeur
 « A VERIFIER » : Vincent confirme ou corrige chaque ligne, et la correction se fait dans `lumiris_maison.yaml`
 (avec contrôle d'`explain-profile` Arte : le fichier fait partie de ses couches).
 
-Empreinte de `normes/lumiris_maison.yaml` à la génération de ce tableau : `a1e9df753f10df4071cd3e75c3ebdacaf98d5ea7d854ba486fa6cb6b70b645bf`.
+Empreinte de `normes/lumiris_maison.yaml` à la génération de ce tableau : `a9a4be0dda83dc1e36120f0bd566b6c58f52b5c2ac94d2ee036299b5b6d42147`.
 
 ## Méthodes et gravités sans document (« décision Lumiris, A VERIFIER Vincent »)
 
@@ -50,5 +50,16 @@ client à R 128, l'anomalie reste en plus plafonnée à minor (valeur de norme s
 | 19 | `video.range_detection.reserved_min_frames_pct` | 1 % | part des images aux bornes 4 / 1019 à partir de laquelle le contenu est jugé en plage pleine | |
 | 20 | `rules.severity.range_content_mismatch` | major | gravité d'un contenu en plage pleine dans un fichier annoncé en plage légale | |
 | 21 | `video.scan_detection` | voir le fichier | paramètres de la détection de peignage, calibrés sur des fixtures et un master Arte | |
+
+## Décisions de Vincent
+
+| # | Champ | Valeur | Ce que fait la valeur | OK / correction |
+|---|---|---|---|---|
+| 22 | `video.blanking_tolerance_lines` | 0 ligne | blanking à la ligne exacte : un bord de l'image active décalé, même dans la tolérance du diffuseur, est signalé (décision Vincent, 31/10/2026) | |
+| 23 | `rules.severity.blanking_inexact` | minor | gravité de l'anomalie maison « blanking pas à la ligne exacte » (décision Vincent, 31/10/2026) | |
+
+La tolérance du diffuseur ou de la norme reste celle de son document (Arte : 2 lignes, DEDUIT ; CST-RT-040 p. 5 :
+« Une tolérance de +/- 2 lignes est admise ») : au-delà, c'est l'anomalie « Format d'image » du profil, avec sa
+gravité.
 
 Relu par : ____________________  le : ____________

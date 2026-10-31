@@ -40,6 +40,7 @@ EVENT_TYPES = (
     "duplicate_frame",
     "pse",
     "letterbox",
+    "blanking_inexact",
     "audio_loudness",
     "audio_true_peak",
     "audio_short_term_excursion",
@@ -325,6 +326,9 @@ class Video(_Model):
     measure_spaces: list[Literal["ycbcr", "rgb"]] | None = None
     scan_detection: ScanDetection | None = None
     range_detection: RangeDetection | None = None
+    # Largest deviation of the blanking (edges of the active picture against the expected format) that
+    # is not a house anomaly; beyond it and within format.letterbox.tolerance_lines: blanking_inexact.
+    blanking_tolerance_lines: int | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def _prefilter(self) -> Video:
@@ -702,7 +706,7 @@ _DESCRIPTIONS: dict[type[BaseModel], dict[str, str]] = {
                 "label": "Nom du codec dans le document du client (ex. XAVC HD Intra Class 100)"},
     Letterbox: {"check": "Contrôler le format d'image et les bandes noires",
                 "formats": "Formats d'image admis avec leurs lignes et pixels actifs",
-                "tolerance_lines": "Tolérance en lignes sur le nombre de lignes actives"},
+                "tolerance_lines": "Écart toléré en lignes (et pixels) entre les bords de l'image active et ceux du format attendu"},
     LetterboxFormat: {"aspect": "Rapport d'image (ex. 1.85)", "active_lines": "Nombre de lignes actives",
                       "first_line": "Première ligne active (numérotation du document)",
                       "last_line": "Dernière ligne active (numérotation du document)",
@@ -724,6 +728,7 @@ _DESCRIPTIONS: dict[type[BaseModel], dict[str, str]] = {
         "prefilter_taps": "Nombre de coefficients du filtre horizontal avant mesure (3 ou 5)",
         "measure_spaces": "Espaces dans lesquels mesurer les niveaux : ycbcr, rgb",
         "scan_detection": "Paramètres de la détection de peignage (PAD Guard, pas une valeur de diffuseur)",
+        "blanking_tolerance_lines": "Écart des bords de l'image active (blanking) en deçà duquel PAD Guard ne signale rien (règle maison, 0 = à la ligne exacte)",
         "range_detection": "Paramètres de la détection d'un contenu en plage pleine (PAD Guard, pas une valeur de diffuseur)",
     },
     RangeDetection: {"reserved_min_frames_pct": "Part des images du programme atteignant les bornes de la plage "

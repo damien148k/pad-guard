@@ -81,6 +81,8 @@ def preflight(profile: Profile, groups: list[AudioGroup]) -> list[str]:
     # Black of head and tail: a limit no document sets is not checked (« non demandé par le client »).
     if profile.format.letterbox is not None and profile.format.letterbox.check:
         needs.append(("format.letterbox.tolerance_lines", "le format d'image"))
+        if profile.format.letterbox.formats:
+            needs.append(("video.blanking_tolerance_lines", "le blanking à la ligne exacte"))
     needs += [("audio.silence_max_seconds", "les silences"), ("audio.phase_min_seconds", "la phase"),
               ("rules.audio_merge_gap_seconds", "le regroupement des événements audio ponctuels"),
               ("video.scan_detection", "la détection du balayage"),

@@ -36,6 +36,10 @@
 #                      (libx264, every frame a key frame, like XAVC Intra / AVC-Intra), MP4.
 #   fmt_dnxhr_hq_2k.mov  4 s of testsrc2, DNxHR HQ 8 bits 2048x1556 23.976p, TC 00:00:00:00, stereo (like a 2K scan).
 #   fmt_prores4444_alpha.mov  2 s of testsrc2 640x360 25p, ProRes 4444 with alpha, no audio.
+#   blank_exact.mov, blank_1.mov, blank_3.mov  0.4 s of testsrc2 1920x1036 (1.85) in a 1920x1080 frame,
+#                      ProRes HQ 25p, TC 10:00:00:00, no audio: picture from row 22 (centred, Arte 1.85 lines
+#                      32-1112), 23 (1 line low) and 25 (3 lines low). Padded in 4:2:2 (in 4:2:0 FFmpeg rounds
+#                      the offset to an even row).
 #   bad_levels_50p.mov  ok_prores at 50p with white at Y=975 on frames 600-649 (1 s, 10:00:02:00-10:00:02:49)
 #                      and black at Y=40 on frames 750-774 (0.5 s, 10:00:05:00-10:00:05:24).
 set -euo pipefail
@@ -343,6 +347,16 @@ if need refuse_48p.mov; then
     "${FF[@]}" -f lavfi -i "testsrc2=s=640x360:r=48:d=1" -vf "format=yuv422p10le" "${PRORES_HQ[@]}" "$HERE/refuse_48p.mov"
     echo "  refuse_48p.mov"
 fi
+# Blanking: a 1.85 picture at its exact rows, one line low, three lines low.
+for shift in exact:22 1:23 3:25; do
+    IFS=: read -r name row <<<"$shift"
+    if need "blank_$name.mov"; then
+        "${FF[@]}" -f lavfi -i "testsrc2=s=1920x1036:r=25:d=0.4" \
+            -vf "scale=out_color_matrix=bt709:out_range=tv,format=yuv422p10le,pad=1920:1080:0:$row:black,setparams=field_mode=prog:range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709" \
+            "${PRORES_HQ[@]}" -timecode 10:00:00:00 "$HERE/blank_$name.mov"
+        echo "  blank_$name.mov"
+    fi
+done
 # Resolutions: UHD letterboxed to 2.39 (3840x1608 active), 4K DCI full frame (4096x2160), 10 frames each.
 if need fmt_uhd_239.mov; then
     "${FF[@]}" -f lavfi -i "testsrc2=s=3840x1608:r=25:d=0.4" \
