@@ -22,6 +22,10 @@ meta:
   notes: >
     Méthode de mesure : ITU-R BS.1770-5 (11/2023) et EBU Tech 3341 (novembre 2023).
     Tolérance des flux de travail : EBU Tech 3343 (novembre 2023) §3.1.
+  validated_by: "Vincent Lagarrigue"
+  validated_at: 2026-10-31
+  validated_table_sha256: "e48ea4afd5d32cc4dabd9989399f2cb32a959dbb928507cf554a5f930b8686ad"
+  validated_norm_sha256: "9b5f3eac09a354332c6c7dc0227b895c92aeea725033b0fc779f48de563adc5b"
 
 audio:
   loudness:

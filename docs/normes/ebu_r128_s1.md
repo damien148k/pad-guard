@@ -40,4 +40,4 @@ R 128 s1 ne fixe que les paramètres de loudness des programmes courts ; tout le
 
 Pour chaque ligne : la valeur correspond-elle au sens du document ? Corrections dans le relevé (`normes/releves/ebu_r128_s1.yaml`), puis `uv run pad-guard releve-norme normes/releves/ebu_r128_s1.yaml`, qui réécrit ce tableau et efface la signature ; relecture complète, puis `uv run pad-guard signer-norme ebu_r128_s1 --par "Vincent"` écrit la signature dans `normes/ebu_r128_s1.yaml`.
 
-Relu par : ____________________  le : ____________
+Relu par Vincent Lagarrigue le 31/10/2026 (pad-guard signer-norme ; empreinte du tableau `9b07b6ac663764be7df8c222ed924021d6fda99f1cf618061b76d9d837913132`, écrite dans `normes/ebu_r128_s1.yaml`).

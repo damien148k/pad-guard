@@ -15,8 +15,10 @@ meta:
   extends: []
   refers_to: []
   applies: on_reference
-  validated_by: null
-  validated_at: null
+  validated_by: "Vincent Lagarrigue"
+  validated_at: 2026-10-31
+  validated_table_sha256: "9b07b6ac663764be7df8c222ed924021d6fda99f1cf618061b76d9d837913132"
+  validated_norm_sha256: "29e5bd4eb8b1493c407ff52ef736d27bcf4101306b8f7432f391f50b06ce3955"
 
 audio:
   loudness:

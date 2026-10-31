@@ -45,4 +45,4 @@ R 103 ne fixe que les plages de niveaux vidéo, le seuil de surface et le filtra
 
 Pour chaque ligne : la valeur correspond-elle au sens du document ? Corrections dans le relevé (`normes/releves/ebu_r103.yaml`), puis `uv run pad-guard releve-norme normes/releves/ebu_r103.yaml`, qui réécrit ce tableau et efface la signature ; relecture complète, puis `uv run pad-guard signer-norme ebu_r103 --par "Vincent"` écrit la signature dans `normes/ebu_r103.yaml`.
 
-Relu par : ____________________  le : ____________
+Relu par Vincent Lagarrigue le 31/10/2026 (pad-guard signer-norme ; empreinte du tableau `d220d0b0678ae27efbdfa35d62131b915eba3085135015a9119bfed60c9c3d7b`, écrite dans `normes/ebu_r103.yaml`).

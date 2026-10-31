@@ -86,4 +86,4 @@ Tous les autres champs du profil (codecs, colorimétrie, structure, PSE, zones d
 
 Pour chaque ligne : la valeur correspond-elle au sens du document ? Corrections dans le relevé (`normes/releves/cst_rt040.yaml`), puis `uv run pad-guard releve-norme normes/releves/cst_rt040.yaml`, qui réécrit ce tableau et efface la signature ; relecture complète, puis `uv run pad-guard signer-norme cst_rt040 --par "Vincent"` écrit la signature dans `normes/cst_rt040.yaml`.
 
-Relu par : ____________________  le : ____________
+Relu par Vincent Lagarrigue le 31/10/2026 (pad-guard signer-norme ; empreinte du tableau `54b0c53a55a6be3da2110616d49465db408b95bb92a483a9ddd0bb1a000f6570`, écrite dans `normes/cst_rt040.yaml`).

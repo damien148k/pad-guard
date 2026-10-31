@@ -19,6 +19,8 @@ meta:
   applies: on_reference
   validated_by: null
   validated_at: null
+  domain: "Validation Normes TV"
+  region: "France"
 
 libelle: CST-RT-040 V1.2, 2016
 fichier_norme: ecrire

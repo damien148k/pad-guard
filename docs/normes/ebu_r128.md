@@ -51,4 +51,4 @@ Tous les autres champs : R 128 ne fixe que la cible, sa tolérance de contrôle 
 
 Pour chaque ligne : la valeur correspond-elle au sens du document ? Corrections dans le relevé (`normes/releves/ebu_r128.yaml`), puis `uv run pad-guard releve-norme normes/releves/ebu_r128.yaml`, qui réécrit ce tableau et efface la signature ; relecture complète, puis `uv run pad-guard signer-norme ebu_r128 --par "Vincent"` écrit la signature dans `normes/ebu_r128.yaml`.
 
-Relu par : ____________________  le : ____________
+Relu par Vincent Lagarrigue le 31/10/2026 (pad-guard signer-norme ; empreinte du tableau `e48ea4afd5d32cc4dabd9989399f2cb32a959dbb928507cf554a5f930b8686ad`, écrite dans `normes/ebu_r128.yaml`).

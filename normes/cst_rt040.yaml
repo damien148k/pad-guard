@@ -19,8 +19,12 @@ meta:
     - {norm: itu_bt709, source: 'CST-RT-040 V1.2, 2016 p. 4 : « ITU-R BT.709 : Paramètres de codage vidéo HD »'}
     - {cited_version: v2.0 (juin 2016), norm: ebu_r103, source: 'CST-RT-040 V1.2, 2016 p. 5 : « Conformément à la recommandation EBU R 103 (v2.0 juin 2016), et afin de garantir le respect de l’espace »'}
   applies: on_reference
-  validated_by: null
-  validated_at: null
+  domain: "Validation Normes TV"
+  region: "France"
+  validated_by: "Vincent Lagarrigue"
+  validated_at: 2026-10-31
+  validated_table_sha256: "54b0c53a55a6be3da2110616d49465db408b95bb92a483a9ddd0bb1a000f6570"
+  validated_norm_sha256: "280090e14bb729cb6c3da7b976f944ef5983266b90a71c12e168d08ceba8a694"
 
 format:
   width: 1920

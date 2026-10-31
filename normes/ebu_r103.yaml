@@ -22,6 +22,10 @@ meta:
     title: "EBU R 103 — Video signal tolerance in digital television systems"
     version: "version 3.0, mai 2020"
   source_pdf: "normes/sources/TV/r103.pdf"
+  validated_by: "Vincent Lagarrigue"
+  validated_at: 2026-10-31
+  validated_table_sha256: "d220d0b0678ae27efbdfa35d62131b915eba3085135015a9119bfed60c9c3d7b"
+  validated_norm_sha256: "4e9fe8ecea4bf7600e292cec749be9fc6762d781a2107b3be370ab4b842b6962"
 
 video:
   y_min_legal: 64
