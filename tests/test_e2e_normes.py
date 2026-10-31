@@ -100,9 +100,42 @@ def test_vincent_reads_and_signs_a_norm(root, tmp_path) -> None:
             assert meta["validated_by"] == "Vincent"
 
             page.get_by_role("button", name="← Normes").click()
-            assert "signée par Vincent" in page.locator(".norm-row", has_text="cst_rt099").text_content()
+            page.locator(".norm-row", has_text="cst_rt099").filter(has_text="signée par Vincent").wait_for()
         finally:
             srv.should_exit = True
             thread.join(10)
             browser.close()
     assert errors == [] and external == []
+
+
+def test_vincent_corrects_a_row(root, tmp_path) -> None:
+    """Lot 2: « Corriger » on a row, refused when the quote is not on the page, then accepted."""
+    from test_draft import TP_QUOTE
+
+    errors = []
+    with playwright.sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as exc:  # noqa: BLE001
+            pytest.skip(f"Chromium de Playwright absent (uv run playwright install chromium) : {exc}")
+        srv, thread, base = _serve(root, tmp_path, admin=True)
+        try:
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(base)
+            page.get_by_role("button", name="Normes", exact=True).click()
+            page.locator(".norm-row", has_text="cst_rt099").click()
+            page.get_by_role("button", name="Corriger audio.true_peak_max_dbtp").click()
+            page.get_by_label("Page corrigée").fill("2")
+            page.get_by_role("button", name="Vérifier et corriger").click()
+            page.get_by_text("correction refusée").wait_for()
+            page.get_by_label("Page corrigée").fill("1")
+            page.get_by_label("Citation corrigée").fill(TP_QUOTE.replace("le niveau des crêtes, ", ""))
+            page.get_by_role("button", name="Vérifier et corriger").click()
+            page.get_by_text("Corrigé le").wait_for()
+            assert page.locator(".correct").count() == 0
+        finally:
+            srv.should_exit = True
+            thread.join(10)
+            browser.close()
+    assert errors == []

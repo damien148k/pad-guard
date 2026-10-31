@@ -347,3 +347,5 @@ h2 { margin: 0; font: 600 40px/1 var(--cond); }
 .nrow.ok { background: rgba(80, 200, 120, .05); }
 .nrow a { color: var(--steel); }
 .quote { color: var(--ink2); font-style: italic; }
+.correct { grid-column: 1 / -1; display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; padding: 12px; border: 1px solid var(--line-strong); background: var(--bg0); }
+.correct textarea { font: 400 13px/1.45 var(--body); resize: vertical; min-width: 320px; }

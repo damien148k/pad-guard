@@ -65,7 +65,7 @@ function App() {
     if (shown) { setRunId(decodeURIComponent(shown[1])); setScreen('report'); }
     api('/api/jobs/current').then(j => {
       setJob(j);
-      if (j && j.kind !== 'draft' && j.state === 'running') setScreen('run');
+      if (j && !j.kind.startsWith('draft') && j.state === 'running') setScreen('run');
     }).catch(e => setError(e.message));
   }, []);
 
@@ -81,14 +81,14 @@ function App() {
 
   const go = s => { setTab('analyse'); setScreen(s); };
   const stepIdx = STEPS.findIndex(s => s[2] === screen);
-  const canGo = { prep: true, recap: !!(form.master && form.profile), run: !!(job && job.kind !== 'draft'), report: !!runId };
+  const canGo = { prep: true, recap: !!(form.master && form.profile), run: !!(job && !job.kind.startsWith('draft')), report: !!runId };
   const pendingDrafts = drafts.filter(d => !d.validated).length;
   const openRun = id => { setRunId(id); history.replaceState(null, '', `#run=${encodeURIComponent(id)}`); go('report'); };
   const newAnalysis = () => { setForm(EMPTY_FORM); go('prep'); };
 
   let body;
   if (tab === 'normes' && ADMIN) {
-    body = html`<${Normes} />`;
+    body = html`<${Normes} job=${job} setJob=${setJob} />`;
   } else if (tab === 'profiles') {
     body = html`<${Profiles} profiles=${profiles} drafts=${drafts} job=${job} setJob=${setJob} reload=${loadProfiles} pdf=${form.pdf}
       useProfile=${name => { setForm(f => ({ ...f, profile: name, pdf: null })); go(form.master ? 'recap' : 'prep'); }} />`;

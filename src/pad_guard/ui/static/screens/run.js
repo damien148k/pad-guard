@@ -12,7 +12,7 @@ const KICKER = { running: 'Analyse en cours', done: 'Analyse terminée', failed:
 export function Run({ job, setJob, openRun, newAnalysis }) {
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState('');
-  if (!job || job.kind === 'draft') {
+  if (!job || job.kind.startsWith('draft')) {
     return html`<div class="page"><span class="kicker">Étape 3 · Analyse</span><p class="lead">Aucune analyse en cours.</p>
       <div><button class="btn" onClick=${newAnalysis}>Nouvelle analyse</button></div></div>`;
   }

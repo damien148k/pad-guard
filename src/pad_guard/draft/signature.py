@@ -27,6 +27,8 @@ from pad_guard.rules.profile import ProfileError
 
 HOUSE = "lumiris_maison"
 SIGNATURE_KEYS = ("validated_by", "validated_at", "validated_table_sha256", "validated_norm_sha256")
+# Information about the document, never a value: changing them leaves the signature valid (NORMES tab).
+INFO_KEYS = ("domain", "region", "superseded_by")
 CHECK_COLUMN = "OK / correction"
 SIGNED_LINE = "Relu par"
 _STAMP_RE = re.compile(r"^Empreinte de `normes/([\w.-]+)\.yaml` à la génération de ce tableau : `([0-9a-f]{64})`\.$",
@@ -43,13 +45,14 @@ def table_path(name: str, root: Path) -> Path:
 
 
 def norm_fingerprint(path: Path) -> str:
-    """SHA-256 of the norm's content (values, sources, meta), its signature excluded: comments do not count."""
+    """SHA-256 of the norm's content (values, sources, meta), its signature and INFO_KEYS excluded: comments do
+    not count."""
     try:
         data = read_yaml(path)
     except ProfileError as exc:
         raise SignatureError("\n".join(exc.messages)) from None
     meta = dict(data.get("meta") or {})
-    for key in SIGNATURE_KEYS:
+    for key in SIGNATURE_KEYS + INFO_KEYS:
         meta.pop(key, None)
     data = {**data, "meta": meta}
     text = json.dumps(data, sort_keys=True, ensure_ascii=False, default=str, separators=(",", ":"))
@@ -206,29 +209,38 @@ def _scalar(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
-def write_signature(norm: Path, values: dict[str, Any]) -> None:
-    """Set the signature keys at the end of the top-level ``meta`` block, comments of the file kept."""
-    lines = norm.read_text(encoding="utf-8").split("\n")
+def meta_text(text: str, values: dict[str, Any], drop: tuple[str, ...], where: str) -> str:
+    """``text`` with the keys ``drop`` removed from its top-level ``meta`` block and ``values`` set at its end
+    (one-line values; None values are only removed), comments of the file kept."""
+    lines = text.split("\n")
     try:
         start = lines.index("meta:")
     except ValueError:
-        raise SignatureError(f"{norm.name} : bloc meta: introuvable") from None
+        raise SignatureError(f"{where} : bloc meta: introuvable") from None
     end = start + 1
     while end < len(lines) and (not lines[end].strip() or lines[end].startswith(" ")):
         end += 1
     while end > start + 1 and not lines[end - 1].strip():
         end -= 1
-    block = [ln for ln in lines[start + 1:end]
-             if not any(ln.startswith(f"  {k}:") for k in SIGNATURE_KEYS)]
+    block = [ln for ln in lines[start + 1:end] if not any(ln.startswith(f"  {k}:") for k in drop)]
     block += [f"  {k}: {_scalar(v)}" for k, v in values.items()]
     lines[start + 1:end] = block
+    return "\n".join(lines)
+
+
+def write_meta(norm: Path, values: dict[str, Any], drop: tuple[str, ...]) -> None:
+    """Set keys of ``meta`` in a norm, checked by load_norm before it is kept (otherwise nothing changes)."""
     before = norm.read_text(encoding="utf-8")
-    norm.write_text("\n".join(lines), encoding="utf-8", newline="\n")
+    norm.write_text(meta_text(before, values, drop, norm.name), encoding="utf-8", newline="\n")
     try:
         from pad_guard.profiles.resolve import load_norm
 
         load_norm(norm)
     except ProfileError as exc:
         norm.write_text(before, encoding="utf-8", newline="\n")
-        raise SignatureError("norme invalide après signature, rien n'a été écrit :\n  - "
-                             + "\n  - ".join(exc.messages)) from None
+        raise SignatureError("norme invalide, rien n'a été écrit :\n  - " + "\n  - ".join(exc.messages)) from None
+
+
+def write_signature(norm: Path, values: dict[str, Any]) -> None:
+    """Set the signature keys at the end of the top-level ``meta`` block, comments of the file kept."""
+    write_meta(norm, values, SIGNATURE_KEYS)

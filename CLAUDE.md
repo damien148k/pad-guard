@@ -117,6 +117,7 @@ uv run pytest -m e2e                                          # interface dans C
 - Une anomalie est désignée par `Event.key` (`type@frame_start@groupe`), jamais par son numéro, pour les liens et les vignettes.
 - Les analyses et `draft-profile` lancés depuis l'interface exécutent la CLI (`python -m pad_guard … --progress-json`), une tâche à la fois.
 - Avant chaque lancement qui utilise l'IA locale (brouillon, synthèse), la page affiche le modèle utilisé et propose les modèles installés (`ollama list`, via `/api/llm/models`) ; le modèle par défaut est présélectionné.
+- Onglet NORMES (`pad-guard ui --admin` seulement) : relecture et signature des normes et des valeurs maison (`draft.signature`), « Corriger » une ligne par le code de releve-norme (`draft.releve_edit`), relevé IA d'un PDF de norme (enregistré dans `normes/sources/`, lignes refusées écartées), domaine / région / remplacée par dans `meta` (hors empreinte, sans effet sur les valeurs). Une norme `fichier_norme: verifier` (héritée par Arte) ne se corrige jamais depuis l'interface.
 - Mêmes garde-fous que la CLI : profil draft, jamais « CONFORME » ; synthèse IA « à relire » ; à la validation d'un profil, décision explicite pour chaque champ et chaque renvoi, INVRAISEMBLABLE et règles plafonnées par une norme en rouge.
 
 ## Ce qu'il ne faut pas faire

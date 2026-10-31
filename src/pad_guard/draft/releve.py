@@ -120,9 +120,11 @@ def _documents(survey: Survey, root: Path) -> dict[str | None, tuple[pdf_mod.Doc
     return out
 
 
-def verify_rows(survey: Survey, root: Path = ROOT, glossary: glossary_mod.Glossary | None = None) -> list[Checked]:
-    """Every row checked against its page; ReleveError lists all the refused rows."""
-    docs = _documents(survey, root)
+def verify_rows(survey: Survey, root: Path = ROOT, glossary: glossary_mod.Glossary | None = None,
+                docs: dict | None = None) -> list[Checked]:
+    """Every row checked against its page; ReleveError lists all the refused rows. ``docs``: the PDFs already
+    read (_documents), when the rows are checked one by one."""
+    docs = docs if docs is not None else _documents(survey, root)
     specs = {s.path: s for s in catalogue()}
     glossary = glossary if glossary is not None else glossary_mod.load()
     errors, out = [], []

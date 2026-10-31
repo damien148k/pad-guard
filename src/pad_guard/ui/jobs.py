@@ -37,8 +37,10 @@ RERUN_STAGES = ANALYZE_STAGES[3:]
 DRAFT_STAGES = [("read", "Lecture du PDF", "texte et images des pages"),
                 ("extract", "Extraction par l'IA locale", "propositions citées"),
                 ("write", "Brouillon", "profiles/drafts/")]
-STAGES = {"analyze": ANALYZE_STAGES, "rerun": RERUN_STAGES, "draft": DRAFT_STAGES}
-OK_EXIT = {"analyze": (0, 4), "rerun": (0, 4), "draft": (0,)}  # 4: the analysis ran, verdict NON-CONFORME
+DRAFT_NORM_STAGES = DRAFT_STAGES[:2] + [("write", "Brouillon de norme", "normes/drafts/")]
+DRAFTS = ("draft", "draft_norm")  # draft-profile for a broadcaster, or --kind norme (NORMES tab)
+STAGES = {"analyze": ANALYZE_STAGES, "rerun": RERUN_STAGES, "draft": DRAFT_STAGES, "draft_norm": DRAFT_NORM_STAGES}
+OK_EXIT = {"analyze": (0, 4), "rerun": (0, 4), "draft": (0,), "draft_norm": (0,)}  # 4: the analysis ran, verdict NON-CONFORME
 STILL_ACTIVE = 259
 
 
@@ -88,7 +90,7 @@ def kill_tree(pid: int) -> None:
 @dataclass
 class Job:
     id: str
-    kind: str  # analyze | rerun | draft
+    kind: str  # analyze | rerun | draft | draft_norm
     title: str
     args: list[str]  # arguments of pad-guard
     command: str  # as run.json records it
@@ -143,7 +145,7 @@ def snapshot(job: Job) -> dict[str, Any]:
     keys = [k for k, _, _ in stages]
     starts: dict[str, float] = {}
     for x in lines:
-        stage = "write" if job.kind == "draft" and x["stage"] == "done" else x["stage"]
+        stage = "write" if job.kind in DRAFTS and x["stage"] == "done" else x["stage"]
         if stage in keys and stage not in starts:
             starts[stage] = x["t"]
     end_line = next((x for x in reversed(lines) if x["stage"] == "done"), None)
@@ -167,7 +169,7 @@ def snapshot(job: Job) -> dict[str, Any]:
             info = mmss((later[0] if later else last_t) - starts[key])
         rows.append({"key": key, "label": label, "files": files, "state": state, "info": info})
 
-    counter_stage = "measure_video" if job.kind == "analyze" else "extract" if job.kind == "draft" else None
+    counter_stage = "measure_video" if job.kind == "analyze" else "extract" if job.kind in DRAFTS else None
     counts = [x for x in lines if x["stage"] == counter_stage and x.get("total")]
     done_n = counts[-1]["done"] if counts else 0
     total_n = counts[-1]["total"] if counts else None
@@ -195,7 +197,7 @@ def snapshot(job: Job) -> dict[str, Any]:
     if end_line is not None:
         result = {k: end_line.get(k) for k in ("status", "indicative", "draft")}
         result["label"] = end_line.get("msg", "")
-        tail = ("verdict calculé par les règles : " + result["label"]) if job.kind != "draft" else end_line.get("msg", "")
+        tail = ("verdict calculé par les règles : " + result["label"]) if job.kind not in DRAFTS else end_line.get("msg", "")
         journal.append({"t": mmss(end_line["t"]), "msg": "terminé · " + tail, "tone": "green"})
     errors = error_lines(job) if job.state in ("failed", "interrupted") else []
     if job.state == "cancelled":

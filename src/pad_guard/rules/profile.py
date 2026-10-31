@@ -192,6 +192,10 @@ class NormMeta(_Model):
     # signer-norme: fingerprint of the review table Vincent read and signed (docs/normes/<name>.md).
     validated_table_sha256: str | None = None
     validated_norm_sha256: str | None = None  # the norm's content when signed (signature.norm_fingerprint)
+    # Information about the document (NORMES tab), never a value: « audio », « Europe », the norm replacing it.
+    domain: str | None = None
+    region: str | None = None
+    superseded_by: str | None = None
 
     @field_validator("source_pdf_sha256", "validated_table_sha256", "validated_norm_sha256")
     @classmethod

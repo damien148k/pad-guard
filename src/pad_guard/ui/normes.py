@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -19,10 +20,14 @@ from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse, Response
 from starlette.routing import Route
 
-from pad_guard.draft import releve, signature
+from pad_guard.draft import pdf as pdf_mod
+from pad_guard.draft import releve, releve_edit, signature
 from pad_guard.draft.schema import catalogue
 from pad_guard.profiles.resolve import leaves, read_yaml
 from pad_guard.rules.profile import ProfileError
+from pad_guard.ui.analysis import jobs_of
+from pad_guard.ui.api import model_flag
+from pad_guard.ui.jobs import snapshot
 from pad_guard.ui.server import ApiError, Context, body, ctx_of
 
 NAME = re.compile(r"^[a-z0-9][a-z0-9_]{1,60}$")
@@ -113,6 +118,7 @@ def list_norms(ctx: Context) -> list[dict]:
                     "document": doc.get("title"), "body": BODIES.get(name.split("_")[0]),
                     "version": doc.get("version"), "pdf": pdf,
                     "pdf_present": _pdf(ctx, pdf) is not None if pdf else None,
+                    **{k: meta.get(k) for k in signature.INFO_KEYS},
                     "status": _status(ctx, name)})
     out.sort(key=lambda n: (n["name"] == signature.HOUSE, n["name"]))
     return out
@@ -185,13 +191,29 @@ def rows_of(ctx: Context, name: str) -> list[dict]:
     return _survey_rows(ctx, name, survey) if survey else _norm_rows(ctx, name)
 
 
+def correction_refusal(name: str, survey: releve.Survey | None) -> str | None:
+    """Why the rows of this norm are not corrected from the page (None: « Corriger » by releve-norme)."""
+    if name == signature.HOUSE:
+        return "valeurs maison : correction dans normes/lumiris_maison.yaml et docs/VALEURS_MAISON.md"
+    if survey is None:
+        return f"pas de relevé (normes/releves/{name}.yaml) : correction à la main"
+    if survey.fichier_norme == "verifier":
+        return (f"norme héritée par des profils, dont Arte (fichier_norme: verifier) : correction à la main dans "
+                f"normes/{name}.yaml, avec contrôle d'explain-profile Arte")
+    return None
+
+
 def sheet(ctx: Context, name: str) -> dict:
     item = next((n for n in list_norms(ctx) if n["name"] == name), None)
     if item is None:
         raise ApiError(f"norme introuvable : normes/{name}.yaml", 404)
     survey = _survey(ctx, name) if name != signature.HOUSE else None
+    refusal = correction_refusal(name, survey)
+    rows = rows_of(ctx, name)
+    for r in rows:
+        r["correctable"] = refusal is None and r["kind"] in ("valeur", "non_retenu")
     table = signature.table_path(name, ctx.root)
-    return {**item, "rows": rows_of(ctx, name), "absents": survey.absents if survey else "",
+    return {**item, "rows": rows, "correction_refusal": refusal, "absents": survey.absents if survey else "",
             "table": str(table.relative_to(ctx.root)).replace("\\", "/"),
             "correction": ("normes/lumiris_maison.yaml et docs/VALEURS_MAISON.md" if name == signature.HOUSE
                            else f"pad-guard releve-norme normes/releves/{name}.yaml")}
@@ -199,7 +221,8 @@ def sheet(ctx: Context, name: str) -> dict:
 
 async def get_norms(request: Request) -> Response:
     ctx = _admin(request)
-    return JSONResponse({"norms": await run_in_threadpool(list_norms, ctx)})
+    norms = await run_in_threadpool(list_norms, ctx)
+    return JSONResponse({"norms": norms, "drafts": await run_in_threadpool(releve_edit.drafts, ctx.root)})
 
 
 async def get_sheet(request: Request) -> Response:
@@ -248,8 +271,82 @@ async def sign(request: Request) -> Response:
     return JSONResponse(await run_in_threadpool(sheet, ctx, name))
 
 
+async def correct(request: Request) -> Response:
+    """« Corriger » : the row changed in the survey, checked by releve-norme in the PDF, norm and table rewritten."""
+    ctx = _admin(request)
+    name = _name(request.path_params["name"])
+    data = await body(request)
+    try:
+        await run_in_threadpool(releve_edit.correct, name, str(data.get("key") or ""), data.get("valeur"),
+                                data.get("page"), data.get("citation"), ctx.root)
+    except (releve.ReleveError, pdf_mod.PdfError, ProfileError) as exc:
+        message = "\n".join(exc.messages) if isinstance(exc, ProfileError) else str(exc)
+        raise ApiError(message) from None
+    return JSONResponse(await run_in_threadpool(sheet, ctx, name))
+
+
+async def put_info(request: Request) -> Response:
+    """Domain, region, replaced by: information in meta, no value changed, the signature stays."""
+    ctx = _admin(request)
+    name = _name(request.path_params["name"])
+    data = await body(request)
+    try:
+        await run_in_threadpool(releve_edit.set_info, name, data, ctx.root)
+    except releve.ReleveError as exc:
+        raise ApiError(str(exc)) from None
+    return JSONResponse(await run_in_threadpool(sheet, ctx, name))
+
+
+async def start_draft(request: Request) -> Response:
+    """A norm's PDF stored in normes/sources/ (copied there once, from the path chosen on this machine), then
+    draft-profile --kind norme as a job (local AI, the model chosen on the page)."""
+    ctx = _admin(request)
+    data = await body(request)
+    name = _name(str(data.get("name") or "").strip())
+    if (ctx.root / "normes" / f"{name}.yaml").exists() or (ctx.root / "normes" / "releves" / f"{name}.yaml").exists():
+        raise ApiError(f"{name} existe déjà dans normes/ : choisir un autre nom")
+    title = " ".join(str(data.get("title") or "").split())
+    version = " ".join(str(data.get("version") or "").split())
+    if not title or not version:
+        raise ApiError("titre et version du document obligatoires (ex. « EBU R 128 s2 », « V1, 2021 »)")
+    model = model_flag("--model", data)
+    src = Path(str(data.get("pdf") or "").strip().strip('"'))
+    if not src.is_absolute() or not src.is_file() or src.suffix.lower() != ".pdf":
+        raise ApiError(f"PDF introuvable : {src}")
+    sources = ctx.root / "normes" / "sources"
+    pdf = src
+    if not src.resolve().is_relative_to(sources.resolve()):
+        pdf = sources / src.name
+        if pdf.exists() and pdf_mod.sha256(pdf) != pdf_mod.sha256(src):
+            raise ApiError(f"un autre document porte déjà ce nom dans normes/sources/ : {src.name}")
+        if not pdf.exists():
+            sources.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(src, pdf)
+    out = ctx.root / "normes" / "drafts"
+    args = ["draft-profile", str(pdf), "--kind", "norme", "--name", name, "--title", title, "--doc-version", version,
+            "--out-dir", str(out), *model]
+    job = jobs_of(ctx).start("draft_norm", f"Relevé IA {name} · {pdf.name}", args, out / f"{name}.progression.jsonl")
+    return JSONResponse(snapshot(job))
+
+
+async def draft_to_survey(request: Request) -> Response:
+    """The AI's proposals become the survey and the sheet of the norm (rows refused by the checks left out)."""
+    ctx = _admin(request)
+    name = _name(request.path_params["name"])
+    try:
+        _, kept, dropped = await run_in_threadpool(releve_edit.survey_from_draft, name, ctx.root)
+    except (releve.ReleveError, pdf_mod.PdfError, ProfileError) as exc:
+        message = "\n".join(exc.messages) if isinstance(exc, ProfileError) else str(exc)
+        raise ApiError(message) from None
+    return JSONResponse({"kept": kept, "dropped": dropped, "sheet": await run_in_threadpool(sheet, ctx, name)})
+
+
 def routes() -> list:
     return [
+        Route("/api/jobs/draft-norm", start_draft, methods=["POST"]),
+        Route("/api/normes/drafts/{name}/survey", draft_to_survey, methods=["POST"]),
+        Route("/api/normes/{name}/correct", correct, methods=["POST"]),
+        Route("/api/normes/{name}/info", put_info, methods=["PUT"]),
         Route("/api/normes", get_norms),
         Route("/api/normes/{name}", get_sheet),
         Route("/api/normes/{name}/pdf", get_pdf),
