@@ -41,6 +41,7 @@ EVENT_TYPES = (
     "pse",
     "letterbox",
     "blanking_inexact",
+    "frame_change",
     "audio_loudness",
     "audio_true_peak",
     "audio_short_term_excursion",
@@ -493,6 +494,17 @@ class Freeze(_Model):
     min_seconds: float
 
 
+class FrameEdges(_Model):
+    """Frame by frame check of the edges of the active picture against the reference of the programme."""
+
+    # An edge counts only when the row (column) at it averages at least this luminance, in % of the
+    # nominal range: a dark edge (night, fade, credits on black) is not measurable.
+    edge_min_pct: float = Field(gt=0, le=100)
+    # A deviation is reported from this many consecutive frames (a frame count, not a duration: the house
+    # choice is 1, every frame; decision of Damien and Vincent, 31/10/2026).
+    min_frames: int = Field(ge=1)
+
+
 class Pse(_Model):
     enabled: bool
     max_flashes_per_second: int
@@ -519,6 +531,7 @@ class Structure(_Model):
     black: Black
     freeze: Freeze
     pse: Pse
+    frame: FrameEdges | None = None  # frame by frame edges of the active picture (with format.letterbox)
     first_frames: FirstFrames | None = None  # information only
     logo: Logo | None = None  # information only
     credits: Credits | None = None  # information only
@@ -619,6 +632,8 @@ class Rules(_Model):
             return self.severity[event_type]
         if event_type.startswith("format_"):
             return self.severity.get("format")
+        if event_type == "frame_change":  # a frame that leaves the frame of the programme: the format check
+            return self.severity.get("letterbox")
         return None
 
     def gap_frames(self, fps: Fraction) -> int:
@@ -782,6 +797,7 @@ _DESCRIPTIONS: dict[type[BaseModel], dict[str, str]] = {
                 "black": "Noirs et silences de tête et de queue",
                 "freeze": "Détection des images figées (PAD Guard)",
                 "pse": "Contrôle des flashs (épilepsie photosensible)",
+                "frame": "Contrôle image par image du cadre de l'image active (PAD Guard)",
                 "first_frames": "Contraintes sur les premières images (sous-titres)",
                 "logo": "Présence de logo dans le programme",
                 "credits": "Génériques de fin",
@@ -804,6 +820,8 @@ _DESCRIPTIONS: dict[type[BaseModel], dict[str, str]] = {
             "silence_dbfs": "Niveau en dBFS sous lequel le son du noir est un silence"},
     Freeze: {"threshold": "Différence moyenne sous laquelle deux images sont identiques (PAD Guard)",
              "min_seconds": "Durée minimale d'une image figée signalée, en secondes"},
+    FrameEdges: {"edge_min_pct": "Luminance moyenne minimale, en pourcentage, de la ligne ou colonne au bord de l'image pour que le bord soit mesurable (PAD Guard)",
+                 "min_frames": "Nombre minimal d'images consécutives d'un écart de cadre signalé (PAD Guard)"},
     Pse: {"enabled": "Contrôle des flashs activé", "max_flashes_per_second": "Nombre maximal de flashs par seconde",
           "flash_min_delta_pct": "Variation de luminance minimale d'un flash, en pourcentage",
           "flash_min_area_pct": "Surface minimale d'un flash, en pourcentage de l'image"},

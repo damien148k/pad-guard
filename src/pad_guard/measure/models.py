@@ -39,6 +39,7 @@ class VideoSettings(BaseModel):
     prefilter_taps: int | None
     matrix: str
     flash_delta_pct: float  # d_up_pct / d_down_pct: relative luminance change above this
+    edge_y_max: int | None = None  # a_* edges: mean luma of an active row or column (None: not measured)
     luminance: Literal["bt1886_gamma_2.4"] = "bt1886_gamma_2.4"
     chroma_upsampling: Literal["linear"] = "linear"
     percentiles: Literal["nearest_rank"] = "nearest_rank"

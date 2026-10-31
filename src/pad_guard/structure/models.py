@@ -46,6 +46,9 @@ class Finding(BaseModel):
     worst_frame: int | None
     threshold: float | None
     detail: str
+    # Texts of the event when the detector writes them (frame edges); else the rules step writes them.
+    value_text: str | None = None
+    threshold_text: str | None = None
 
 
 class BarsRange(BaseModel):

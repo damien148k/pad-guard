@@ -14,7 +14,7 @@ profil du diffuseur ne les écrit pas (un profil qui les écrit garde ses valeur
 « A VERIFIER » : Vincent confirme ou corrige chaque ligne, et la correction se fait dans `lumiris_maison.yaml`
 (avec contrôle d'`explain-profile` Arte : le fichier fait partie de ses couches).
 
-Empreinte de `normes/lumiris_maison.yaml` à la génération de ce tableau : `a9a4be0dda83dc1e36120f0bd566b6c58f52b5c2ac94d2ee036299b5b6d42147`.
+Empreinte de `normes/lumiris_maison.yaml` à la génération de ce tableau : `9ae823acd19d9be9ba2a06c3966b1823b4f7158f0522013b8c8c5d22dc6a7e3e`.
 
 ## Méthodes et gravités sans document (« décision Lumiris, A VERIFIER Vincent »)
 
@@ -57,6 +57,8 @@ client à R 128, l'anomalie reste en plus plafonnée à minor (valeur de norme s
 |---|---|---|---|---|
 | 22 | `video.blanking_tolerance_lines` | 0 ligne | blanking à la ligne exacte : un bord de l'image active décalé, même dans la tolérance du diffuseur, est signalé (décision Vincent, 31/10/2026) | |
 | 23 | `rules.severity.blanking_inexact` | minor | gravité de l'anomalie maison « blanking pas à la ligne exacte » (décision Vincent, 31/10/2026) | |
+| 24 | `structure.frame.edge_min_pct` | 10 % | cadre image par image : un bord n'est mesurable que si sa ligne (colonne) a une luminance moyenne d'au moins 10 % ; un bord plus sombre (nuit, fondu, carton noir, générique sur fond noir) ne compte pas (décision Damien/Vincent, 31/10/2026). A VERIFIER Vincent | |
+| 25 | `structure.frame.min_frames` | 1 image | cadre image par image : un écart est signalé dès 1 image (décision Damien/Vincent, 31/10/2026). A VERIFIER Vincent | |
 
 La tolérance du diffuseur ou de la norme reste celle de son document (Arte : 2 lignes, DEDUIT ; CST-RT-040 p. 5 :
 « Une tolérance de +/- 2 lignes est admise ») : au-delà, c'est l'anomalie « Format d'image » du profil, avec sa

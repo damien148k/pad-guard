@@ -102,3 +102,38 @@ def test_night_scene_makes_no_false_event(fixtures_dir, tmp_path, monkeypatch) -
     assert (lb["matched_format"], lb["deviation"]) == ("1.85", 0)
     assert checks["letterbox"]["status"] == checks["blanking"]["status"] == "ok"
     assert events == []
+
+
+def _frame_profile(tmp_path):
+    """test_classic with a 1.85 format at 720p (1280 x 692, centred: rows 14 to 705) and 2 lines of tolerance."""
+    raw = yaml.safe_load(CLASSIC.read_text(encoding="utf-8"))
+    raw["format"]["letterbox"] = {"check": True, "tolerance_lines": 2, "formats": [
+        {"aspect": "1.85", "active_lines": 692, "first_line": 15, "last_line": 706, "active_pixels": 1280}]}
+    raw["rules"]["severity"]["letterbox"] = [{"else": "major", "source": "profil de test"}]
+    path = tmp_path / "frame.yaml"
+    path.write_text(yaml.safe_dump(raw, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    return path
+
+
+@pytest.mark.fixtures
+def test_frame_by_frame_finds_the_two_moved_shots(fixtures_dir, tmp_path) -> None:
+    """Frame by frame (31/10/2026): a shot 3 lines low and a shot 6 pixels right come out, at their timecodes;
+    the night scene (dark edges, 2 rows lost) and the fade to black do not."""
+    out = tmp_path / "fs"
+    result = CliRunner().invoke(app, ["analyze", str(fixtures_dir / "frame_shifts.mov"), "--profile",
+                                      str(_frame_profile(tmp_path)), "--out", str(out), "--no-thumbnails"])
+    assert result.exception is None or isinstance(result.exception, SystemExit), result.output
+    st = json.loads((out / wd.STRUCTURE).read_text(encoding="utf-8"))
+    assert st["letterbox"]["dominant"] | {"frame": 0} == {"frame": 0, "top": 14, "bottom": 705, "left": 0, "right": 1279}
+    events = json.loads((out / wd.EVENTS).read_text(encoding="utf-8"))["events"]
+    mine = [e for e in events if e["type"] in ("letterbox", "blanking_inexact", "frame_change")]
+    assert [(e["type"], e["tc_start"], e["tc_end"], e["severity"]) for e in mine] == [
+        ("frame_change", "10:00:02:00", "10:00:04:24", "major"),
+        ("frame_change", "10:00:07:00", "10:00:09:24", "major")]
+    low, right = mine
+    assert low["title"] == "Changement de cadre" and low["worst_frame"] == low["frame_start"] == 50  # thumbnail: first frame
+    assert low["value_text"] == "lignes 17 à 708, colonnes 0 à 1279 (première image), écart jusqu'à 3 lignes"
+    assert low["threshold_text"] == "cadre du programme : lignes 14 à 705, colonnes 0 à 1279, écart ≤ 2 lignes"
+    assert right["value_text"].startswith("lignes 14 à 705, colonnes 6 à 1279 (première image), écart jusqu'à 6")
+    m = json.loads((out / wd.MEASUREMENTS).read_text(encoding="utf-8"))
+    assert m["video_settings"]["edge_y_max"] == 68 and "a_t" in m["video"]["fields"]

@@ -80,9 +80,9 @@ def preflight(profile: Profile, groups: list[AudioGroup]) -> list[str]:
         needs.append(("structure.bars.tolerance", "la recherche de mire"))
     # Black of head and tail: a limit no document sets is not checked (« non demandé par le client »).
     if profile.format.letterbox is not None and profile.format.letterbox.check:
-        needs.append(("format.letterbox.tolerance_lines", "le format d'image"))
-        if profile.format.letterbox.formats:
-            needs.append(("video.blanking_tolerance_lines", "le blanking à la ligne exacte"))
+        needs += [("format.letterbox.tolerance_lines", "le format d'image"),
+                  ("video.blanking_tolerance_lines", "le blanking à la ligne exacte"),
+                  ("structure.frame", "le cadre image par image")]
     needs += [("audio.silence_max_seconds", "les silences"), ("audio.phase_min_seconds", "la phase"),
               ("rules.audio_merge_gap_seconds", "le regroupement des événements audio ponctuels"),
               ("video.scan_detection", "la détection du balayage"),
@@ -147,6 +147,8 @@ def measurement_differences(workdir: Path, probe: ProbeResult, m: Measurements, 
     ):
         if new != old:
             out.append(f"{name} : {old} → {new}")
+    if s.edge_y_max is not None and s.edge_y_max != limits.edge_y_max:  # None: measured before the edges
+        out.append(f"seuil du noir des bords de l'image (structure.black.y_max) : {s.edge_y_max} → {limits.edge_y_max}")
     if profile.video.scan_detection != m.scan.settings:
         out.append("détection du balayage (video.scan_detection)")
     if probe.audio_map.source == "profile" and probe.audio_map.groups != profile.audio.groups:

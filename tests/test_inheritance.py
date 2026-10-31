@@ -57,7 +57,8 @@ PHASE6_FORMAT = {"format.codecs", "format.bit_depth_allowed", "format.chroma_all
 PHASE6_NEW = {"rules.severity.alpha_channel", "rules.severity.audio_not_analysed", "rules.severity.range_content_mismatch", "rules.severity.range_tag_suspect",
               "video.range_detection.reserved_min_frames_pct"}
 # Blanking at the exact line (decision of Vincent, 31/10/2026): a house value, Arte's own values unchanged.
-BLANKING_NEW = {"rules.severity.blanking_inexact", "video.blanking_tolerance_lines"}
+BLANKING_NEW = {"rules.severity.blanking_inexact", "video.blanking_tolerance_lines",
+                "structure.frame.edge_min_pct", "structure.frame.min_frames"}
 LEVEL_CHAINS = ("rules.severity.white_clip", "rules.severity.black_crush", "rules.severity.gamut")
 
 

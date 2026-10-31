@@ -14,6 +14,10 @@ meta:
   notes: >
     Le contrôle PSE n'est exigé par aucun diffuseur dans les profils actuels : c'est un contrôle
     interne, à confirmer avec un analyseur Harding certifié.
+  domain: "Audiovisuel TV"
+  region: "International"
+  validated_by: null
+  validated_at: null
 
 format:
   unknown_color_tags_severity: minor     # A VERIFIER Vincent
@@ -47,6 +51,9 @@ structure:
   freeze:
     threshold: 0.5                       # A VERIFIER Vincent
     min_seconds: 2.0                     # A VERIFIER Vincent
+  frame:                                 # cadre image par image (31/10/2026)
+    edge_min_pct: 10.0                   # A VERIFIER Vincent : bord mesurable si sa ligne (colonne) moyenne atteint 10 %
+    min_frames: 1                        # A VERIFIER Vincent : écart signalé dès 1 image
   pse:
     enabled: true
     max_flashes_per_second: 3
@@ -152,6 +159,13 @@ sources:
     testsrc2 entrelacé par FFmpeg tinterlace (comb ≥ 0,99 sur toutes les images), testsrc2 progressif
     (comb ≤ 0,72) et un master Arte réel 1080 signalé « tb » à contenu progressif (comb 0,60 à 0,78).
     A VERIFIER sur d'autres masters entrelacés réels.
+  structure.frame: >-
+    décision Damien/Vincent, 31/10/2026, A VERIFIER Vincent : contrôle image par image du cadre de l'image
+    active. Un bord compte quand la ligne (colonne) à ce bord a une luminance moyenne d'au moins 10 % de la
+    plage nominale (152 en 10 bits) : un bord sombre (nuit, fondu, carton noir, générique sur fond noir)
+    n'est pas mesurable et l'image ne compte pas pour ce bord. Un bord rentré vers l'intérieur ne compte que
+    si le bord opposé ne rentre pas aussi (fondu, générique, pas un cadre décalé). Un écart est signalé dès
+    1 image.
   structure.pse: >-
     Lumiris : contrôle interne PSE (SPEC §6.6, inspiré d'ITU-R BT.1702 et des lignes directrices
     Ofcom) ; non exigé par Arte (profil v2 : « contrôle interne Lumiris »).

@@ -73,6 +73,10 @@ FIELDS = (
     "y_below_pct", "y_above_pct", "y_below_legal_pct", "y_above_legal_pct",
     "rgb_out_pct", "cb_min", "cb_max", "cr_min", "cr_max", "sat_max",
     "d_mean", "d_up_pct", "d_down_pct", "comb",
+    # Edges of the active picture (structure/letterbox.py): first and last row and column whose mean
+    # luma reaches structure.black.y_max (null: the whole frame is black), and the mean luma of that
+    # row or column (10-bit code values), which tells whether the edge is measurable.
+    "a_t", "a_b", "a_l", "a_r", "a_tm", "a_bm", "a_lm", "a_rm",
 )
 FIELD_FIELDS = ("fu1", "fd1", "fu2", "fd2")  # written only for a file flagged interlaced (null: not combed)
 LUMINANCE_GAMMA = 2.4  # ITU-R BT.1886 display response (a definition, not a threshold)
@@ -119,6 +123,7 @@ class VideoLimits:
     prefilter_taps: int | None
     matrix: str
     flash_delta_pct: float
+    edge_y_max: int | None = None  # structure.black.y_max: an active row or column reaches this mean (None: no edges)
 
     @classmethod
     def from_profile(cls, profile: Profile, matrix: str) -> VideoLimits:
@@ -138,6 +143,7 @@ class VideoLimits:
             prefilter_taps=v.prefilter_taps if v.prefilter else None,
             matrix=matrix,
             flash_delta_pct=profile.structure.pse.flash_min_delta_pct,
+            edge_y_max=profile.structure.black.y_max,
         )
 
     def luminance(self, scale: int = 1) -> np.ndarray:
@@ -352,9 +358,13 @@ class FrameMeter:
         rgb_out = 0
         d_sum = d_up = d_down = 0
         across = within = 0
+        row_sums = np.empty(h, dtype=np.uint32)  # < 2^32: at most 4096 x 4095 per row, 4320 x 4095 per column
+        col_sums = np.zeros(w, dtype=np.uint32)
         for top in range(0, h, strip):
             rows = slice(top, top + strip)
             y = frame.y[rows]
+            np.add.reduce(y, axis=1, dtype=np.uint32, out=row_sums[rows])
+            col_sums += np.add.reduce(y, axis=0, dtype=np.uint32)
             if frame.vsub == 2:  # 4:2:0: each chroma row covers two luma rows (strips start on even rows)
                 n = y.shape[0]
                 c_rows = slice(top // 2, top // 2 + (n + 1) // 2)
@@ -424,6 +434,7 @@ class FrameMeter:
             "d_up_pct": None if previous is None else _pct(d_up, n),
             "d_down_pct": None if previous is None else _pct(d_down, n),
             "comb": comb,
+            **edges(row_sums, col_sums, None if lim.edge_y_max is None else lim.edge_y_max * scale, scale),
             **field_values,
         }
 
@@ -494,6 +505,22 @@ class FrameMeter:
             low |= high
             out += int(np.count_nonzero(low))
         return out
+
+
+def edges(row_sums: np.ndarray, col_sums: np.ndarray, threshold: int | None, scale: int) -> dict:
+    """Edges of the active picture from the sums of the Y rows and columns (unfiltered plane): a row
+    is active when its mean reaches ``threshold`` (code values of the file), compared exactly in integers."""
+    w, h = col_sums.size, row_sums.size
+    if threshold is None:
+        return dict.fromkeys(("a_t", "a_b", "a_l", "a_r", "a_tm", "a_bm", "a_lm", "a_rm"))
+    rows = np.flatnonzero(row_sums >= np.uint64(threshold) * np.uint64(w))
+    cols = np.flatnonzero(col_sums >= np.uint64(threshold) * np.uint64(h))
+    if rows.size == 0 or cols.size == 0:
+        return dict.fromkeys(("a_t", "a_b", "a_l", "a_r", "a_tm", "a_bm", "a_lm", "a_rm"))
+    t, b, lf, r = int(rows[0]), int(rows[-1]), int(cols[0]), int(cols[-1])
+    mean = lambda total, n: round(int(total) / n / scale, 1)  # noqa: E731
+    return {"a_t": t, "a_b": b, "a_l": lf, "a_r": r, "a_tm": mean(row_sums[t], w), "a_bm": mean(row_sums[b], w),
+            "a_lm": mean(col_sums[lf], h), "a_rm": mean(col_sums[r], h)}
 
 
 def out_of_range_masks(frame: VideoFrame, limits: VideoLimits) -> dict[str, np.ndarray]:

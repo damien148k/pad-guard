@@ -7,6 +7,7 @@ and the alignment tone are decoded from the source file by seeking, never by a s
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from fractions import Fraction
 from pathlib import Path
@@ -16,6 +17,7 @@ import numpy as np
 from pad_guard import __version__, jsonio, timecode, workdir as wd
 from pad_guard.decode.video import picture_of, read_frames
 from pad_guard.measure.models import Measurements
+from pad_guard.measure.video import pct_to_code
 from pad_guard.measure.series import GroupBlocks, VideoSeries, load_audio, load_video
 from pad_guard.probe.models import ProbeResult
 from pad_guard.rules.profile import Profile, require
@@ -73,6 +75,7 @@ class _Context:
         self.picture = picture_of(probe.video.pix_fmt, probe.video.color_range, m.video_settings.matrix)
         self.checks: list[StructureCheck] = []
         self.findings: list[Finding] = []
+        self.limitations: list[str] = []
         s = profile.structure
         self.black_video = video["y_p99"] < require(profile, "structure.black.y_max", "la détection du noir")
         if m.audio is not None and audio:
@@ -401,10 +404,44 @@ def _letterbox(ctx: _Context, program: FrameRange, excluded: np.ndarray) -> Lett
         f"{fmt or 'format hors profil'} de {ctx.clock.tc(a)} à {ctx.clock.tc(b)} ({n} échantillons)"
         for a, b, fmt, n in (lb.format_changes(samples, spec, tolerance, dom, width, height) if dom else [])
     ]
+    if dom is not None:
+        _frame_edges(ctx, program, excluded, (dom.top, dom.bottom, dom.left, dom.right), tolerance)
     return LetterboxSummary(sample_seconds=lb.SAMPLE_SECONDS, samples=samples, dominant=dom,
                             dominant_share_pct=share, dominant_aspect=ratio, matched_format=matched, changes=changes,
                             nearest_format=None if near is None else near.aspect,
                             expected=None if box is None else list(box), deviation=dev)
+
+
+def _frame_edges(ctx: _Context, program: FrameRange, excluded: np.ndarray, ref: lb.Box, tolerance: int) -> None:
+    """Every frame of the programme against the frame of the programme ``ref`` (edges measured in the
+    measurement pass): a run of frames whose frame moved is a « Changement de cadre » (beyond the
+    tolerance of the profile) or « Blanking pas à la ligne exacte » (within it, house rule)."""
+    if "a_t" not in ctx.m.video.fields or ctx.m.video_settings.edge_y_max is None:
+        ctx.limitations.append("Cadre image par image non contrôlé : mesures antérieures au 31/10/2026, relancer "
+                               "analyze (le format d'image reste contrôlé sur une image toutes les 10 s).")
+        return
+    house = require(ctx.profile, "video.blanking_tolerance_lines", "le blanking à la ligne exacte")
+    fe = require(ctx.profile, "structure.frame", "le cadre image par image")
+    edge_min = pct_to_code(fe.edge_min_pct, (ctx.profile.video.y_min_legal, ctx.profile.video.y_max_legal), "high")
+    min_frames = fe.min_frames
+    edges = {k: ctx.v[k] for k in ("a_t", "a_b", "a_l", "a_r", "a_tm", "a_bm", "a_lm", "a_rm")}
+    dev = lb.frame_deviations(edges, ref, edge_min)
+    outside = np.ones(ctx.frames, dtype=bool)
+    outside[program.frame_start: program.frame_end + 1] = False
+    dev[outside | excluded] = 0
+    for a, b, beyond in lb.deviation_runs(dev, house, tolerance, min_frames):
+        allowed = tolerance if beyond else house
+        worst = int(dev[a: b + 1].max())
+        first = (int(edges["a_t"][a]), int(edges["a_b"][a]), int(edges["a_l"][a]), int(edges["a_r"][a]))
+        ctx.findings.append(Finding(
+            type="frame_change" if beyond else "blanking_inexact", frame_start=a, frame_end=b,
+            worst_value=float(worst), worst_frame=a, threshold=float(allowed),
+            value_text=f"{_box(first)} (première image), écart jusqu'à {_lines(worst)}",
+            threshold_text=f"cadre du programme : {_box(ref)}, écart ≤ {_lines(allowed)}",
+            detail=(f"{b - a + 1} images ; bords mesurables seulement (ligne ou colonne du bord à au moins "
+                    f"{_fmt(fe.edge_min_pct, 0)} % de luminance moyenne)"
+                    + ("" if beyond else " ; dans la tolérance du profil, règle maison : blanking à la ligne exacte")),
+        ))
 
 
 def _box(box: lb.Box) -> str:
@@ -449,7 +486,7 @@ def analyse(probe: ProbeResult, m: Measurements, profile: Profile, workdir: Path
     _sequence_findings(ctx, excluded, bars_mask)
     letterbox = _letterbox(ctx, program, excluded)
 
-    limitations = []
+    limitations = list(ctx.limitations)
     if fields_measured(ctx):
         limitations.append(
             f"Fichier entrelacé ({probe.video.field_order}) : PSE analysé trame par trame (trames successives, "

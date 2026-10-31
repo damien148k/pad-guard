@@ -100,6 +100,8 @@ rules:
       - {else: minor, source: "Lumiris : contrôle technique (conversions 24 -> 25 i/s)"}
     letterbox:
       - {else: info, source: "Lumiris : contrôle technique, zone active relevée"}
+    blanking_inexact:                  # cadre décalé dans la tolérance (Changement de cadre : la gravité de letterbox)
+      - {else: info, source: "Lumiris : contrôle technique, cadre relevé sans exigence"}
     format:
       - {else: info, source: "Lumiris : contrôle technique, format relevé sans exigence"}
     structure_timecode:

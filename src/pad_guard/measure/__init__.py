@@ -102,6 +102,7 @@ def run(
         video_settings=VideoSettings(
             y_legal=limits.y_legal, y_tolerance=limits.y_tolerance, rgb=limits.rgb,
             prefilter_taps=limits.prefilter_taps, matrix=limits.matrix, flash_delta_pct=limits.flash_delta_pct,
+            edge_y_max=limits.edge_y_max,
         ),
         video=VideoSection(file=VIDEO_FILE, fields=list(FIELDS) + (list(FIELD_FIELDS) if first else []),
                            frames=len(y_p99), first_field=first),

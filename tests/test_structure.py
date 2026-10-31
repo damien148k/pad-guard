@@ -217,3 +217,62 @@ def test_blanking_reference_taken_over_the_programme() -> None:
     # The real Arte master: a 2.39 picture (808 lines) and a few full-frame cards that fit 1.77.
     cards = [area(f, 0, 1079, 1, 1917) for f in range(100, 104)]
     assert lb.reference(odd + cards, spec, 2, 1920, 1080)[0].top == 136
+
+
+def _edge_columns(areas, mean=500.0):
+    """a_* columns of the measurement pass for a list of (top, bottom, left, right) or None (black frame);
+    ``mean``: luma of the edge rows and columns (a number, or a list per frame)."""
+    means = mean if isinstance(mean, list) else [mean] * len(areas)
+    cols = {k: [] for k in ("a_t", "a_b", "a_l", "a_r", "a_tm", "a_bm", "a_lm", "a_rm")}
+    for a, m in zip(areas, means):
+        for k, v in zip(("a_t", "a_b", "a_l", "a_r"), a or (np.nan,) * 4):
+            cols[k].append(v)
+        for k in ("a_tm", "a_bm", "a_lm", "a_rm"):
+            cols[k].append(np.nan if a is None else m)
+    return {k: np.asarray(v, dtype=np.float64) for k, v in cols.items()}
+
+
+def test_frame_deviations_count_measurable_edges_only() -> None:
+    ref = (22, 1057, 0, 1919)
+    areas = [ref, (25, 1060, 0, 1919),  # 3 lines low: top inwards, bottom outwards
+             (0, 1079, 0, 1919),  # full frame: picture in the bands
+             (300, 700, 400, 1500),  # credits on black: smaller on every side
+             (24, 1057, 0, 1919),  # dark sky only: top inwards, bottom in place
+             None,  # black frame
+             (22, 1057, 8, 1919),  # 8 pixels right: left inwards, right at the edge of the frame
+             (23, 1057, 0, 1919)]  # one line: within the tolerance
+    dev = lb.frame_deviations(_edge_columns(areas), ref, 152)
+    assert dev.tolist() == [0, 3, 22, 0, 2, 0, 8, 1]
+    dark = _edge_columns(areas, [500, 500, 500, 500, 90, 500, 500, 500])
+    assert lb.frame_deviations(dark, ref, 152).tolist()[4] == 0  # a dark edge is not measurable
+    night = _edge_columns([(24, 1056, 0, 1919)])  # sky and ground both lost: smaller on both sides
+    assert lb.frame_deviations(night, ref, 152).tolist() == [0]
+    # Ringing of a flash into the band: an outer row just above the black threshold is not measurable.
+    assert lb.frame_deviations(_edge_columns([(21, 1057, 0, 1919)], 69.0), ref, 152).tolist() == [0]
+
+
+def test_deviation_runs_need_consecutive_frames() -> None:
+    dev = np.array([0, 3, 3, 0, 3, 3, 3, 3, 0, 1, 1, 1, 1, 1, 0, 3, 1, 3, 1, 3, 1])
+    assert lb.deviation_runs(dev, 0, 2, 3) == [(4, 7, True), (9, 13, False), (15, 20, False)]
+    assert lb.deviation_runs(dev, 1, 2, 3) == [(4, 7, True)]  # house tolerance 1: one line is not reported
+
+
+@pytest.mark.parametrize(("h", "w", "box"), [
+    (1556, 2048, (0, 1555, 0, 2047)),  # 2K full aperture
+    (2160, 3840, (276, 1883, 0, 3839)),  # UHD 2.39
+    (1080, 1920, (0, 1079, 240, 1679)),  # 1.33 pillarbox: vertical bands
+    (576, 720, (72, 503, 0, 719)),  # SD letterbox
+])
+def test_edges_any_resolution(h, w, box) -> None:
+    from pad_guard.measure.video import edges
+
+    y = np.full((h, w), 64, np.uint16)
+    t, b, lf, r = box
+    y[t: b + 1, lf: r + 1] = 600
+    if t:
+        y[t - 1, :] = np.where(np.arange(w) % 8 == 0, 90, 64)  # ringing into the band: not active
+    e = edges(y.sum(axis=1, dtype=np.uint32), y.sum(axis=0, dtype=np.uint32), 68, 1)
+    assert (e["a_t"], e["a_b"], e["a_l"], e["a_r"]) == box
+    assert e["a_tm"] == round((600 * (r - lf + 1) + 64 * (w - (r - lf + 1))) / w, 1)
+    area = lb.active_area(y, 0, 68)
+    assert (area.top, area.bottom, area.left, area.right) == box  # the samples: the same criterion

@@ -400,9 +400,11 @@ class _Builder:
         notes.append("PSE : approximation inspirée d'ITU-R BT.1702 (variations de luminance relative sur l'image "
                      "entière) ; ce n'est pas un test Harding certifié.")
         if self.st.letterbox is not None:
-            notes.append(f"Format d'image : une image toutes les {number(self.st.letterbox.sample_seconds, 0)} s ; "
-                         "seuls les nombres de lignes et de pixels actifs sont comparés au profil, pas la position "
-                         "des lignes (correspondance avec la numérotation SMPTE à vérifier).")
+            notes.append(f"Format d'image : cadre du programme pris sur une image toutes les "
+                         f"{number(self.st.letterbox.sample_seconds, 0)} s, ses quatre bords comparés au format du "
+                         "profil centré ; puis chaque image du programme comparée à ce cadre (« Changement de "
+                         "cadre »), sur les seuls bords mesurables (un bord sombre, un fondu, un carton noir ne "
+                         "comptent pas).")
         if self.p.audio.loudness.long.short_term_dialogue_excursion_lu is not None:
             notes.append("Short term : seule l'excursion au-dessus de la cible est contrôlée, sur tout le programme ; "
                          "le dialogue n'est pas détecté automatiquement.")

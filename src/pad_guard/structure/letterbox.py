@@ -42,9 +42,11 @@ EDGE_MIN_SAMPLES = 3  # an edge is where at least this many samples reach (a fla
 
 
 def active_area(y: np.ndarray, frame: int, black_y_max: int) -> LetterboxSample | None:
-    """Active rows and columns of a frame (None: the whole frame is black)."""
-    rows = np.flatnonzero(y.mean(axis=1, dtype=np.float64) >= black_y_max)
-    cols = np.flatnonzero(y.mean(axis=0, dtype=np.float64) >= black_y_max)
+    """Active rows and columns of a frame (None: the whole frame is black). The same integer comparison
+    as the edges measured on every frame (measure/video.py, ``edges``)."""
+    h, w = y.shape
+    rows = np.flatnonzero(y.sum(axis=1, dtype=np.uint64) >= np.uint64(black_y_max) * np.uint64(w))
+    cols = np.flatnonzero(y.sum(axis=0, dtype=np.uint64) >= np.uint64(black_y_max) * np.uint64(h))
     if rows.size == 0 or cols.size == 0:
         return None
     return LetterboxSample(frame=frame, top=int(rows[0]), bottom=int(rows[-1]), left=int(cols[0]), right=int(cols[-1]))
@@ -178,3 +180,57 @@ def format_changes(
         run.append(s)
     close()
     return out
+
+
+# --- frame by frame (every decoded frame, against the reference of the programme) -------------
+
+
+def frame_deviations(edges: dict[str, np.ndarray], ref: Box, edge_min: float) -> np.ndarray:
+    """Deviation of each frame from the reference ``ref``, in lines or pixels: the largest of the edges
+    that count, 0 when none does (NaN edges: a black frame).
+
+    An edge counts when it is measurable (the row or column at it averages at least ``edge_min``, 10-bit
+    code values: a dark edge, a fade, credits on black are not) and differs from the reference. Outwards
+    (picture in the band) it always counts; inwards only if the opposite edge is measurable and not
+    inwards too: a picture smaller on both sides is a fade, a dark scene or credits, not a moved frame.
+    """
+    top, bottom, left, right = ref
+    out_dev = {  # outward positive
+        "t": top - edges["a_t"], "b": edges["a_b"] - bottom, "l": left - edges["a_l"], "r": edges["a_r"] - right}
+    with np.errstate(invalid="ignore"):
+        measurable = {k: edges[f"a_{k}m"] >= edge_min for k in "tblr"}  # NaN: False
+    opposite = {"t": "b", "b": "t", "l": "r", "r": "l"}
+    worst = np.zeros(edges["a_t"].shape[0], dtype=np.int64)
+    for k, d in out_dev.items():
+        o = opposite[k]
+        with np.errstate(invalid="ignore"):
+            counts = measurable[k] & (d != 0) & ((d > 0) | (measurable[o] & (out_dev[o] >= 0)))
+        worst = np.where(counts, np.maximum(worst, np.abs(np.nan_to_num(d)).astype(np.int64)), worst)
+    return worst
+
+
+def deviation_runs(dev: np.ndarray, house: int, tolerance: int, min_frames: int
+                   ) -> list[tuple[int, int, bool]]:
+    """Runs of at least ``min_frames`` consecutive frames that deviate (beyond ``house``): (first, last,
+    beyond ``tolerance``). A run is beyond the tolerance when it holds ``min_frames`` consecutive frames
+    beyond it; its frames beyond and within are reported together."""
+    out = []
+    deviating = dev > house
+    k, n = 0, dev.shape[0]
+    while k < n:
+        if not deviating[k]:
+            k += 1
+            continue
+        a = k
+        while k < n and deviating[k]:
+            k += 1
+        b = k - 1
+        if b - a + 1 >= min_frames:
+            beyond, best = dev[a: b + 1] > tolerance, 0
+            run = 0
+            for x in beyond:
+                run = run + 1 if x else 0
+                best = max(best, run)
+            out.append((a, b, best >= min_frames))
+    return out
+

@@ -373,6 +373,33 @@ if need night_185.mov; then
         "${PRORES_HQ[@]}" -timecode 10:00:00:00 "$HERE/night_185.mov"
     echo "  night_185.mov"
 fi
+# Frame by frame: a 1.85 film at 720p (1280x692 from row 14), ProRes HQ 25p, TC 10:00:00:00, no audio.
+#   0-2 s normal | 2-5 s three lines low (rows 17-708) | 5-7 s normal | 7-10 s six pixels right (columns
+#   6-1279, the right of the picture cut) | 10-12 s normal | 12-15 s night (dimmed, dark sky and ground on
+#   the edges) | 15-17 s normal | 17-19 s fade to black | 19-21 s normal.
+if need frame_shifts.mov; then
+    SEGS=(normal:2 low:3 normal:2 right:3 normal:2 night:3 normal:2 fade:2 normal:2)
+    INPUTS=() GRAPH="" k=0
+    for seg in "${SEGS[@]}"; do
+        IFS=: read -r kind dur <<<"$seg"
+        INPUTS+=(-f lavfi -i "testsrc2=s=1280x692:r=25:d=$dur")
+        base="[$k:v]scale=out_color_matrix=bt709:out_range=tv,format=yuv422p10le"
+        case $kind in
+            normal) GRAPH+="$base,pad=1280:720:0:14:black[s$k];" ;;
+            low)    GRAPH+="$base,pad=1280:720:0:17:black[s$k];" ;;
+            right)  GRAPH+="$base,crop=1274:692:0:0,pad=1280:720:6:14:black[s$k];" ;;
+            night)  GRAPH+="$base,lutyuv=y='64+(val-64)/16':u=512:v=512,drawbox=x=0:y=0:w=1280:h=2:color=black:t=fill,"
+                    GRAPH+="drawbox=x=0:y=691:w=1280:h=1:color=black:t=fill,pad=1280:720:0:14:black[s$k];" ;;
+            fade)   GRAPH+="$base,fade=t=out:st=0:d=$dur,pad=1280:720:0:14:black[s$k];" ;;
+        esac
+        k=$((k + 1))
+    done
+    for ((i = 0; i < k; i++)); do GRAPH+="[s$i]"; done
+    GRAPH+="concat=n=$k:v=1:a=0,setparams=field_mode=prog:range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709[v]"
+    "${FF[@]}" "${INPUTS[@]}" -filter_complex "$GRAPH" -map "[v]" "${PRORES_HQ[@]}" \
+        -timecode 10:00:00:00 "$HERE/frame_shifts.mov"
+    echo "  frame_shifts.mov"
+fi
 # Resolutions: UHD letterboxed to 2.39 (3840x1608 active), 4K DCI full frame (4096x2160), 10 frames each.
 if need fmt_uhd_239.mov; then
     "${FF[@]}" -f lavfi -i "testsrc2=s=3840x1608:r=25:d=0.4" \

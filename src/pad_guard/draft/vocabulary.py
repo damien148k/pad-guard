@@ -20,6 +20,7 @@ INTERNAL = frozenset({
     "video.scan_detection.progressive_max_pct", "video.scan_detection.min_moving_frames",
     "audio.loudness_exempt_groups", "audio.exclude_head_tail", "structure.bars.tolerance", "structure.black.y_max",
     "structure.freeze.threshold", "video.range_detection.reserved_min_frames_pct", "video.blanking_tolerance_lines",
+    "structure.frame.edge_min_pct", "structure.frame.min_frames",
 })
 
 _FPS = r"images? par seconde|images?/s|i/s|fps|frequence image|cadence|frame rate|\d\s*p\b|\d\s*i\b|psf"

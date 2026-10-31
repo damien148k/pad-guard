@@ -67,7 +67,8 @@ CHANGED = ("| Profil |", "- Préfiltre avant mesure des niveaux :", "| Balayage 
            "| Document de référence |",
            "| Format de pixel |", "| Codec et profil |", "| Conteneur |",  # Phase 6: bit depth and sampling
            "- Conversion RVB :",  # Phase 6: where the matrix of the file comes from
-           "| Format d'image (lignes et pixels actifs) |")  # 31/10/2026: the four edges, centred formats
+           "| Format d'image (lignes et pixels actifs) |",  # 31/10/2026: the four edges, centred formats
+           "- Format d'image :")  # 31/10/2026: the note says every frame is compared with the frame of the programme
 NORM_GAPS = "### Écarts entre le profil et les normes (information)"
 ADDED = ("| Statut du profil |", "| Empreinte du profil effectif |", "| Cadence prise en charge par PAD Guard |",
          "| Décodeur disponible |", "| Format de pixel mesurable par PAD Guard |", "| Cadence fixe |",

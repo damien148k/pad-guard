@@ -125,9 +125,7 @@ def severity_types(profile: Profile, groups: list[AudioGroup]) -> set[str]:
     elif s.leaders == "none" and (b.head_max_seconds is not None or b.tail_max_seconds is not None):
         types.add("structure_black_too_long")
     if profile.format.letterbox is not None and profile.format.letterbox.check:
-        types.add("letterbox")
-        if profile.format.letterbox.formats:
-            types.add("blanking_inexact")
+        types |= {"letterbox", "frame_change", "blanking_inexact"}
     if groups:
         types |= {"audio_loudness", "audio_true_peak", "audio_silence"}
         if any(len(g.tracks) == 2 for g in groups):
@@ -183,7 +181,8 @@ def depends_on(d: Draft, loudness_set: str) -> tuple[str, ...]:
         "structure_black": ("structure.black", "structure.leaders"),
         "structure_black_too_long": ("structure.black", "structure.leaders"),
         "letterbox": ("format.letterbox",),
-        "blanking_inexact": ("video.blanking_tolerance_lines", "format.letterbox"),
+        "blanking_inexact": ("video.blanking_tolerance_lines", "format.letterbox", "structure.frame"),
+        "frame_change": ("format.letterbox", "structure.frame"),
         "delivery_conversion_required": ("format.delivery",),
         "scan_flag_mismatch": ("format.field_order", "video.scan_detection"),
         "range_content_mismatch": ("video.range_detection",),
@@ -289,7 +288,9 @@ class Engine:
                     continue
                 inside = [f for f in findings if a <= f.frame_start and f.frame_end <= b]
                 worst = max(inside, key=lambda f: -math.inf if f.worst_value is None else f.worst_value)
-                if event_type == "freeze":
+                if worst.value_text is not None:  # the detector wrote them (frame edges)
+                    value, limit = worst.value_text, worst.threshold_text
+                elif event_type == "freeze":
                     value, limit = f"{number(self.seconds(b - a + 1), 1)} s", \
                         f"< {number(self.p.structure.freeze.min_seconds, 1)} s"
                 elif event_type == "pse":
