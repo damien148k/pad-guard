@@ -76,3 +76,14 @@ uv run python tools\recette\banc.py comparer
   - les jetons produits.
 - Il indique aussi si les demandes du premier passage étaient identiques pour tous les modèles (`prompt_sha256`). Si ce n'est pas « oui », la comparaison ne mesure pas que le modèle.
 - `--docs arte_hd_sdr` dans `lancer` ne traite que ce document. Une nouvelle exécution remplace le résultat du couple modèle/document dans `resultats.json`.
+
+## Non-régression du master Arte : `non_regression.py`
+
+Compare les événements et le verdict d'une analyse du vrai master Arte à la référence versionnée
+(`tests/golden/arte_master/reference.json`, 57 événements au 31/10/2026) ; voir `docs/PHASE6_RECETTE.md`.
+
+```powershell
+uv run python toolsecette
+on_regression.py compare <dossier du master>
+```
+

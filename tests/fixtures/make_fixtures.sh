@@ -40,6 +40,10 @@
 #                      ProRes HQ 25p, TC 10:00:00:00, no audio: picture from row 22 (centred, Arte 1.85 lines
 #                      32-1112), 23 (1 line low) and 25 (3 lines low). Padded in 4:2:2 (in 4:2:0 FFmpeg rounds
 #                      the offset to an even row).
+#   night_185.mov      1 s night scene in 1.85 (rows 22-1057), ProRes HQ 25p, TC 10:00:00:00, no audio: testsrc2
+#                      dimmed to 1/16 (Y about 90), the two top rows and the bottom row of the picture at Y=65
+#                      (dark sky and ground: their mean stays under the black threshold), except frames 3, 9,
+#                      15 and 21, full brightness (the real edges).
 #   bad_levels_50p.mov  ok_prores at 50p with white at Y=975 on frames 600-649 (1 s, 10:00:02:00-10:00:02:49)
 #                      and black at Y=40 on frames 750-774 (0.5 s, 10:00:05:00-10:00:05:24).
 set -euo pipefail
@@ -357,6 +361,18 @@ for shift in exact:22 1:23 3:25; do
         echo "  blank_$name.mov"
     fi
 done
+# Night scene in 1.85: dark sky and ground on the edges of the picture, four bright frames.
+if need night_185.mov; then
+    NIGHT="[0:v]scale=out_color_matrix=bt709:out_range=tv,format=yuv422p10le,split=3[a][b][c];"
+    NIGHT+="[a]lutyuv=y='64+(val-64)/16':u=512:v=512[dim];"
+    NIGHT+="[b]crop=1920:2:0:0,lutyuv=y=65:u=512:v=512,split[sky][edge];[edge]crop=1920:1:0:0[ground];"
+    NIGHT+="[dim][sky]overlay=0:0:format=yuv422p10[top];[top][ground]overlay=0:1035:format=yuv422p10[night];"
+    NIGHT+="[night][c]overlay=0:0:format=yuv422p10:enable='eq(mod(n\,6)\,3)',pad=1920:1080:0:22:black,"
+    NIGHT+="setparams=field_mode=prog:range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709[v]"
+    "${FF[@]}" -f lavfi -i "testsrc2=s=1920x1036:r=25:d=1" -filter_complex "$NIGHT" -map "[v]" \
+        "${PRORES_HQ[@]}" -timecode 10:00:00:00 "$HERE/night_185.mov"
+    echo "  night_185.mov"
+fi
 # Resolutions: UHD letterboxed to 2.39 (3840x1608 active), 4K DCI full frame (4096x2160), 10 frames each.
 if need fmt_uhd_239.mov; then
     "${FF[@]}" -f lavfi -i "testsrc2=s=3840x1608:r=25:d=0.4" \

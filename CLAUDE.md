@@ -97,6 +97,7 @@ uv run pad-guard signer-norme cst_rt040 --par "Vincent"        # signature du ta
 uv run pad-guard ui                                           # interface locale (127.0.0.1:8765), voir docs/GUIDE_VINCENT.md
 uv run pad-guard ui --admin                                   # + onglet NORMES : relecture des normes et des valeurs maison, signature
 uv run pytest
+uv run python tools/recette/non_regression.py compare <dossier du master Arte>   # référence : 57 événements (31/10/2026)
 uv run pytest -m e2e                                          # interface dans Chromium (playwright install chromium une fois)
 ```
 

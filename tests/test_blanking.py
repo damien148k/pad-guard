@@ -85,3 +85,20 @@ def test_house_value_and_arte_profile() -> None:
     assert eff.profile.rules.chain("blanking_inexact")[0].severity == "minor"
     origin = eff.origins["video.blanking_tolerance_lines"]
     assert origin.file.endswith("lumiris_maison.yaml") and "décision Vincent, 31/10/2026" in origin.source
+
+
+@pytest.mark.fixtures
+def test_night_scene_makes_no_false_event(fixtures_dir, tmp_path, monkeypatch) -> None:
+    """A night scene in 1.85: on most frames the dark sky (2 rows) and ground (1 row) at the edges of the picture
+    read as black; four bright frames show the real edges. The edges are taken over the programme, not from
+    the most frequent frame: no false « Format d'image », no false « blanking pas à la ligne exacte »."""
+    from pad_guard.structure import letterbox
+
+    monkeypatch.setattr(letterbox, "SAMPLE_SECONDS", 0.04)  # every frame of the 1 s fixture is a sample
+    lb, checks, events = _analyse(fixtures_dir, tmp_path, "night_185")
+    tops = [s["top"] for s in lb["samples"]]
+    assert len(tops) == 25 and tops.count(24) == 21 and tops.count(22) == 4  # dark frames: 2 rows lost
+    assert (lb["dominant"]["top"], lb["dominant"]["bottom"]) == (22, 1057)
+    assert (lb["matched_format"], lb["deviation"]) == ("1.85", 0)
+    assert checks["letterbox"]["status"] == checks["blanking"]["status"] == "ok"
+    assert events == []

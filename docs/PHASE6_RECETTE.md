@@ -77,3 +77,28 @@ Le DNxHR 444 RVB ne change pas : à 360 lignes, son standard est BT.709, comme l
 **2. `lumiris_controle_technique`.** Primaires, transfert et matrice valent `coherent` : sont acceptés `gbr` pour la matrice d'une source RVB, `bt470bg` ou `smpte170m` (primaires et matrice) et `bt709` ou `smpte170m` (transfert, même courbe) pour la SD, `bt709` sinon. SD PAL et DNxHR 444 RVB : plus d'anomalie de format ; DV sans balises : trois `format_color_tags` en information, comme avant. Le profil Arte ne change pas.
 
 **Non-régression du master Arte** (balise `bt709`) : 56 événements identiques à la relecture précédente, tous champs compris ; verdict identique ; mesures vidéo, audio et structure identiques à l'octet.
+
+## Référence de non-régression du master Arte (31 octobre 2026)
+
+**57 événements** (2 bloquants, 16 majeurs, 39 mineurs), NON-CONFORME, score 0, conservés dans
+`tests/golden/arte_master/reference.json` (type, gravité et sa source, timecodes, textes de chaque événement ;
+verdict ; SHA-256 du fichier). Elle remplace les 56 événements des relectures précédentes.
+
+Le 57e vient du blanking à la ligne exacte (décision de Vincent, 31/10/2026) : « Format d'image », mineur
+(Arte §3.2.4), « 808 lignes (lignes 136 à 943) × 1920 px : aucun format du profil ; le plus proche, 2.35, attend
+lignes 132 à 947 (écart de 4 lignes) ». L'image est un 2.39 (808 lignes) ; l'ancien critère (99,9e centile)
+lisait 816 lignes à partir de la ligne 128, à cause du débordement des blocs ProRes entrelacés (16 lignes
+d'image) dans les lignes 128 à 135, qui sont noires (moyenne 64,1 ; au plus 8 pixels à 68-70). Les 56 autres
+événements sont identiques, tous champs compris.
+
+Contrôle, après toute modification des mesures, de la structure, des règles ou des profils :
+
+```powershell
+uv run pad-guard rerun <dossier du master> --from structure --profile profiles/arte_hd_sdr.yaml --no-thumbnails
+uv run python tools/recette/non_regression.py compare <dossier du master>
+$env:PAD_GUARD_ARTE_OUT = "<dossier du master>"; uv run pytest tests/test_non_regression_arte.py
+```
+
+Sans `--profile`, `rerun` garde le profil figé dans le dossier. Un écart voulu (décision) se fixe avec
+`non_regression.py write <dossier>`, et le décompte de `tests/test_non_regression_arte.py` se met à jour.
+

@@ -360,7 +360,7 @@ def _letterbox(ctx: _Context, program: FrameRange, excluded: np.ndarray) -> Lett
         if area is not None:
             samples.append(area)
     width, height = ctx.probe.video.width, ctx.probe.video.height
-    dom, share = lb.dominant(samples, tolerance)
+    dom, share = lb.reference(samples, spec, tolerance, width, height)
     near, dev, box = (None, None, None) if dom is None else lb.nearest(dom, spec, width, height)
     matched = near.aspect if near is not None and dev <= tolerance else None
     sar = lb.sar_of(ctx.probe.video.sar)

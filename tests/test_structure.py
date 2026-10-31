@@ -6,6 +6,7 @@ import pytest
 from pad_guard.rules.engine import error_key, merge
 from pad_guard.rules.profile import LetterboxFormat, Letterbox, ProfileValueError, load_profile, require
 from pad_guard.structure import detect, letterbox as lb
+from pad_guard.structure.models import LetterboxSample
 
 from conftest import PROFILES, TEST_PROFILES
 
@@ -175,3 +176,44 @@ def test_require_reports_null_and_missing() -> None:
     nulled.audio.model_fields_set.add("silence_max_seconds")
     with pytest.raises(ProfileValueError, match="vaut null"):
         require(nulled, "audio.silence_max_seconds", "les silences")
+
+
+def test_blanking_reference_taken_over_the_programme() -> None:
+    f185 = LetterboxFormat(aspect="1.85", active_lines=1036, first_line=32, last_line=1112, active_pixels=1920)
+    f177 = LetterboxFormat(aspect="1.77", active_lines=1080, first_line=21, last_line=1123, active_pixels=1920)
+    spec = Letterbox(check=True, tolerance_lines=2, formats=[f177, f185])
+
+    def area(frame, top, bottom, left=0, right=1919):
+        return LetterboxSample(frame=frame, top=top, bottom=bottom, left=left, right=right)
+
+    bright = [area(f, 22, 1057) for f in (5, 50, 95)]
+    # Night: the sky loses 2 rows on most samples (within the tolerance), or 1 to 6 rows, scattered.
+    steady = [area(f, 24, 1056) for f in range(0, 100, 2) if f != 50]
+    scattered = [area(f, 23 + f % 6, 1056) for f in range(0, 100, 2) if f != 50]
+    for night in (steady, scattered):
+        ref, share = lb.reference(sorted(night + bright, key=lambda s: s.frame), spec, 2, 1920, 1080)
+        assert (ref.top, ref.bottom, ref.left, ref.right) == (22, 1057, 0, 1919) and share == 100.0
+    # The limit: 3 rows lost on most samples reads as another area (dark rows look like blanking).
+    night = [area(f, 25, 1056) for f in range(0, 100, 2) if f != 50]
+    assert lb.reference(night + bright, spec, 2, 1920, 1080)[0].top == 25
+    # A flash ringing into the band on two samples, one column lost on a few: the edges do not move.
+    flash = [area(7, 21, 1058), area(9, 21, 1057)]
+    dim = [area(f, 22, 1057, 1, 1919) for f in (11, 13)]
+    ref, _ = lb.reference(bright + flash + dim, spec, 2, 1920, 1080)
+    assert (ref.top, ref.bottom, ref.left) == (22, 1057, 0)
+    # Picture one line into the band on most samples: that is the edge (house anomaly).
+    ref, _ = lb.reference([area(f, 21, 1057) for f in range(6)] + bright, spec, 2, 1920, 1080)
+    assert lb.deviation(ref, f185, 1920, 1080)[0] == 1
+    # A 1.77 section in a 1.85 programme: the reference stays 1.85, the section is a change.
+    film = [area(f, 22, 1057) for f in range(0, 200, 10)]
+    section = [area(f, 0, 1079) for f in (201, 202, 203)]
+    samples = film + section
+    ref, _ = lb.reference(samples, spec, 2, 1920, 1080)
+    assert (ref.top, ref.bottom) == (22, 1057)
+    assert lb.format_changes(samples, spec, 2, ref, 1920, 1080) == [(201, 203, "1.77", 3)]
+    # No sample fits a format of the profile: the most frequent area, as before.
+    odd = [area(f, 136, 943) for f in range(5)] + [area(9, 128, 943)]
+    assert lb.reference(odd, spec, 2, 1920, 1080)[0].top == 136
+    # The real Arte master: a 2.39 picture (808 lines) and a few full-frame cards that fit 1.77.
+    cards = [area(f, 0, 1079, 1, 1917) for f in range(100, 104)]
+    assert lb.reference(odd + cards, spec, 2, 1920, 1080)[0].top == 136

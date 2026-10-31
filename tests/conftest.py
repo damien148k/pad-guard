@@ -40,6 +40,7 @@ FIXTURE_FILES = (
     "blank_exact.mov",
     "blank_1.mov",
     "blank_3.mov",
+    "night_185.mov",
     "fmt_h264_full.mp4",
     "fmt_full_as_tv.mov",
     "fmt_dnxhr444_rgb.mov",
