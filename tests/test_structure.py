@@ -251,6 +251,21 @@ def test_frame_deviations_count_measurable_edges_only() -> None:
     assert lb.frame_deviations(_edge_columns([(21, 1057, 0, 1919)], 69.0), ref, 152).tolist() == [0]
 
 
+def test_a_moved_shot_counts_from_its_first_frame() -> None:
+    """PINACOLADA (31/10/2026): a shot 118 lines low whose top row stays dark for its first 4 s, then its
+    bottom row turns dark now and then. Same four edges on every frame: one framing, one run from its first
+    frame. A dark scene where no frame counts stays at 0."""
+    ref, moved = (202, 1353, 0, 2047), (320, 1353, 0, 2047)
+    areas = [ref] * 2 + [moved] * 8 + [ref] * 2
+    tm = [500, 500, 100, 100, 100, 500, 500, 500, 500, 500, 500, 500]  # top row dark on the first 3 moved frames
+    bm = [500] * 7 + [100, 100] + [500] * 3  # bottom row dark on 2 of them: the inward top does not count there
+    cols = _edge_columns(areas)
+    cols["a_tm"], cols["a_bm"] = np.asarray(tm, dtype=np.float64), np.asarray(bm, dtype=np.float64)
+    assert lb.frame_deviations(cols, ref, 152).tolist() == [0, 0] + [118] * 8 + [0, 0]
+    night = _edge_columns([ref] + [(24 + 180, 1353, 0, 2047)] * 5, [500] + [100] * 5)
+    assert lb.frame_deviations(night, ref, 152).tolist() == [0] * 6
+
+
 def test_deviation_runs_need_consecutive_frames() -> None:
     dev = np.array([0, 3, 3, 0, 3, 3, 3, 3, 0, 1, 1, 1, 1, 1, 0, 3, 1, 3, 1, 3, 1])
     assert lb.deviation_runs(dev, 0, 2, 3) == [(4, 7, True), (9, 13, False), (15, 20, False)]

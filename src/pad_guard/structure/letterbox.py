@@ -206,7 +206,28 @@ def frame_deviations(edges: dict[str, np.ndarray], ref: Box, edge_min: float) ->
         with np.errstate(invalid="ignore"):
             counts = measurable[k] & (d != 0) & ((d > 0) | (measurable[o] & (out_dev[o] >= 0)))
         worst = np.where(counts, np.maximum(worst, np.abs(np.nan_to_num(d)).astype(np.int64)), worst)
-    return worst
+    return _spread_over_same_box(edges, worst)
+
+
+def _spread_over_same_box(edges: dict[str, np.ndarray], worst: np.ndarray) -> np.ndarray:
+    """A run of consecutive frames with exactly the same four edges is one framing: when some of its frames
+    count, all do (a moved shot whose edge row turns dark for a while stays one event, from its first
+    frame). A run where no frame counts (a dark scene, a fade) stays at 0."""
+    box = np.stack([edges[k] for k in ("a_t", "a_b", "a_l", "a_r")], axis=1)
+    n = box.shape[0]
+    if n == 0:
+        return worst
+    with np.errstate(invalid="ignore"):
+        same = np.all(box[1:] == box[:-1], axis=1)  # NaN: never the same
+    starts = np.concatenate(([0], np.flatnonzero(~same) + 1))
+    ends = np.concatenate((starts[1:], [n]))
+    out = worst.copy()
+    for a, b in zip(starts, ends):
+        if b - a > 1:
+            m = worst[a:b].max()
+            if m:
+                out[a:b] = m
+    return out
 
 
 def deviation_runs(dev: np.ndarray, house: int, tolerance: int, min_frames: int
