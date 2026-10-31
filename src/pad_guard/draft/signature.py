@@ -4,7 +4,8 @@ A review table (``docs/normes/<name>.md``, or ``docs/VALEURS_MAISON.md`` for ``l
 the fingerprint of the norm file at the time it was generated (``STAMP`` line). Signing checks that the
 norm has not changed since (its content, without the signature itself), that no row of the table holds
 a correction still to make, then writes ``validated_by``, ``validated_at`` and ``validated_table_sha256``
-(fingerprint of the table as read, without its « Relu par » line) into ``meta`` of the norm, and fills the
+(fingerprint of the table as read, without its « Relu par » line) and ``validated_norm_sha256`` (fingerprint
+of the norm file, so that a later change shows « modifiée depuis la signature ») into ``meta`` of the norm, and fills the
 « Relu par … le … » line of the table. The signature covers that table only.
 
 A correction never goes through the signature: ``releve-norme`` (the row changed with its quote), which
@@ -25,7 +26,7 @@ from pad_guard.profiles.resolve import read_yaml
 from pad_guard.rules.profile import ProfileError
 
 HOUSE = "lumiris_maison"
-SIGNATURE_KEYS = ("validated_by", "validated_at", "validated_table_sha256")
+SIGNATURE_KEYS = ("validated_by", "validated_at", "validated_table_sha256", "validated_norm_sha256")
 CHECK_COLUMN = "OK / correction"
 SIGNED_LINE = "Relu par"
 _STAMP_RE = re.compile(r"^Empreinte de `normes/([\w.-]+)\.yaml` à la génération de ce tableau : `([0-9a-f]{64})`\.$",
@@ -134,11 +135,16 @@ def _check_table(name: str, norm: Path, table: Path) -> tuple[str, list[str]]:
 def status(name: str, root: Path) -> Status:
     norm = root / "normes" / f"{name}.yaml"
     meta = _meta(norm)
-    by, at, sha = (meta.get(k) for k in SIGNATURE_KEYS)
+    by, at, sha, norm_sha = (meta.get(k) for k in SIGNATURE_KEYS)
     if not by:
         return Status(False, None, None, [])
     at = dt.date.fromisoformat(str(at)) if at else None
-    text, problems = _check_table(name, norm, table_path(name, root))
+    if norm_sha and norm_sha != norm_fingerprint(norm):
+        return Status(True, by, at, [f"normes/{name}.yaml modifié depuis la signature"])
+    try:
+        text, problems = _check_table(name, norm, table_path(name, root))
+    except SignatureError as exc:
+        return Status(True, by, at, [str(exc)])
     if sha != table_fingerprint(text):
         problems.append(f"{table_path(name, root).name} a changé depuis la signature")
     return Status(True, by, at, problems)
@@ -168,8 +174,8 @@ def sign(name: str, by: str, root: Path, today: dt.date | None = None) -> tuple[
                              "puis nouvelle signature :\n  - " + "\n  - ".join(pending))
     today = today or dt.date.today()
     fingerprint = table_fingerprint(text)
-    write_signature(norm, {"validated_by": by, "validated_at": today,
-                           "validated_table_sha256": fingerprint})
+    write_signature(norm, {"validated_by": by, "validated_at": today, "validated_table_sha256": fingerprint,
+                           "validated_norm_sha256": norm_fingerprint(norm)})
     line = (f"{SIGNED_LINE} {by} le {today.strftime('%d/%m/%Y')} (pad-guard signer-norme ; empreinte du tableau "
             f"`{fingerprint}`, écrite dans `normes/{name}.yaml`).")
     lines = text.split("\n")

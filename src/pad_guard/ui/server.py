@@ -61,6 +61,7 @@ class Context:
     hosts: set[str]  # accepted Host headers
     settings_file: Path
     root: Path = ROOT
+    admin: bool = False  # pad-guard ui --admin: the NORMES tab (review and signature of the norms)
     extra: dict[str, Any] = field(default_factory=dict)  # services of the other modules (jobs...)
 
     @property
@@ -102,7 +103,9 @@ class LocalGuard:
         async def send_with_headers(message) -> None:
             if message["type"] == "http.response.start":
                 headers = message.setdefault("headers", [])
-                headers += [(b"content-security-policy", CSP.encode()), (b"x-content-type-options", b"nosniff"),
+                if not any(k.lower() == b"content-security-policy" for k, _ in headers):  # a PDF sets its own
+                    headers.append((b"content-security-policy", CSP.encode()))
+                headers += [(b"x-content-type-options", b"nosniff"),
                             (b"referrer-policy", b"no-referrer"), (b"cache-control", b"no-store")]
             await send(message)
 
@@ -125,7 +128,9 @@ async def body(request: Request) -> dict:
 
 async def index(request: Request) -> Response:
     page = (STATIC / "index.html").read_text(encoding="utf-8")
-    return HTMLResponse(page.replace("{{TOKEN}}", ctx_of(request).token).replace("{{VERSION}}", __version__))
+    ctx = ctx_of(request)
+    return HTMLResponse(page.replace("{{TOKEN}}", ctx.token).replace("{{VERSION}}", __version__)
+                        .replace("{{ADMIN}}", "1" if ctx.admin else "0"))
 
 
 async def ping(_: Request) -> Response:
@@ -201,7 +206,7 @@ def _already_running(port: int) -> bool:
         return False
 
 
-def serve(port: int = DEFAULT_PORT, open_browser: bool = True, say=print) -> None:
+def serve(port: int = DEFAULT_PORT, open_browser: bool = True, say=print, admin: bool = False) -> None:
     import uvicorn  # noqa: PLC0415
 
     try:
@@ -209,6 +214,8 @@ def serve(port: int = DEFAULT_PORT, open_browser: bool = True, say=print) -> Non
     except OSError:
         if port and _already_running(port):
             say(f"PAD Guard est déjà lancé : http://{HOST}:{port}/")
+            if admin:
+                say("Onglet NORMES : arrêter l'interface déjà lancée, puis relancer pad-guard ui --admin.")
             if open_browser:
                 webbrowser.open(f"http://{HOST}:{port}/")
             return
@@ -216,7 +223,7 @@ def serve(port: int = DEFAULT_PORT, open_browser: bool = True, say=print) -> Non
     port = sock.getsockname()[1]
     url = f"http://{HOST}:{port}/"
     ctx = Context(token=secrets.token_urlsafe(32), hosts={f"{HOST}:{port}", f"localhost:{port}"},
-                  settings_file=settings_mod.settings_path())
+                  settings_file=settings_mod.settings_path(), admin=admin)
     app = create_app(ctx)
     server = uvicorn.Server(uvicorn.Config(app, log_level="warning", access_log=False))
     say(f"PAD Guard : {url}  (local, rien ne sort de la machine ; Ctrl+C pour arrêter)")

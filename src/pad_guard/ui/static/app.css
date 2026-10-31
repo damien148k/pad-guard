@@ -335,3 +335,15 @@ h2 { margin: 0; font: 600 40px/1 var(--cond); }
 .dialog { width: min(640px, calc(100vw - 32px)); background: var(--bg2); border: 1px solid var(--line-strong); box-shadow: 0 30px 80px rgba(0, 0, 0, .55);
   padding: 24px; display: flex; flex-direction: column; gap: 16px; }
 .dialog .title { font: 600 26px var(--cond); }
+
+/* NORMES (pad-guard ui --admin) */
+.norm-row { display: grid; grid-template-columns: minmax(0, 1fr) 160px 220px 90px 300px; gap: 12px; align-items: center; padding: 11px 16px;
+  border: 0; border-bottom: 1px solid rgba(230, 232, 234, .08); background: transparent; color: var(--ink); text-align: left; font: 400 14px var(--body); cursor: pointer; }
+.norm-row:hover { background: rgba(230, 232, 234, .04); }
+.norm-head, .nrow-head { cursor: default; font: 500 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--mute); }
+.norm-head:hover { background: transparent; }
+.nrow { display: grid; grid-template-columns: 40px minmax(0, 3fr) minmax(0, 2fr) 70px minmax(0, 4fr) minmax(0, 3fr); gap: 12px; align-items: start;
+  padding: 10px 16px; border-bottom: 1px solid rgba(230, 232, 234, .08); font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.nrow.ok { background: rgba(80, 200, 120, .05); }
+.nrow a { color: var(--steel); }
+.quote { color: var(--ink2); font-style: italic; }

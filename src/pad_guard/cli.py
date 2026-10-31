@@ -868,8 +868,10 @@ if __name__ == "__main__":
 def ui(
     port: int = typer.Option(8765, "--port", min=0, max=65535, help="Port local (0 : un port libre)."),
     no_browser: bool = typer.Option(False, "--no-browser", help="N'ouvre pas le navigateur."),
+    admin: bool = typer.Option(False, "--admin", help="Affiche l'onglet NORMES (relecture et signature des normes)."),
 ) -> None:
     """Ouvre l'interface locale dans le navigateur (127.0.0.1 seulement, rien ne sort de la machine)."""
     from pad_guard.ui import server
 
-    server.serve(port, open_browser=not no_browser, say=lambda text: console.print(text, highlight=False))
+    server.serve(port, open_browser=not no_browser, say=lambda text: console.print(text, highlight=False),
+                 admin=admin)

@@ -8,9 +8,12 @@ import { Recap } from './screens/recap.js';
 import { Run } from './screens/run.js';
 import { Report } from './screens/report.js';
 import { Profiles } from './screens/profiles.js';
+import { Normes } from './screens/normes.js';
+
+const ADMIN = document.querySelector('meta[name="pad-guard-admin"]').content === '1';  // pad-guard ui --admin
 
 const STEPS = [['1', 'Dépôt', 'prep'], ['2', 'Récapitulatif', 'recap'], ['3', 'Analyse', 'run'], ['4', 'Rapport', 'report']];
-const TITLES = { prep: 'Nouvelle analyse', recap: 'Récapitulatif', run: 'Analyse', report: 'Rapport', profiles: 'Profils' };
+const TITLES = { prep: 'Nouvelle analyse', recap: 'Récapitulatif', run: 'Analyse', report: 'Rapport', profiles: 'Profils', normes: 'Normes' };
 const EMPTY_FORM = { master: null, profile: null, pdf: null, groups: {}, llm: false, llm_model: null };
 
 function Settings({ onClose }) {
@@ -74,7 +77,7 @@ function App() {
     return () => source.close();
   }, [running, job && job.id]);
 
-  useEffect(() => { document.title = `PAD Guard — ${TITLES[tab === 'profiles' ? 'profiles' : screen]}`; }, [tab, screen]);
+  useEffect(() => { document.title = `PAD Guard — ${TITLES[tab === 'analyse' ? screen : tab]}`; }, [tab, screen]);
 
   const go = s => { setTab('analyse'); setScreen(s); };
   const stepIdx = STEPS.findIndex(s => s[2] === screen);
@@ -84,7 +87,9 @@ function App() {
   const newAnalysis = () => { setForm(EMPTY_FORM); go('prep'); };
 
   let body;
-  if (tab === 'profiles') {
+  if (tab === 'normes' && ADMIN) {
+    body = html`<${Normes} />`;
+  } else if (tab === 'profiles') {
     body = html`<${Profiles} profiles=${profiles} drafts=${drafts} job=${job} setJob=${setJob} reload=${loadProfiles} pdf=${form.pdf}
       useProfile=${name => { setForm(f => ({ ...f, profile: name, pdf: null })); go(form.master ? 'recap' : 'prep'); }} />`;
   } else if (screen === 'prep') {
@@ -106,6 +111,7 @@ function App() {
         <button class=${'tab' + (tab === 'analyse' ? ' on' : '')} onClick=${() => setTab('analyse')}>Analyse</button>
         <button class=${'tab' + (tab === 'profiles' ? ' on' : '')} onClick=${() => setTab('profiles')}>Profils
           ${pendingDrafts > 0 && html`<span class="badge">${pendingDrafts} brouillon${pendingDrafts > 1 ? 's' : ''}</span>`}</button>
+        ${ADMIN && html`<button class=${'tab' + (tab === 'normes' ? ' on' : '')} onClick=${() => setTab('normes')}>Normes</button>`}
       </nav>
       ${tab === 'analyse' && html`<div class="stepper">${STEPS.map(([n, label, s], i) => html`
         <button class=${'step' + (i === stepIdx ? ' on' : i < stepIdx ? ' past' : '')} disabled=${!canGo[s]} onClick=${() => go(s)}>

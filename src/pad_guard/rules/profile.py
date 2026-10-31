@@ -191,8 +191,9 @@ class NormMeta(_Model):
     validated_at: dt.date | None = None
     # signer-norme: fingerprint of the review table Vincent read and signed (docs/normes/<name>.md).
     validated_table_sha256: str | None = None
+    validated_norm_sha256: str | None = None  # the norm's content when signed (signature.norm_fingerprint)
 
-    @field_validator("source_pdf_sha256", "validated_table_sha256")
+    @field_validator("source_pdf_sha256", "validated_table_sha256", "validated_norm_sha256")
     @classmethod
     def _sha(cls, v: str | None) -> str | None:
         if v is not None and not _SHA256.match(v):

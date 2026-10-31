@@ -92,9 +92,10 @@ def model_flag(flag: str, data: dict, key: str = "model") -> list[str]:
 
 
 def routes() -> list:
-    from pad_guard.ui import analysis, prepare, review, runs  # noqa: PLC0415
+    from pad_guard.ui import analysis, normes, prepare, review, runs  # noqa: PLC0415
 
     return [
+        *normes.routes(),
         *prepare.routes(),
         *analysis.routes(),
         *runs.routes(),

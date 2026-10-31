@@ -95,6 +95,7 @@ uv run pad-guard compare-profiles a.yaml b.yaml               # différences ent
 uv run pad-guard releve-norme normes/releves/cst_rt040.yaml    # relevé d'une norme vérifié dans son PDF -> normes/ + docs/normes/ (tableau signé par Vincent)
 uv run pad-guard signer-norme cst_rt040 --par "Vincent"        # signature du tableau relu -> normes/<nom>.yaml (aussi lumiris_maison) ; refusée si la norme a changé
 uv run pad-guard ui                                           # interface locale (127.0.0.1:8765), voir docs/GUIDE_VINCENT.md
+uv run pad-guard ui --admin                                   # + onglet NORMES : relecture des normes et des valeurs maison, signature
 uv run pytest
 uv run pytest -m e2e                                          # interface dans Chromium (playwright install chromium une fois)
 ```
