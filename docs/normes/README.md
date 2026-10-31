@@ -1,9 +1,18 @@
 # Normes : tableaux de relecture
 
+> **Comment relire** (la signature ne porte que sur ce tableau)
+>
+> 1. Pour chaque ligne d'un tableau, ouvrir le PDF de la norme (dossier `normes\sources\`) à la page indiquée et comparer la valeur à la citation.
+> 2. Dans la colonne « OK / correction », écrire `OK`, ou noter la correction (valeur juste, page, citation).
+> 3. Un champ absent du tableau n'est pas contrôlé par la norme.
+> 4. Une correction se fait par `releve-norme` (ligne modifiée avec sa citation), puis nouvelle relecture.
+> 5. Signer : `uv run pad-guard signer-norme <nom> --par "Vincent"`, refusé si la norme a changé depuis le tableau. Les tableaux sans valeur (« aucun » ci-dessous) se lisent sans signature.
+
 Depuis le 28 octobre 2026 (décision de Damien), les normes internationales ne passent plus par le questionnaire
 de `review-profile`. Claude Code relève les valeurs dans le PDF (`normes/releves/<nom>.yaml`), puis
 `uv run pad-guard releve-norme normes/releves/<nom>.yaml` vérifie dans le PDF chaque citation et chaque nombre,
-écrit la norme et le tableau ci-dessous. **Vincent lit et signe le tableau** ; `review-profile` reste pour une
+écrit la norme et le tableau ci-dessous. **Vincent lit et signe le tableau** (`pad-guard signer-norme`, qui écrit `validated_by`,
+`validated_at` et l'empreinte du tableau relu dans `normes/<nom>.yaml`) ; `review-profile` reste pour une
 correction ponctuelle.
 
 Une ligne refusée par le code et rien n'est écrit. Le code vérifie que la citation est dans la page, qu'elle parle

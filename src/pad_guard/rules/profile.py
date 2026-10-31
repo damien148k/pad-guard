@@ -189,8 +189,10 @@ class NormMeta(_Model):
     # A norm drafted from its PDF by the local AI is validated field by field by a human (review-profile).
     validated_by: str | None = None
     validated_at: dt.date | None = None
+    # signer-norme: fingerprint of the review table Vincent read and signed (docs/normes/<name>.md).
+    validated_table_sha256: str | None = None
 
-    @field_validator("source_pdf_sha256")
+    @field_validator("source_pdf_sha256", "validated_table_sha256")
     @classmethod
     def _sha(cls, v: str | None) -> str | None:
         if v is not None and not _SHA256.match(v):

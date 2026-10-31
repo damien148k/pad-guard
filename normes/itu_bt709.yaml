@@ -14,6 +14,8 @@ meta:
   notes: 'Partie 2 (format d''image commun 1920 x 1080). La plage pleine n''est pas définie par BT.709 : voir BT.2100-3, tableau 9.'
   extends: []
   refers_to: []
+  validated_by: null
+  validated_at: null
 
 format:
   width: 1920

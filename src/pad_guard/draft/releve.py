@@ -26,6 +26,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from pad_guard.draft import glossary as glossary_mod
 from pad_guard.draft import pdf as pdf_mod
+from pad_guard.draft import signature
 from pad_guard.draft import verify
 from pad_guard.draft.extract import OK, check
 from pad_guard.draft.schema import catalogue
@@ -209,9 +210,14 @@ def build_norm(survey: Survey, rows: list[Checked], root: Path = ROOT) -> dict[s
         sources[c.row.champ] = c.source
     meta: dict[str, Any] = {"kind": "norm"}
     for key, value in survey.meta.items():
+        if key in signature.SIGNATURE_KEYS:
+            continue
         meta[key] = value
         if key == "source_pdf":
             meta["source_pdf_sha256"] = pdf_mod.sha256(root / value)
+    # A new norm is never signed: Vincent reads the new table, then signer-norme.
+    meta["validated_by"] = None
+    meta["validated_at"] = None
     return {"meta": meta, **data, "sources": dict(sorted(sources.items()))}
 
 
@@ -286,18 +292,34 @@ def _cell(text: Any) -> str:
     return " ".join(text.split()).replace("|", "\\|")
 
 
-def table(survey: Survey, rows: list[Checked], survey_path: Path, root: Path = ROOT) -> str:
+HOW_TO_READ = [
+    "> **Comment relire** (la signature ne porte que sur ce tableau)",
+    ">",
+    "> 1. Pour chaque ligne, ouvrir le PDF de la norme (dossier `normes\\sources\\`) à la page indiquée et comparer "
+    "la valeur à la citation.",
+    "> 2. Dans la colonne « OK / correction », écrire `OK`, ou noter la correction (valeur juste, page, citation).",
+    "> 3. Un champ absent du tableau n'est pas contrôlé par cette norme.",
+    "> 4. Une correction se fait par `releve-norme` (ligne modifiée avec sa citation), puis nouvelle relecture.",
+    "> 5. Signer : `uv run pad-guard signer-norme <nom> --par \"Vincent\"` (refusé si la norme a changé depuis "
+    "ce tableau).",
+]
+
+
+def table(survey: Survey, rows: list[Checked], survey_path: Path, root: Path = ROOT,
+          norm_sha: str | None = None) -> str:
     """The review table, in French, for Vincent: one line per value, then what the norm says without a value."""
     m = survey.meta
     d = m["document"]
     specs = {s.path: s.description for s in catalogue()}
     pdf_path = root / m["source_pdf"]
     lines = [f"# {d['title']} ({d['version']}) : relevé des valeurs", "",
+             *[ln.replace("<nom>", m["name"]) for ln in HOW_TO_READ], "",
              f"Document : `{m['source_pdf']}` (SHA-256 `{pdf_mod.sha256(pdf_path)}`).",
              *[f"Autre document cité : `{o.fichier}` ({o.libelle})." for o in survey.autres_pdf.values()],
              f"Relevé par {survey.releve_par} le {survey.releve_le.strftime('%d/%m/%Y')} : "
              f"`{_shown(survey_path, root)}`.",
-             _norm_line(survey.fichier_norme, m["name"]), "",
+             _norm_line(survey.fichier_norme, m["name"]),
+             *([signature.stamp_line(m["name"], norm_sha)] if norm_sha else []), "",
              "Chaque citation a été retrouvée par `pad-guard releve-norme` dans la page indiquée ; pour une valeur "
              "chiffrée, le nombre est dans la citation, et dans un tableau la colonne correspond au champ. "
              "Le code ne juge pas du sens : c'est l'objet de cette relecture.", ""]
@@ -306,10 +328,11 @@ def table(survey: Survey, rows: list[Checked], survey_path: Path, root: Path = R
         lines += ["## Normes auxquelles ce document renvoie", "",
                   "Leurs valeurs s'appliquent aussi quand un diffuseur renvoie à ce document (renvoi transitif) ; "
                   "elles ne sont pas recopiées ici.", "",
-                  "| Norme | Citation du renvoi | Version citée |", "|---|---|---|"]
-        lines += [f"| `{r['norm']}` | {_cell(r['source'])} | {_cell(r.get('cited_version') or '')} |" for r in refs]
+                  f"| Norme | Citation du renvoi | Version citée | {signature.CHECK_COLUMN} |", "|---|---|---|---|"]
+        lines += [f"| `{r['norm']}` | {_cell(r['source'])} | {_cell(r.get('cited_version') or '')} | |" for r in refs]
         lines.append("")
-    lines += ["## Valeurs", "", "| Champ | Valeur | Page | Citation | Remarque |", "|---|---|---|---|---|"]
+    lines += ["## Valeurs", "", f"| Champ | Valeur | Page | Citation | Remarque | {signature.CHECK_COLUMN} |",
+              "|---|---|---|---|---|---|"]
     for c in rows:
         r = c.row
         name = f"`{r.champ}`" + (f"<br>{_cell(specs[r.champ])}" if specs.get(r.champ) else "")
@@ -317,24 +340,28 @@ def table(survey: Survey, rows: list[Checked], survey_path: Path, root: Path = R
         note = r.remarque + {"citation": " Valeur en texte libre : seule la citation est vérifiée par le code.",
                              "code10": " Pourcentage écrit en code 10 bits par la norme : le code vérifie le code "
                                        "équivalent (arrondi vers l'extérieur) dans la citation."}.get(r.controle, "")
-        lines.append(f"| {name} | `{_cell(r.valeur)}` | {page} | « {_cell(r.citation)} » | {_cell(note.strip())} |")
+        lines.append(f"| {name} | `{_cell(r.valeur)}` | {page} | « {_cell(r.citation)} » | {_cell(note.strip())} | |")
     if not rows:
-        lines.append("| (aucune) | | | | |")
+        lines.append("| (aucune) | | | | | |")
     lines.append("")
     if survey.non_retenus:
         lines += ["## Lu dans la norme, sans valeur dans PAD Guard", "",
-                  "| Sujet | Page | Citation | Pourquoi aucune valeur |", "|---|---|---|---|"]
+                  f"| Sujet | Page | Citation | Pourquoi aucune valeur | {signature.CHECK_COLUMN} |",
+                  "|---|---|---|---|---|"]
         for u in survey.non_retenus:
             page = f"{u.page}" + (f" ({survey.autres_pdf[u.pdf].libelle})" if u.pdf else "")
-            lines.append(f"| {_cell(u.sujet)} | {page} | « {_cell(u.citation)} » | {_cell(u.remarque)} |")
+            lines.append(f"| {_cell(u.sujet)} | {page} | « {_cell(u.citation)} » | {_cell(u.remarque)} | |")
         lines.append("")
     if survey.absents:
         lines += ["## Champs absents", "", survey.absents, ""]
+    sign = (f"puis `uv run pad-guard signer-norme {m['name']} --par \"Vincent\"` écrit la signature dans "
+            f"`normes/{m['name']}.yaml`." if norm_sha else
+            "aucune valeur n'est appliquée par PAD Guard : ce tableau se lit, rien n'est à signer.")
     lines += ["## Validation", "",
               "Pour chaque ligne : la valeur correspond-elle au sens du document ? Corrections dans le relevé "
-              f"(`{_shown(survey_path, root)}`), puis `uv run pad-guard releve-norme {_shown(survey_path, root)}` ; "
-              "`review-profile` reste possible pour une correction ponctuelle.", "",
-              "Relu et validé par : ____________________  le : ____________  signature : ____________________", ""]
+              f"(`{_shown(survey_path, root)}`), puis `uv run pad-guard releve-norme {_shown(survey_path, root)}`, "
+              f"qui réécrit ce tableau et efface la signature ; relecture complète, {sign}", "",
+              signature.unsigned_line(), ""]
     return "\n".join(lines)
 
 
@@ -354,9 +381,11 @@ def run(survey_path: Path, norms_dir: Path, docs_dir: Path = DOCS, root: Path = 
     written = None
     if survey.fichier_norme == "verifier":
         compare_with_norm(survey, rows, norm_path)
+        signature.clear(norm_path)  # a new table: a new signature
     elif survey.fichier_norme == "ecrire":
         written = write_norm(survey, rows, survey_path, norms_dir, root)
+    norm_sha = signature.norm_fingerprint(norm_path) if survey.fichier_norme != "aucun" else None
     docs_dir.mkdir(parents=True, exist_ok=True)
     out = docs_dir / f"{survey.meta['name']}.md"
-    out.write_text(table(survey, rows, survey_path, root), encoding="utf-8", newline="\n")
+    out.write_text(table(survey, rows, survey_path, root, norm_sha), encoding="utf-8", newline="\n")
     return written, out

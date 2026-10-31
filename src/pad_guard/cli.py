@@ -838,6 +838,26 @@ def releve_norme(
     elif (releve.ROOT / "normes" / survey.name).is_file():
         console.print("Norme inchangée : ses valeurs sont exactement celles du relevé.")
     console.print(f"Tableau de relecture : {table}")
+    if (releve.ROOT / "normes" / survey.name).is_file():
+        console.print(f"Nouveau tableau, non signé : à relire, puis pad-guard signer-norme {survey.stem} "
+                      "--par \"…\".")
+
+
+@app.command("signer-norme")
+def signer_norme(
+    name: str = typer.Argument(..., help="Nom de la norme (normes/<nom>.yaml), ou lumiris_maison."),
+    par: str = typer.Option(..., "--par", help="Personne qui a relu le tableau (ex. « Vincent »)."),
+) -> None:
+    """Signe le tableau relu : écrit validated_by, validated_at et l'empreinte du tableau dans normes/<nom>.yaml."""
+    from pad_guard.draft import releve, signature
+
+    try:
+        norm, table = signature.sign(name, par, releve.ROOT)
+    except signature.SignatureError as exc:
+        console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(EXIT_REFUSED) from None
+    console.print(f"Signé par {' '.join(par.split())} : {norm}")
+    console.print(f"Tableau : {table} (la signature ne porte que sur ce tableau)")
 
 
 if __name__ == "__main__":

@@ -65,7 +65,7 @@ def test_survey_writes_the_norm_and_its_table(lab) -> None:
     md = table.read_text(encoding="utf-8")
     assert "| `audio.sample_rate`" in md and "| `48000` | 2 | « Audio \\| 48 kHz, 24 bits » |" in md
     assert "Phrase \\| entière." in md  # a pipe in a cell does not break the table
-    assert "## Lu dans la norme, sans valeur dans PAD Guard" in md and "Relu et validé par" in md
+    assert "## Lu dans la norme, sans valeur dans PAD Guard" in md and "Relu par : ___" in md and "| OK / correction |" in md
     assert "`ebu_r128`" in md  # the reference, shown, its values not copied
 
 
